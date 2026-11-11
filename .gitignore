@@ -1,0 +1,20 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+
+# Node / chart build
+node_modules/
+src/TradeViewer.Web/wwwroot/chart/
+
+# Local data (databases, backups)
+data/
+
+# IDE / tools
+.idea/
+.vscode/
+.claude/settings.local.json
+CLAUDE.local.md
