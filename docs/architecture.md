@@ -118,16 +118,16 @@ rules.
 
 ```text
 Features/
-├── Assets            add, change, remove, lookup (AS1-AS3)
+├── Assets            symbol list, add, history, remove (AS2-AS5)
 ├── MarketData        candles, import, sync status, gaps (MD1-MD5)
-├── Watchlists        (AS4, AS5)
+├── Watchlists        the five fixed lists, order, row figures (AS1, AS6)
 ├── Layouts           (LY1-LY3)
 ├── Indicators        calculation requests, indicator templates (CH5, CH6)
 ├── Drawings          drawings, Fibonacci presets (DR1-DR6)
 ├── Downloader        status and subscriptions for the monitoring page (DL1-DL4)
 ├── EwtsInstances     registration, status, observed assets, overview, details (EW1-EW6)
 ├── Overlays          (OV1-OV5)
-├── TestRuns          (BT1-BT6)
+├── TestRuns          (BT1-BT8)
 ├── Alerts            (AL1-AL4)
 ├── Scenarios         list and read scenario drawing files (SC1-SC9)
 └── Workspace         backup and restore (WS3)
@@ -187,10 +187,9 @@ answered with 500 without internal details.
 ```text
 Abstractions/
 ├── Messaging     the CQRS interfaces
-├── MarketData    ICandleStore, ICandleFileReader, IDownloaderClient
+├── MarketData    ICandleStore, ICandleFileReader, IDownloaderClient, ISymbolCatalog
 ├── Ewts          IEwtsClient, IScenarioFileReader
-├── Workspace     one repository interface per feature: IAssetRepository, IWatchlistRepository,
-│                 ILayoutRepository, IDrawingRepository, IEwtsInstanceRepository, ...
+├── Workspace     one repository interface per feature: IAssetRepository, ILayoutRepository, IDrawingRepository, IEwtsInstanceRepository, ...
 └── Realtime      IWorkspaceNotifier (implemented by the Api on top of the SignalR hub)
 ```
 
@@ -203,7 +202,7 @@ The clock is the built-in `TimeProvider`.
 ```text
 Asset               source, symbol, display name, asset class, tick size, session,
                     source timeframes
-AssetClass          Crypto, Stock, Etf, Forex
+AssetClass          Crypto, Stock, Etf, Forex, Commodity; also the watchlist of the asset
 Session             Continuous, Exchange (time zone, open, close), NewYorkClose
 Timeframe           M15, H1, H4, D1, W1 (later M1, M5, H12, MN1); codes 15m, 1h, 4h, 1d, 1w
 Candle              open time (UTC), open, high, low, close, volume
@@ -215,7 +214,6 @@ Indicator           Sma, Ema, BollingerBands, Rsi, Macd, Atr: candles + paramete
 IndicatorInstance   indicator type, parameters, style
 IndicatorTemplate   name, indicator instances
 
-Watchlist           name, ordered assets
 Layout              name, grid (1, 2, 4), panes, sync options
 ChartPane           asset, timeframe, price scale mode, indicator instances, hidden groups
 
@@ -241,7 +239,7 @@ Decision 0003. Interface of the Downloader: docs/knowledge/downloader-api.md.
 ### Flow
 
 ```text
-add asset     lookup -> PUT subscription (client "tradeviewer") -> store asset -> first import
+add asset     symbol from ISymbolCatalog -> lookup -> PUT subscription (client "tradeviewer") -> store asset -> first import
 sync          MarketDataSyncService, every PollSeconds per asset:
                 symbol status -> lastChange greater than stored?
                   yes: changes?after=n -> import the named files -> store lastChange
@@ -250,9 +248,16 @@ sync          MarketDataSyncService, every PollSeconds per asset:
 rescan        compare every *.csv of the asset (size, modified time) with the import log and
               import what differs; runs at the first import, on complete == false, and once at
               startup for every asset
-remove asset  DELETE subscription -> delete the asset's rows from the candle store
+remove asset  switch off its analysis at EWTS if on -> DELETE
+              subscription -> delete its drawings -> delete its rows from the candle store
 ```
 
+- Only files from the asset's history start per timeframe are imported, although the folder
+  can hold more (another client, e.g. EWTS, may have subscribed a longer history). Opening a
+  scenario whose time span is not stored moves the history start back to it (SC8).
+- The symbols offered when adding an asset come from `ISymbolCatalog`: today a list file per
+  source shipped with the application (`Symbols/<source>.txt`), later the Downloader's symbol
+  catalog. The default history is a user setting in the workspace (AS3).
 - There is no file watcher. The Downloader's change numbers are the only change signal; the
   rescan is the fallback.
 - When the Downloader is unreachable the sync logs it once, keeps the last known status and
@@ -358,8 +363,10 @@ GetChangesAsync(after)                              what changed since change nu
   `PollSeconds` and publishes them through `IWorkspaceNotifier`. EWTS does not push.
 - **Timeframes.** EWTS writes `M15, H1, H4, D1, W1`; TradeViewer's own API uses the
   Downloader's codes. `EwtsClient` converts.
-- **Assets.** Adding an observed asset first makes sure the asset exists in TradeViewer
-  (EW3), then calls the instance. EWTS subscribes at the Downloader under its own client name.
+- **Assets.** Analysis is switched on for an asset that is already in a watchlist (EW3);
+  TradeViewer then calls the instance, which subscribes at the Downloader under its own
+  client name. Which instance analyses an asset is known from the instance's own asset list,
+  not stored in TradeViewer.
 
 ### Scenario Files
 
@@ -381,7 +388,13 @@ ReadAsync(path)                                     one file with its groups and
   the chart module (`setOverlays`).
 - The scenario page is a chart pane outside the layouts: it takes asset, timeframe and time
   span from the file and saves nothing to the workspace.
-- Without `Scenarios:RootPath` the feature is switched off and its menu entry is hidden.
+- The scenarios of a test run are ordinary scenario files in the folder
+  `test-runs/<run id>/` below the root. The test run names that folder; TradeViewer lists it
+  with the same reader (BT4, BT5). Nothing about a trade is drawn from the report itself.
+- The figures of a scenario are name and value pairs written by EWTS; TradeViewer shows them
+  as columns and in the panel without knowing their meaning (SC4).
+- Without `Scenarios:RootPath` the feature is switched off and its menu entry is hidden; test
+  runs then show statistics only.
 
 ---
 
@@ -391,13 +404,13 @@ Routes are grouped per feature. Request and response records are in `TradeViewer
 Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 
 ```text
+/api/symbols/{source}?q=                      symbols that can be added
 /api/assets                                   list, add
-/api/assets/{source}/{symbol}                 get, change subscription, remove
-/api/assets/lookup/{source}/{symbol}          lookup at the Downloader
+/api/assets/{source}/{symbol}                 get (with loading progress), change history, remove
 /api/candles/{source}/{symbol}/{timeframe}
 /api/indicators/{source}/{symbol}/{timeframe}
 /api/indicator-templates
-/api/watchlists
+/api/watchlists                               the five lists with their rows; reorder
 /api/layouts
 /api/drawings                                 by asset and layout
 /api/fibonacci-presets
@@ -489,7 +502,7 @@ marketdata.db    candle store (see 6)      cache, may be deleted
 workspace.db     what the user creates     backed up, upgraded, never deleted
 ```
 
-Workspace tables: assets, watchlists, watchlist entries, layouts, panes, indicator templates,
+Workspace tables: assets (with their position in the watchlist), layouts, panes, indicator templates,
 drawings, Fibonacci presets, EWTS instances, settings.
 
 - Microsoft.Data.Sqlite with plain SQL

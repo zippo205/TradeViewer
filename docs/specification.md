@@ -37,11 +37,12 @@ Workspace       everything the user creates in TradeViewer (watchlists, layouts,
 EWTS instance   one running EWTS; it handles the assets of exactly one source
 Observed asset  an asset an EWTS instance analyses continuously
 Overlay         analysis drawings of EWTS shown on a chart; read-only in TradeViewer
-Test run        a backtest (later also a Walk Forward run) executed by an EWTS instance
+Test run        a backtest (later also a Walk Forward run) an EWTS instance runs on its own;
+                it reports statistics and writes a scenario for every setup it handled
 Alert           a message of an EWTS instance about a setup or a trade plan event
 Scenario        one market situation written down in EWTS's scenario format: the waves of a
-                1-2, optionally the trade; either the owner's reading (expert scenario) or
-                the engine's reading of one of its trades (analysis case)
+                1-2, optionally the trade; the owner's reading (expert scenario) or the
+                engine's reading (analysis case, scenario of a test run)
 ```
 
 ## 3. Users and Environment
@@ -57,21 +58,32 @@ Scenario        one market situation written down in EWTS's scenario format: the
 
 Every requirement has an id. The backlog refers to these ids.
 
-### 4.1 Assets and Watchlists
+### 4.1 Watchlists and Assets
 
-- **AS1** The user adds an asset by source and symbol. TradeViewer looks it up at the Downloader
-  first and shows its name, asset class and available timeframes; an unknown symbol is rejected
-  with the Downloader's message.
-- **AS2** Adding an asset subscribes it at the Downloader with the timeframes and the history
-  start the user chooses (defaults: all timeframes of the source, the Downloader's default
-  history). The user can change both later.
-- **AS3** Removing an asset ends TradeViewer's subscription and removes its candles from the
-  candle store. The user's drawings for the asset are kept and reappear when the asset is added
-  again.
-- **AS4** Watchlists: named, ordered lists of assets. The user creates, renames, deletes and
-  reorders watchlists and their entries. An asset can be in several watchlists.
-- **AS5** A watchlist row shows the last close, the change of the current day in percent, and
-  whether an EWTS instance observes the asset.
+- **AS1** There are five fixed watchlists, one per asset class: Crypto, Stocks, ETFs, Forex and
+  Commodities. An asset is placed in the watchlist of its asset class, whatever source it
+  comes from; each row names the source. The user reorders the entries of a watchlist.
+  Watchlists cannot be created, renamed or deleted. Assets exist in TradeViewer only through
+  the watchlists. (The Downloader has no asset class for commodities yet; that watchlist stays
+  empty until it has.)
+- **AS2** The user adds an asset to a watchlist by choosing the source and picking the symbol
+  from the symbols of that source, found by typing. Until the Downloader provides its symbol
+  catalog, the symbols come from a fixed list per source (binance, yahoo) that is part of
+  TradeViewer. The Downloader confirms the symbol; if it does not know it, the asset is
+  rejected with the Downloader's message.
+- **AS3** Adding an asset subscribes it at the Downloader with all timeframes of the source
+  and the default history, which the user sets once in the settings (initially: 1d and 1w
+  complete, 4h two years, 1h one year, 15m 90 days). The source may provide less. The user can
+  change the history of a single asset later.
+- **AS4** An asset whose history is still being downloaded is marked as loading, with the
+  progress per timeframe. A timeframe can be charted as soon as its newest candles are there.
+- **AS5** Removing an asset from its watchlist removes it from TradeViewer: its analysis is
+  switched off at EWTS if it was on (EW3), its subscription at the Downloader ends, and its
+  candles and all its drawings are deleted. TradeViewer asks for confirmation first and says
+  what will be deleted.
+- **AS6** A watchlist row shows the last close with its time, the change against the previous
+  daily close in percent (the day in UTC for crypto), a warning mark when the asset has gaps
+  or an import error, and a mark when EWTS analyses it.
 
 ### 4.2 Market Data
 
@@ -140,9 +152,13 @@ Every requirement has an id. The backlog refers to these ids.
   Several instances can be registered.
 - **EW2** The instance list shows for each: reachable or not, version, source, number of
   observed assets, time of the last analysis.
-- **EW3** Observed assets: the user adds an asset to an instance with setup timeframe, history
-  start and parameter profile, and removes it. An asset added to an instance is also added to
-  TradeViewer (AS1, AS2) if it is not there yet.
+- **EW3** Assets are independent of EWTS: every asset of a watchlist can be charted and drawn
+  on without it. An instance handles exactly one source, so only the instances whose source
+  is the asset's source are offered, and a request for another source is refused. The user
+  switches the analysis of an asset on by choosing the instance, the setup timeframe (D1 or H4,
+  which fixes the timeframes of the analysis), the history start and the parameter profile.
+  The instance then analyses the asset on every new candle until the user switches the
+  analysis off.
 - **EW4** Overview per instance: one table of its observed assets with setup timeframe, time of
   the last analysis, state of a watched setup or open plan, and grade of the best setup.
 - **EW5** Asset details: the current count in short form, the setups with grade, score, entry,
@@ -164,14 +180,22 @@ Every requirement has an id. The backlog refers to these ids.
 
 ### 4.9 Test Runs
 
-- **BT1** The user starts a backtest at an instance: asset, timeframe, period, account size,
-  risk per trade and the optional overrides the instance offers.
-- **BT2** A running test shows its progress and can be cancelled. Finished runs stay listed.
+- **BT1** The user starts a backtest at an instance: an asset of the instance's source,
+  timeframe, period, account size, risk per trade and the optional overrides the instance
+  offers.
+- **BT2** A running test shows its progress and its statistics so far, updated as it runs, and
+  can be cancelled. Finished runs stay listed.
 - **BT3** Result view: funnel, statistics, equity curve, and the list of trades and watches.
-- **BT4** Selecting a trade or a watch opens a chart at its time with its entry, stop, exits and
-  events drawn.
-- **BT5** Two or more runs can be compared side by side by their statistics and equity curves.
-- **BT6** A run can be exported as JSON; its trade list as CSV.
+- **BT4** For every setup a run watched or traded, EWTS writes a scenario. The result view
+  lists the scenarios of the run with their figures (e.g. grade, score, path, result in R,
+  exit reason, duration) and can be sorted and filtered by them. Scenarios appear in the list
+  while the run is still going.
+- **BT5** Selecting a scenario of a run opens it in the Scenario Viewer (4.11), where the
+  analysis is checked against the candles. "Previous" and "next" step through the scenarios
+  of the run.
+- **BT6** Two or more runs can be compared side by side by their statistics and equity curves.
+- **BT7** A run can be exported as JSON; its trade list as CSV.
+- **BT8** Deleting a run deletes its scenarios.
 
 ### 4.10 Alerts
 
@@ -188,7 +212,8 @@ Replaces the present way of checking a scenario of EWTS: generating a Pine scrip
 it in TradingView.
 
 - **SC1** TradeViewer lists the scenarios EWTS provides in a shared folder: id, asset, context
-  timeframe, direction, verdict, draft mark and kind (expert scenario, analysis case). The list
+  timeframe, direction, verdict, draft mark and kind (expert scenario, analysis case, scenario
+  of a test run). The list
   can be filtered by asset, kind, direction and verdict and sorted by any column.
 - **SC2** Opening a scenario shows a chart of its asset on its context timeframe, positioned
   on the time span of the scenario, with the scenario drawn: waves and their labels, levels,
@@ -196,15 +221,17 @@ it in TradingView.
   drawing stays.
 - **SC3** The drawing is grouped as in the scenario (waves, lower-degree 1-2, levels, trade).
   The user shows and hides each group.
-- **SC4** A panel next to the chart shows the verdict, the reason and the notes of the
-  scenario. Pointing at a label or level shows its price, time and reason.
+- **SC4** A panel next to the chart shows the verdict, the reason, the notes and the figures
+  of the scenario (for a scenario of a test run: what the engine measured and how the trade
+  ended). Pointing at a label or level shows its price, time and reason.
 - **SC5** The chart of a scenario uses the logarithmic price scale by default, because the
   levels of a scenario are measured in log scale.
 - **SC6** "Previous" and "next" step through the filtered list without returning to it.
 - **SC7** A new or changed scenario file appears when the list or the open scenario is
   reloaded; no restart is needed.
 - **SC8** When the asset of a scenario is not in TradeViewer, the scenario says so and offers
-  to add the asset.
+  to add the asset. When the candles of the scenario's time span are not stored, TradeViewer
+  loads the history it needs, whatever the default history of AS3 is.
 - **SC9** Scenarios are read-only. Writing and changing scenario files stays in EWTS.
 
 ### 4.12 Workspace
@@ -244,7 +271,7 @@ Measured on a Raspberry Pi 5 with an SSD, a desktop browser in the same network,
 - Writing and editing scenarios (EWTS)
 - The journal and the trades of EWTS (possible later)
 - Order execution and broker connections
-- Replay training and paper trading (decision 0005)
+- Replay and paper trading (decision 0005)
 - Several users, shared workspaces
 - A mobile application
 

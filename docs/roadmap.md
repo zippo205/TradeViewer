@@ -36,7 +36,8 @@ Starts when EWTS provides its required interface.
 
 Not planned; each needs a specification change first.
 
-- Stocks, ETFs and Forex (when the Downloader provides the sources)
-- Symbol picker (when the Downloader provides its symbol catalog)
+- Stocks, ETFs, Forex and commodities (when the Downloader provides the sources and the
+  asset class for commodities)
+- Symbol search from the Downloader's symbol catalog instead of the fixed list (AS2)
 - Walk Forward runs (when EWTS provides them)
 - Journal and trades of EWTS

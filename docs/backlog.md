@@ -40,12 +40,12 @@ Outcome: a place for user data that survives restarts, updates and restores.
 Branch: `feature/market-data`
 
 - Downloader client with the copied contracts
-- Add, change and remove an asset, with lookup and subscription
+- Symbol list per source; add an asset, loading progress, change its history, remove it
 - CSV reader for the Binance spot format, file rules and validation
 - Candle store, import, rescan, sync service on the Downloader's change numbers
 - Candle endpoint in column format
 
-Requirements: AS1, AS2, AS3, MD1, MD2, MD5, NF4, NF5
+Requirements: AS2, AS3, AS4, AS5, MD1, MD2, MD5, NF4, NF5
 Depends on: Workspace Persistence
 Knowledge: docs/knowledge/downloader-api.md
 Outcome: the candles of every added asset are in the store and stay up to date.
@@ -86,7 +86,7 @@ TradingView.
 
 Branch: `feature/watchlists-layouts`
 
-Requirements: AS4, AS5, LY1, LY2, LY3
+Requirements: AS1, AS6, LY1, LY2, LY3
 Depends on: Price Chart
 Outcome: the user arranges assets and charts and finds them again at the next start.
 
@@ -160,8 +160,11 @@ Knowledge: docs/knowledge/ewts-api.md
 
 Branch: `feature/test-runs`
 
-Requirements: BT1, BT2, BT3, BT4, BT5, BT6
-Depends on: Analysis Overlays
+- Start, progress with running statistics, cancel, list, result view, comparison, export
+- Scenarios of a run listed with their figures and opened in the Scenario Viewer
+
+Requirements: BT1, BT2, BT3, BT4, BT5, BT6, BT7, BT8
+Depends on: EWTS Instances, Scenario Viewer
 Knowledge: docs/knowledge/ewts-api.md
 
 ## Epic: Alerts
