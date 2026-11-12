@@ -121,8 +121,8 @@ Features/
 ├── Assets            symbol list, add, history, remove (AS2-AS5)
 ├── MarketData        candles, import, sync status, gaps (MD1-MD5)
 ├── Watchlists        the five fixed lists, order, row figures (AS1, AS6)
-├── Layouts           (LY1-LY3)
-├── Indicators        calculation requests, indicator templates (CH5, CH6)
+├── ChartSettings     settings per asset, last chart (CP2, CP3)
+├── Indicators        calculation requests, indicator templates (IN1, IN2)
 ├── Drawings          drawings, Fibonacci presets (DR1-DR6)
 ├── Downloader        status and subscriptions for the monitoring page (DL1-DL4)
 ├── EwtsInstances     registration, status, observed assets, overview, details (EW1-EW6)
@@ -173,7 +173,7 @@ class; the handler calls it first.
 ```text
 ErrorType      HTTP    used for
 Validation     400     invalid input (validation problem details with the fields)
-NotFound       404     unknown asset, layout, instance, ...
+NotFound       404     unknown asset, instance, ...
 Conflict       409     e.g. asset already exists
 InvalidData    422     a file or an upstream answer breaks its contract
 Unavailable    503     the Downloader or an EWTS instance cannot be reached
@@ -189,7 +189,7 @@ Abstractions/
 ├── Messaging     the CQRS interfaces
 ├── MarketData    ICandleStore, ICandleFileReader, IDownloaderClient, ISymbolCatalog
 ├── Ewts          IEwtsClient, IScenarioFileReader
-├── Workspace     one repository interface per feature: IAssetRepository, ILayoutRepository, IDrawingRepository, IEwtsInstanceRepository, ...
+├── Workspace     one repository interface per feature: IAssetRepository, IChartSettingsRepository, IDrawingRepository, IEwtsInstanceRepository, ...
 └── Realtime      IWorkspaceNotifier (implemented by the Api on top of the SignalR hub)
 ```
 
@@ -214,12 +214,11 @@ Indicator           Sma, Ema, BollingerBands, Rsi, Macd, Atr: candles + paramete
 IndicatorInstance   indicator type, parameters, style
 IndicatorTemplate   name, indicator instances
 
-Layout              name, grid (1, 2, 4), panes, sync options
-ChartPane           asset, timeframe, price scale mode, indicator instances, hidden groups
+ChartSettings       asset, price scale mode, indicator instances, drawings hidden, hidden groups
 
-Drawing             id, asset, layout, tool type, anchors, style, text, payload version
+Drawing             id, asset, tool type, locked, anchors, style, text, payload version
 Anchor              time (UTC) + price, never a bar index
-FibonacciPreset     name, kind (retracement, extension), levels with colour and label
+FibonacciPreset     name, kind (retracement, extension), levels (ratios)
 
 EwtsInstance        id, name, base address
 ```
@@ -240,8 +239,12 @@ Decision 0003. Interface of the Downloader: docs/knowledge/downloader-api.md.
 
 ```text
 add asset     symbol from ISymbolCatalog -> lookup -> PUT subscription (client "tradeviewer") -> store asset -> first import
-sync          MarketDataSyncService, every PollSeconds per asset:
-                symbol status -> lastChange greater than stored?
+sync          MarketDataSyncService, per asset, aligned to the clock (MD2):
+                due at every close of the asset's smallest timeframe + 30 s (the Downloader's
+                cycle starts at :00:30, :15:30 ... UTC); then every PollSeconds until the symbol
+                status shows a greater lastChange, at most PollWindowMinutes; one check at
+                startup and after the Downloader was unreachable
+                lastChange greater than stored?
                   yes: changes?after=n -> import the named files -> store lastChange
                        complete == false -> rescan the asset
                 -> IWorkspaceNotifier.CandlesUpdated
@@ -303,6 +306,11 @@ GET /api/candles/{source}/{symbol}/{timeframe}?to={time}&limit={n}
 - First page 2,000 candles, older pages 5,000 (CH4).
 - A timeframe the source lacks is aggregated on read from the largest stored timeframe that
   divides it (MD3); aggregated candles are not stored.
+- The current candle (MD8) is built on read from the closed candles of the smallest stored
+  timeframe after the last closed candle of the requested one and appended as the last
+  element; the response carries `"partial": true` then. It is not stored. `CandlesUpdated`
+  of the smallest timeframe also tells open charts of higher timeframes to reload their last
+  candle. Indicators use the same series including the current candle.
 - Indicators are calculated on request from the stored candles with the warm-up they need and
   returned in the same column format: `GET /api/indicators/{source}/{symbol}/{timeframe}`.
 - The Api keeps a small in-memory cache of the most recently used series and indicator
@@ -386,7 +394,7 @@ ReadAsync(path)                                     one file with its groups and
   leaves the root.
 - The shapes are the records of the analysis drawings and are drawn by the same primitives of
   the chart module (`setOverlays`).
-- The scenario page is a chart pane outside the layouts: it takes asset, timeframe and time
+- The scenario page is a chart apart from the chart page: it takes asset, timeframe and time
   span from the file and saves nothing to the workspace.
 - The scenarios of a test run are ordinary scenario files in the folder
   `test-runs/<run id>/` below the root. The test run names that folder; TradeViewer lists it
@@ -411,8 +419,8 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/indicators/{source}/{symbol}/{timeframe}
 /api/indicator-templates
 /api/watchlists                               the five lists with their rows; reorder
-/api/layouts
-/api/drawings                                 by asset and layout
+/api/chart-settings/{source}/{symbol}         get, put
+/api/drawings                                 by asset
 /api/fibonacci-presets
 /api/downloader/status
 /api/downloader/subscriptions
@@ -430,7 +438,7 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /health
 ```
 
-- Drawings, layouts and watchlists get their id (UUID) from the client and are written with
+- Drawings and watchlists get their id (UUID) from the client and are written with
   an idempotent `PUT`, so the client can show a change at once and save it in the background
   (NF3, WS1).
 - No OpenAPI document; `src/TradeViewer.Api/TradeViewer.Api.http` holds example requests.
@@ -467,8 +475,7 @@ TradeViewer.Chart/src/
 ├── data/                  fetching candles and indicators from the Api, page cache
 ├── indicators/            indicator series and panes (values come from the Api)
 ├── tools/                 interaction: hit testing, handles, tool state machine
-├── primitives/            one series primitive per drawing type and per overlay shape
-└── sync/                  crosshair sync between panes
+└── primitives/            one series primitive per drawing type and per overlay shape
 ```
 
 ### Interop Contract
@@ -502,7 +509,7 @@ marketdata.db    candle store (see 6)      cache, may be deleted
 workspace.db     what the user creates     backed up, upgraded, never deleted
 ```
 
-Workspace tables: assets (with their position in the watchlist), layouts, panes, indicator templates,
+Workspace tables: assets (with their position in the watchlist), chart settings per asset, indicator templates,
 drawings, Fibonacci presets, EWTS instances, settings.
 
 - Microsoft.Data.Sqlite with plain SQL
@@ -510,7 +517,7 @@ drawings, Fibonacci presets, EWTS instances, settings.
   transaction each; the version is `PRAGMA user_version`. Before an upgrade the database is
   backed up (WS4)
 - WAL mode; every command writes at once (WS1)
-- Layout panes, indicator instances and drawings are stored as JSON with a type discriminator
+- Chart settings, indicator instances and drawings are stored as JSON with a type discriminator
   and a payload version, so a new drawing type needs no schema change
 - Daily backup with the SQLite online backup API into `backups/`, keeping `KeepCount` copies;
   restoring replaces workspace.db after backing up the current one (WS3)
@@ -527,7 +534,8 @@ MarketData:RootPath                          required; the Downloader's output r
 MarketData:Downloader:Enabled                false   (tests keep false)
 MarketData:Downloader:BaseUrl                http://localhost:8081
 MarketData:Downloader:Client                 tradeviewer   (Development: tradeviewer-dev)
-MarketData:Downloader:PollSeconds            30
+MarketData:Downloader:PollSeconds            20   (interval of the checks after a due time)
+MarketData:Downloader:PollWindowMinutes      10   (a due check gives up after this)
 MarketData:Downloader:RequestTimeoutSeconds  30
 Ewts:Enabled                                 false   (tests keep false)
 Ewts:PollSeconds                             30
@@ -607,7 +615,6 @@ O1  EWTS has to accept and build the interface of ewts-api.md, chapter "Required
     the scenario drawing files for the Scenario Viewer, the API for the epics EWTS Instances,
     Analysis Overlays, Test Runs and Alerts. The owner aligns this with the EWTS agent by a
     prompt written from that chapter.
-O2  Default parameters and colours of the indicators (CH5) and the colour of each overlay
-    role are not specified; they are set in the plans of the Indicators and Scenario Viewer
-    epics.
+O2  The colour of each overlay role is not specified; it is set in the plan of the Scenario
+    Viewer epic.
 ```

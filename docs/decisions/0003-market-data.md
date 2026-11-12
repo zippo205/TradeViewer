@@ -15,7 +15,8 @@ no push channel; it numbers every file change and clients poll.
    it never writes to.
 2. The files are imported into a local candle store (`marketdata.db`). Charts read from the
    store, never from CSV.
-3. Changes are detected by polling the Downloader's change numbers. A rescan of the asset's
+3. Changes are detected by polling the Downloader's change numbers, at the times the Downloader is
+   expected to have written new candles. A rescan of the asset's
    files (size and modified time against an import log) is the fallback.
 4. An asset is identified by source and symbol everywhere.
 
@@ -39,4 +40,4 @@ no push channel; it numbers every file change and clients poll.
 ## Consequences
 
 - Candles exist twice (files and store); the store is about 3 GB for 100 assets.
-- New candles reach a chart after the poll interval plus the import, not instantly (MD2).
+- New candles reach a chart after the Downloader's update cycle plus the poll interval and the import, not instantly (MD2).

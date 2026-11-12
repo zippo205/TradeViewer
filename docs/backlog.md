@@ -43,9 +43,9 @@ Branch: `feature/market-data`
 - Symbol list per source; add an asset, loading progress, change its history, remove it
 - CSV reader for the Binance spot format, file rules and validation
 - Candle store, import, rescan, sync service on the Downloader's change numbers
-- Candle endpoint in column format
+- Candle endpoint in column format, with the current candle built from the smallest timeframe
 
-Requirements: AS2, AS3, AS4, AS5, MD1, MD2, MD5, NF4, NF5
+Requirements: AS2, AS3, AS4, AS5, MD1, MD2, MD5, MD6, MD8, NF4, NF5
 Depends on: Workspace Persistence
 Knowledge: docs/knowledge/downloader-api.md
 Outcome: the candles of every added asset are in the store and stay up to date.
@@ -56,10 +56,10 @@ Branch: `feature/price-chart`
 
 - Chart module with candles, volume, scales, crosshair, zoom, pan and paging
 - `ChartHost` and the interop contract
-- One chart page with asset and timeframe selection
+- One chart page with asset and timeframe selection, address per chart, settings per asset
 - Live update on `CandlesUpdated`
 
-Requirements: CH1, CH2, CH3, CH4, NF1, NF2
+Requirements: CH1, CH2, CH3, CH4, CH5, CP1, CP2, CP3, MD7, NF1, NF2
 Depends on: Assets and Market Data
 Outcome: any stored asset can be charted in any timeframe within the performance targets.
 
@@ -82,13 +82,13 @@ Knowledge: docs/knowledge/ewts-api.md (Drawings, Scenario Files)
 Outcome: a scenario is checked in TradeViewer instead of pasting a Pine script into
 TradingView.
 
-## Epic: Watchlists and Layouts
+## Epic: Watchlists
 
-Branch: `feature/watchlists-layouts`
+Branch: `feature/watchlists`
 
-Requirements: AS1, AS6, LY1, LY2, LY3
+Requirements: AS1, AS6
 Depends on: Price Chart
-Outcome: the user arranges assets and charts and finds them again at the next start.
+Outcome: the user finds the assets in their five lists and opens any of them in the chart.
 
 ## Epic: Drawing Tools
 
@@ -99,7 +99,7 @@ Branch: `feature/drawing-tools`
 - Saving in the background, undo and redo
 
 Requirements: DR1, DR2, DR3, DR4, DR5, DR6, NF3
-Depends on: Watchlists and Layouts
+Depends on: Price Chart
 Outcome: drawings behave the same on every timeframe and are never lost.
 
 ## Epic: Indicators
@@ -109,7 +109,7 @@ Branch: `feature/indicators`
 - Indicator calculations in the Domain, verified against reference values
 - Indicator endpoint, panes below the chart, settings per chart, templates
 
-Requirements: CH5, CH6
+Requirements: IN1, IN2
 Depends on: Price Chart
 
 ## Epic: Downloader Monitoring
@@ -141,14 +141,14 @@ Branch: `feature/ewts-instances`
 - Register instances, status, observed assets, overview, asset details
 
 Requirements: EW1, EW2, EW3, EW4, EW5, EW6
-Depends on: Assets and Market Data, Watchlists and Layouts
+Depends on: Assets and Market Data, Watchlists
 Knowledge: docs/knowledge/ewts-api.md
 
 ## Epic: Analysis Overlays
 
 Branch: `feature/analysis-overlays`
 
-- Overlays of an instance on any chart of a layout, with the shape primitives of the Scenario
+- Overlays of an instance on the chart, with the shape primitives of the Scenario
   Viewer; groups with show and hide, copy to an own drawing
 - Update on `OverlaysChanged`
 

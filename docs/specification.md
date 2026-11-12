@@ -33,7 +33,7 @@ Source          a data provider of the Downloader, e.g. binance
 Asset           a symbol of a source, e.g. binance / BTCUSDT; the source is part of its identity
 Timeframe       candle size: 15m, 1h, 4h, 1d, 1w (later 1m, 5m, 12h, 1M)
 Candle store    TradeViewer's local copy of the candles of its assets
-Workspace       everything the user creates in TradeViewer (watchlists, layouts, drawings, settings)
+Workspace       everything the user creates in TradeViewer (watchlists, drawings, chart settings)
 EWTS instance   one running EWTS; it handles the assets of exactly one source
 Observed asset  an asset an EWTS instance analyses continuously
 Overlay         analysis drawings of EWTS shown on a chart; read-only in TradeViewer
@@ -88,57 +88,109 @@ Every requirement has an id. The backlog refers to these ids.
 ### 4.2 Market Data
 
 - **MD1** Charts show the candles the Downloader delivered, unchanged. TradeViewer never invents,
-  fills or repairs candles. Only closed candles exist; there is no candle in progress.
-- **MD2** New and changed candles appear on open charts without a reload, at the latest two
-  minutes after the Downloader wrote them.
-- **MD3** A timeframe the source does not provide is built from the largest fitting one, aligned
-  to the session of the asset.
-- **MD4** Gaps the Downloader reports are visible: as a marker on the chart and in the asset's
-  status, with their reason.
+  fills or repairs candles. The Downloader delivers closed candles only; the one exception is
+  the current candle (MD8).
+- **MD2** New and changed candles appear on open charts without a reload. TradeViewer checks
+  for new data when the Downloader is expected to have written it (after each closed candle of
+  the asset's smallest timeframe) and repeats the check in short intervals until the data is
+  there. There is no live price: a closed candle shows after the Downloader has written it, up
+  to about one update cycle later (15 minutes).
+- **MD3** A chart offers the timeframes the Downloader holds for the asset. A timeframe the
+  source does not provide is built from the largest fitting one, aligned to the session of the
+  asset. When a timeframe can be neither read nor built, the chart shows an error instead of
+  candles.
+- **MD4** Gaps the Downloader reports as `missingUpstream` are visible as a marker on the
+  chart and in the asset's status. Candles still being downloaded show as loading (AS4), not
+  as a gap. Periods before the source's history limit and closed market hours are no gaps.
 - **MD5** The candle store can be deleted and rebuilt from the Downloader's files at any time
-  without losing anything the user created.
+  without losing anything the user created. Rebuilding an asset is the same procedure as
+  adding it: the asset shows as loading until its candles are back.
+- **MD6** A file that breaks the format rules is not imported. The chart works without its
+  candles and the asset shows a warning with the file name and the line.
+- **MD7** All times are UTC: axes, crosshair, lists and drawings.
+- **MD8** On timeframes above the smallest one, the chart also shows the current candle, built
+  from the closed candles of the smallest timeframe since the last closed candle (open of the
+  first, high and low over all, close of the last, volume summed). It is marked as in progress,
+  is replaced by the Downloader's closed candle as soon as that exists, and is never stored or
+  used by EWTS. It can be incomplete when candles of the period are missing.
 
 ### 4.3 Chart
 
 - **CH1** Candlestick chart with a time scale, a price scale (linear or logarithmic), crosshair
-  with values of the candle below it, zoom and pan.
+  with values of the candle below it, zoom and pan. Candles are the only chart type. The price
+  scale sits on the right, fits the visible candles automatically (reset after a manual
+  change) and has the precision of the asset's tick size.
 - **CH2** Volume as a histogram below the candles.
-- **CH3** Changing the asset or the timeframe of a chart keeps the visible time range where the
-  new timeframe has data for it.
+- **CH3** Changing the timeframe of a chart keeps the number of visible candles and the
+  anchor: at the latest candles the chart stays there, scrolled back it keeps the same time in
+  view. Changing the asset keeps the number of visible candles and shows the latest ones. A
+  newly opened chart shows the latest candles with some empty space to the right.
 - **CH4** Scrolling back loads older candles without a visible interruption, down to the start of
   the stored history.
-- **CH5** Indicators, calculated by TradeViewer: SMA, EMA, Bollinger Bands on the price; RSI,
-  MACD and ATR in their own panes below. The user sets their parameters and colours per chart.
-- **CH6** Indicator templates: a named set of indicators the user saves and applies to a chart.
+- **CH5** A selector shows the timeframes of the asset (MD3). A line and label at the price
+  scale show the last close, coloured by the direction of the last candle. When the chart is
+  scrolled away from the latest candle, a button jumps back to it.
 
-### 4.4 Layouts
+### 4.4 Indicators
 
-- **LY1** A layout shows 1, 2 or 4 charts side by side. Each chart has its own asset, timeframe
-  and indicators.
-- **LY2** Optional per layout: all charts follow the same asset; the crosshair is shown at the
-  same time on all charts.
-- **LY3** The user creates, renames, duplicates and deletes layouts. The last used layout opens
-  at the next start.
+- **IN1** Indicators, calculated by TradeViewer: SMA, EMA and Bollinger Bands on the price;
+  RSI, MACD and ATR in their own panes below. The user sets their parameters and colours per
+  asset. An indicator is added once and shows on every timeframe of the asset, always
+  calculated from the candles of the timeframe shown (an SMA on 1d is never the SMA of 15m).
+  A new indicator starts with the defaults of TradingView:
 
-### 4.5 Drawings
+  | Indicator       | Parameters                                  |
+  |-----------------|---------------------------------------------|
+  | SMA, EMA        | length 9, source close                      |
+  | Bollinger Bands | length 20, standard deviation 2, source close |
+  | RSI             | length 14, source close                     |
+  | MACD            | fast 12, slow 26, signal 9, source close    |
+  | ATR             | length 14                                   |
+
+  Colours follow TradingView's defaults too: blue lines (SMA, EMA, MACD line), orange for the
+  Bollinger basis and the MACD signal, purple for RSI, green and red histogram for MACD.
+- **IN2** Indicator templates: a named set of indicators the user saves and applies to a chart.
+
+### 4.5 Chart Page
+
+- **CP1** The chart page shows one chart. Its asset and timeframe are part of the address, so
+  a window can be reloaded, bookmarked and duplicated. Several browser windows show several
+  charts independently. Selecting an asset in a watchlist shows it in the current window.
+- **CP2** The settings of a chart (indicators, price scale mode, drawings hidden, hidden analysis groups) are
+  saved per asset and restored when the asset is opened, in any window. Changes are saved
+  automatically.
+- **CP3** Opening TradeViewer without an address opens the chart last used.
+
+### 4.6 Drawings
 
 - **DR1** Tools: trend line, ray, horizontal line, vertical line, parallel channel, rectangle,
-  arrow, text note, Fibonacci retracement, Fibonacci extension, wave label.
+  arrow, text note, polyline (connected points, for wave counts), Fibonacci retracement,
+  Fibonacci extension, wave label.
 - **DR2** A drawing can be selected, moved, reshaped by its handles, restyled (colour, width,
-  line style, text) and deleted. Undo and redo cover the actions of the current session.
-- **DR3** A drawing belongs to an asset and a layout, not to a timeframe: it stays on the chart
-  when the timeframe is switched.
-- **DR4** Fibonacci tools take their levels from a preset the user can edit. Default
+  line style, text) and deleted. Undo and redo cover the actions of the current session. A
+  drawing can be locked; a locked drawing cannot be moved, changed or deleted until it is
+  unlocked. A magnet option (on by default) snaps anchors to the open, high, low or close of
+  the nearest candle.
+- **DR3** A drawing belongs to an asset, not to a timeframe: it stays on the chart
+  when the timeframe is switched. Anchors may lie to the right of the last candle.
+- **DR4** Fibonacci tools take their levels from a preset the user can edit and add to. Default
   retracement levels: 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1. Default extension levels: 1,
-  1.272, 1.618, 2, 2.618.
-- **DR5** Wave labels are free text markers from a fixed list (1-5, A-C, W-X-Y, A-E, each in
-  several degrees). TradeViewer does not check them against any Elliott Wave rule.
-- **DR6** Drawings can be hidden and shown per chart, all at once or by tool type.
+  1.272, 1.618, 2, 2.618, 3.618. A drawing has one colour for all its levels (default for
+  extensions: light blue); each level shows its ratio and price. On a logarithmic price scale
+  the levels are calculated in log space.
+- **DR5** Wave labels are text markers from a fixed list: the nine Elliott degrees (Grand
+  Supercycle to Subminuette) with their numbers and letters (1-5, A-C, W-X-Y, A-E). A label
+  sits above a high or below a low and follows the candle. Labels can sit on the points of a
+  polyline; the polyline can hide its line and show only its labels. TradeViewer does not
+  check labels against any Elliott Wave rule.
+- **DR6** All drawings of a chart can be hidden and shown at once.
 
-### 4.6 Downloader Monitoring
+### 4.7 Downloader Monitoring
 
 - **DL1** A status page shows the Downloader's state: reachable or not, version, last and next
-  update cycle with result, queue sizes, and the state of every source.
+  update cycle with result, queue sizes, and the state of every source. A status dot in the
+  header shows it at a glance: green, yellow (a source is rate limited or the last cycle was
+  partial), red (not reachable). The page only shows data; it changes nothing at the Downloader.
 - **DL2** Per asset: coverage per timeframe (wanted from, covered from and to), pending jobs,
   gaps with reason, last change, last error.
 - **DL3** The page lists all subscriptions of the Downloader and marks those of other clients
@@ -146,7 +198,7 @@ Every requirement has an id. The backlog refers to these ids.
 - **DL4** When the Downloader is not reachable, charts keep working with the stored candles and
   the status page says since when it is unreachable.
 
-### 4.7 EWTS Instances
+### 4.8 EWTS Instances
 
 - **EW1** The user registers an EWTS instance by name and address, edits and removes it.
   Several instances can be registered.
@@ -166,7 +218,7 @@ Every requirement has an id. The backlog refers to these ids.
 - **EW6** When an instance is not reachable, everything else keeps working; its data is shown
   as last received, with the time, and marked as stale.
 
-### 4.8 Analysis Overlays
+### 4.9 Analysis Overlays
 
 - **OV1** A chart can show the overlays of an EWTS instance for its asset: wave labels and wave
   lines, price levels (invalidation, entry, add, stop, targets), zones, Fibonacci levels and
@@ -178,7 +230,7 @@ Every requirement has an id. The backlog refers to these ids.
 - **OV4** Overlays update on open charts when the instance has analysed the asset again.
 - **OV5** The chart states which instance the overlays come from and the time of the analysis.
 
-### 4.9 Test Runs
+### 4.10 Test Runs
 
 - **BT1** The user starts a backtest at an instance: an asset of the instance's source,
   timeframe, period, account size, risk per trade and the optional overrides the instance
@@ -190,14 +242,14 @@ Every requirement has an id. The backlog refers to these ids.
   lists the scenarios of the run with their figures (e.g. grade, score, path, result in R,
   exit reason, duration) and can be sorted and filtered by them. Scenarios appear in the list
   while the run is still going.
-- **BT5** Selecting a scenario of a run opens it in the Scenario Viewer (4.11), where the
+- **BT5** Selecting a scenario of a run opens it in the Scenario Viewer (4.12), where the
   analysis is checked against the candles. "Previous" and "next" step through the scenarios
   of the run.
 - **BT6** Two or more runs can be compared side by side by their statistics and equity curves.
 - **BT7** A run can be exported as JSON; its trade list as CSV.
 - **BT8** Deleting a run deletes its scenarios.
 
-### 4.10 Alerts
+### 4.11 Alerts
 
 - **AL1** EWTS sends alerts itself (e.g. by Telegram). TradeViewer sends nothing.
 - **AL2** TradeViewer shows the alert history of every instance: time, asset, kind, text. An
@@ -206,7 +258,7 @@ Every requirement has an id. The backlog refers to these ids.
 - **AL4** The user edits the alert settings of an instance in TradeViewer: channels, and which
   kinds of alerts are sent.
 
-### 4.11 Scenario Viewer
+### 4.12 Scenario Viewer
 
 Replaces the present way of checking a scenario of EWTS: generating a Pine script and loading
 it in TradingView.
@@ -234,7 +286,7 @@ it in TradingView.
   loads the history it needs, whatever the default history of AS3 is.
 - **SC9** Scenarios are read-only. Writing and changing scenario files stays in EWTS.
 
-### 4.12 Workspace
+### 4.13 Workspace
 
 - **WS1** Every change the user makes is saved immediately. There is no save button.
 - **WS2** The workspace survives restarts, updates, and deleting or rebuilding the candle store.
@@ -272,6 +324,7 @@ Measured on a Raspberry Pi 5 with an SSD, a desktop browser in the same network,
 - The journal and the trades of EWTS (possible later)
 - Order execution and broker connections
 - Replay and paper trading (decision 0005)
+- Several charts in one window (grid layouts, linked crosshairs); use several browser windows
 - Several users, shared workspaces
 - A mobile application
 
@@ -279,7 +332,7 @@ Measured on a Raspberry Pi 5 with an SSD, a desktop browser in the same network,
 
 ## 7. Dependencies on EWTS
 
-Sections 4.7 to 4.10 need interfaces EWTS does not have yet. They are listed in
-docs/knowledge/ewts-api.md, chapter "Required Interface". Section 4.11 needs only the scenario
+Sections 4.8 to 4.11 need interfaces EWTS does not have yet. They are listed in
+docs/knowledge/ewts-api.md, chapter "Required Interface". Section 4.12 needs only the scenario
 drawing files described there, which EWTS's existing overlay tool can write. Sections 4.1 to
-4.6 and 4.12 need only the Downloader, whose interface exists.
+4.7 and 4.13 need only the Downloader, whose interface exists.

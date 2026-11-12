@@ -16,7 +16,7 @@ of EWTS.
 | Assets and Market Data | open |
 | Price Chart | open |
 | Scenario Viewer | open |
-| Watchlists and Layouts | open |
+| Watchlists | open |
 | Drawing Tools | open |
 | Indicators | open |
 | Downloader Monitoring | open |
