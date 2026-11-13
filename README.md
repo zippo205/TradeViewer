@@ -32,7 +32,8 @@ Every piece of information has one home:
   ```
 
 - Node.js 20 or later, at build time only (chart module)
-- The Downloader's output root readable on this machine, and its control API reachable
+- The Downloader's output root (or a frozen copy of it) readable on this machine; its control
+  API is needed only when `MarketData:Downloader:Enabled` is true
 
 ## Build, Test, Run
 

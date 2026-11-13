@@ -18,6 +18,8 @@ TradeViewer's first architecture contained its own Elliott Wave rule validation.
    Wave labels the user draws are plain markers.
 4. **EWTS owns its data.** Observed assets, setups, test runs, alerts and their settings are
    stored by EWTS. TradeViewer stores only which instances exist.
+   (Clarified 2026-11-13: plus the numbers it needs to follow an instance's changes and to know
+   which alerts the user has read; no analysis data.)
 5. **The browser talks to TradeViewer.Api only**, which calls the instances.
 
 ## Reasons

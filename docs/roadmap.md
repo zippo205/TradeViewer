@@ -18,6 +18,7 @@ of EWTS.
 | Scenario Viewer | open |
 | Watchlists | open |
 | Drawing Tools | open |
+| Scenario Analysis | open |
 | Indicators | open |
 | Downloader Monitoring | open |
 

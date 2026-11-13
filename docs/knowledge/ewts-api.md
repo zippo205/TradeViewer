@@ -313,7 +313,9 @@ The first two folders are in the EWTS repository and written by its tools; `test
 written by a running instance. For TradeViewer to see both, the instance's scenario output and
 the repository folder must lie below one root (e.g. `test-runs` as a mounted folder).
 
-- TradeViewer reads every `*.json` below the root; the folder path is shown as the kind.
+- TradeViewer reads every `*.json` below the root; the folder path is shown as the kind. A
+  file `<id>.expert.json` is not a scenario of its own when `<id>.json` exists beside it: it is
+  the analysis of the user on that scenario (Expert Analysis Files).
   Other files (`.yaml`, `.pine`, `.md`) are ignored.
 - Files are written atomically (`<name>.json.part`, then renamed).
 - A file TradeViewer cannot read (unknown `version`, broken JSON) is listed with its error
@@ -358,23 +360,48 @@ the repository folder must lie below one root (e.g. `test-runs` as a mounted fol
   TradeViewer shows them in the given order and sorts by them; it does not interpret them.
   The scenarios of one test run carry the same names.
 
+## Expert Analysis Files
+
+Decision: docs/decisions/0007-scenario-analysis.md. TradeViewer writes two kinds of file into
+the scenario root; EWTS reads them and merges them into the expert analysis section of its
+scenario.
+
+```text
+<id>.expert.json            the analysis of the user on the scenario <id>.json beside it
+expert/<id>.expert.json     a new expert scenario made in TradeViewer (no <id>.json beside it)
+```
+
+- The format is that of a scenario file (above): head, `verdict`, `reason` and `notes` (the
+  remarks of the user), `groups` with shapes. The id in the file name is the reference to the
+  scenario; the groups hold only the analysis of the user.
+- Besides `groups` (the shapes, for EWTS and for display) the file holds `drawings`: the
+  drawing records of TradeViewer's tools, so the user can edit the analysis again. EWTS ignores
+  `drawings`. TradeViewer writes both in one go.
+- Written atomically by TradeViewer, which is their only writer. EWTS never writes or deletes
+  them.
+
 ## Test Runs
 
 `POST /api/v1/test-runs`: the body of today's `POST /api/backtests` plus `"kind": "backtest"`
 (later `"walkForward"`) and an optional `"profile"`. Answer 202:
 
 ```json
-{ "id": "0193a1c2-7b1e-7c3a-9d2e-4f5a6b7c8d9e", "state": "queued" }
+{ "id": "pi-binance-17", "state": "queued" }
 ```
+
+The run id is `<instanceId>-<n>` (e.g. `pi-binance-17`): the instance's unique `instanceId` and a
+run number that only increases and survives restarts. Ids of different instances therefore never
+collide in the shared scenario folder. The `instanceId` of every instance must be unique within
+all instances that write to the same scenario root.
 
 `GET /api/v1/test-runs/{id}`
 
 ```json
-{ "id": "0193a1c2-...", "kind": "backtest", "state": "running",
+{ "id": "pi-binance-17", "kind": "backtest", "state": "running",
   "request": { "symbol": "BTCUSDT", "timeframe": "D1", "from": "2024-01-01", "to": "2025-12-31" },
   "createdAt": "2026-11-11T09:20:00Z", "startedAt": "2026-11-11T09:20:01Z", "finishedAt": null,
   "progress": { "done": 212, "total": 731 }, "error": null,
-  "statistics": { }, "scenarioFolder": "test-runs/0193a1c2-...",
+  "statistics": { }, "scenarioFolder": "test-runs/pi-binance-17",
   "report": null }
 ```
 
@@ -434,7 +461,7 @@ number.
   "changes": [
     { "change": 9118, "kind": "assetAnalysed", "symbol": "BTCUSDT", "at": "2026-11-11T09:15:40Z" },
     { "change": 9119, "kind": "alert", "symbol": "BTCUSDT", "alert": 531, "at": "2026-11-11T09:15:41Z" },
-    { "change": 9120, "kind": "testRun", "testRunId": "0193a1c2-...", "state": "finished",
+    { "change": 9120, "kind": "testRun", "testRunId": "pi-binance-17", "state": "finished",
       "at": "2026-11-11T09:31:07Z" } ] }
 ```
 

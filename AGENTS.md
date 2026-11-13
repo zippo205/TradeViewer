@@ -70,6 +70,8 @@ rewritten, they are replaced by a later one.
 - ../Downloader and ../EWTS own their interfaces. Never change those repositories from here;
   a needed change is written into docs/knowledge/ and raised with the owner.
 - The Downloader's output root (`MarketData:RootPath`) is read-only. Never write there.
+- In the scenario folder (`Scenarios:RootPath`) TradeViewer writes only `*.expert.json` files
+  (decision 0007), and only for a scenario the user has changed. Never change a file of EWTS.
 - Tests never contact the Downloader or an EWTS instance.
 
 ## Authority Order

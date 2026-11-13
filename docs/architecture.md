@@ -43,7 +43,8 @@ FluentValidation, ORMs, migration frameworks.
    (Downloader    workspace.db    control API    API
     output root)
    scenario files
-   (EWTS folder)
+   (EWTS folder; TradeViewer
+   writes *.expert.json)
 ```
 
 One process, one container. The browser calls only TradeViewer.Api; it never calls the
@@ -119,7 +120,7 @@ rules.
 ```text
 Features/
 ├── Assets            symbol list, add, history, remove (AS2-AS5)
-├── MarketData        candles, import, sync status, gaps (MD1-MD5)
+├── MarketData        candles, current candle, import, sync status, gaps (MD1-MD8)
 ├── Watchlists        the five fixed lists, order, row figures (AS1, AS6)
 ├── ChartSettings     settings per asset, last chart (CP2, CP3)
 ├── Indicators        calculation requests, indicator templates (IN1, IN2)
@@ -127,10 +128,10 @@ Features/
 ├── Downloader        status and subscriptions for the monitoring page (DL1-DL4)
 ├── EwtsInstances     registration, status, observed assets, overview, details (EW1-EW6)
 ├── Overlays          (OV1-OV5)
-├── TestRuns          (BT1-BT8)
+├── TestRuns          (BT1-BT7)
 ├── Alerts            (AL1-AL4)
-├── Scenarios         list and read scenario drawing files (SC1-SC9)
-└── Workspace         backup and restore (WS3)
+├── Scenarios         list and read scenario drawing files (SC1-SC9), own analysis (SC10-SC13)
+└── Workspace         settings (default history, last chart) and backup and restore (WS3, WS5)
 ```
 
 A feature folder contains only the subfolders it needs:
@@ -148,8 +149,10 @@ Naming: `<Verb><Noun>Command`, `<Verb><Noun>Query`, the handler and the validato
 full name of their message plus `Handler` / `Validator`. One type per file. The acronym is
 written `Ewts` in identifiers (`EwtsInstance`, `IEwtsClient`).
 
-A feature may use `Assets` and `MarketData`; apart from that, features do not reference each
-other.
+A feature never uses the types, handlers or services of another feature. What several
+features need (reading an asset, a candle series, an EWTS instance, the settings) is a port in
+`Abstractions`, implemented in Infrastructure. The architecture tests check that no feature
+namespace depends on another.
 
 ### CQRS
 
@@ -188,7 +191,7 @@ answered with 500 without internal details.
 Abstractions/
 ├── Messaging     the CQRS interfaces
 ├── MarketData    ICandleStore, ICandleFileReader, IDownloaderClient, ISymbolCatalog
-├── Ewts          IEwtsClient, IScenarioFileReader
+├── Ewts          IEwtsClient, IScenarioFileReader, IExpertAnalysisStore
 ├── Workspace     one repository interface per feature: IAssetRepository, IChartSettingsRepository, IDrawingRepository, IEwtsInstanceRepository, ...
 └── Realtime      IWorkspaceNotifier (implemented by the Api on top of the SignalR hub)
 ```
@@ -201,20 +204,21 @@ The clock is the built-in `TimeProvider`.
 
 ```text
 Asset               source, symbol, display name, asset class, tick size, session,
-                    source timeframes
+                    source timeframes, position in its watchlist
+HistorySettings     default history per timeframe, history start per asset (AS3)
 AssetClass          Crypto, Stock, Etf, Forex, Commodity; also the watchlist of the asset
 Session             Continuous, Exchange (time zone, open, close), NewYorkClose
 Timeframe           M15, H1, H4, D1, W1 (later M1, M5, H12, MN1); codes 15m, 1h, 4h, 1d, 1w
 Candle              open time (UTC), open, high, low, close, volume
 CandleSeries        ordered candles of one asset and timeframe
-TimeframeAggregator builds a timeframe from a lower one along the session (MD3)
+TimeframeAggregator builds a timeframe, or only its current candle, from a lower one along the session (MD3, MD8)
 CandleFileRules     file name -> period, row validation (see downloader-api.md)
 
 Indicator           Sma, Ema, BollingerBands, Rsi, Macd, Atr: candles + parameters -> series
 IndicatorInstance   indicator type, parameters, style
 IndicatorTemplate   name, indicator instances
 
-ChartSettings       asset, price scale mode, indicator instances, drawings hidden, hidden groups
+ChartSettings       asset, price scale mode, indicator instances, drawings hidden, selected EWTS instance, hidden groups
 
 Drawing             id, asset, tool type, locked, anchors, style, text, payload version
 Anchor              time (UTC) + price, never a bar index
@@ -224,8 +228,9 @@ EwtsInstance        id, name, base address
 ```
 
 - Prices and indicator values are `double`.
-- Analysis results of EWTS (overlays, setups, test runs, alerts) are **not** domain models. They
-  are contract records that pass through the Application layer unchanged (see 8).
+- Analysis results of EWTS (overlays, setups, test runs, alerts) and scenario files are **not**
+  domain models. They are contract records that pass through the Application layer unchanged
+  (see 8). The same holds for the expert analysis file TradeViewer writes (SC12).
 - Drawings refer to market data by asset and time only, never by a row of the candle store, so
   rebuilding the store cannot orphan a drawing.
 
@@ -251,16 +256,25 @@ sync          MarketDataSyncService, per asset, aligned to the clock (MD2):
 rescan        compare every *.csv of the asset (size, modified time) with the import log and
               import what differs; runs at the first import, on complete == false, and once at
               startup for every asset
-remove asset  switch off its analysis at EWTS if on -> DELETE
-              subscription -> delete its drawings -> delete its rows from the candle store
+rebuild       delete the rows of the asset from the candle store, then the first import as when
+              adding; the asset shows as loading meanwhile (MD5)
+change history PUT the subscription with the new start -> import from it; candles before a
+              later start are deleted from the store
+remove asset  switch off its analysis at EWTS if on -> DELETE subscription -> delete its
+              drawings, chart settings and rows from the candle store and its sync state
 ```
 
 - Only files from the asset's history start per timeframe are imported, although the folder
   can hold more (another client, e.g. EWTS, may have subscribed a longer history). Opening a
   scenario whose time span is not stored moves the history start back to it (SC8).
-- The symbols offered when adding an asset come from `ISymbolCatalog`: today a list file per
-  source shipped with the application (`Symbols/<source>.txt`), later the Downloader's symbol
-  catalog. The default history is a user setting in the workspace (AS3).
+- The symbols offered when adding an asset come from `ISymbolCatalog`: today a file per
+  source shipped with the application (`Symbols/<source>.json`, the format of the Downloader's
+  `symbols.json`, first `binance.json` with the 13 symbols of `~/marketdata/binance/symbols.json`),
+  later the Downloader's symbol catalog. The default history is a user setting in the workspace (AS3).
+- Loading (AS4): an asset counts as loading while its symbol status shows pending jobs or
+  `coveredFrom` later than `wantedFrom` for a timeframe; the progress per timeframe is that
+  coverage, and a timeframe can be charted once its newest candles are imported. Without the
+  Downloader nothing is loading.
 - There is no file watcher. The Downloader's change numbers are the only change signal; the
   rescan is the fallback.
 - When the Downloader is unreachable the sync logs it once, keeps the last known status and
@@ -271,7 +285,7 @@ remove asset  switch off its analysis at EWTS if on -> DELETE
 
 With `MarketData:Downloader:Enabled` false TradeViewer works on the files alone:
 
-- adding an asset takes its metadata from `<source>/symbols.json` instead of the lookup and
+- adding an asset takes its metadata from the shipped symbol file instead of the lookup and
   sends no subscription; an asset without a folder in the output root is rejected
 - the rescan at startup and on request ("reload" in the asset's status) is the only import
 - coverage is shown from the store; gaps and the Downloader status are not available
@@ -291,7 +305,7 @@ sync_state    source, symbol, last_change, last_status_json, checked_at
 - Importing a file replaces the candles of its period in one transaction: delete the period,
   insert the rows. A rewritten file can therefore add, change and remove candles.
 - A file that breaks the format rules is not imported; the error is stored in the import log,
-  shown in the asset's status (DL2) and tried again when the file changes.
+  shown in the asset's status (MD6, DL2) and tried again when the file changes.
 - The store holds only the assets of TradeViewer and can be deleted at any time (MD5).
 - Expected size for 100 assets, 10 years, five timeframes: about 45 million rows, 3 GB.
 
@@ -354,7 +368,9 @@ GetInstanceAsync                                    status, version, source
 GetObservedAssetsAsync / AddObservedAssetAsync / RemoveObservedAssetAsync
 GetAssetDetailsAsync                                count, setups, history
 GetOverlaysAsync(symbol)                            drawings as data
-StartTestRunAsync / GetTestRunsAsync / GetTestRunAsync / CancelTestRunAsync
+StartTestRunAsync / GetTestRunsAsync / GetTestRunAsync
+CancelTestRunAsync / DeleteTestRunAsync              both are DELETE; EWTS cancels a running and deletes a finished run
+GetProfilesAsync                                    parameter profiles for switching analysis on (EW3)
 GetAlertsAsync(after) / GetAlertSettingsAsync / UpdateAlertSettingsAsync
 GetChangesAsync(after)                              what changed since change number n
 ```
@@ -362,9 +378,9 @@ GetChangesAsync(after)                              what changed since change nu
 - **Pass-through.** TradeViewer does not interpret analysis results. The records of the EWTS
   interface are copied into `TradeViewer.Contracts/Ewts` and travel from `EwtsClient` through
   the handler to the Web client unchanged. Overlays use a small vocabulary of generic shapes
-  (label, line, level, zone, marker), so drawing them needs no Elliott Wave knowledge.
+  (label, line, level, zone, marker, vertical line), so drawing them needs no Elliott Wave knowledge.
 - **No storage.** TradeViewer stores only the registered instances and, per instance, the last
-  change number it has seen. Observed assets, setups, test runs, alerts and alert settings live
+  change number it has seen and the number of the last alert the user has read (AL3). Observed assets, setups, test runs, alerts and alert settings live
   in EWTS. The last answer of each request is kept in memory to serve EW6; after a restart of
   TradeViewer with an unreachable instance there is nothing to show but "unreachable".
 - **Change detection.** `EwtsPollingService` asks every instance for its changes every
@@ -378,24 +394,35 @@ GetChangesAsync(after)                              what changed since change nu
 
 ### Scenario Files
 
-Decision 0006. EWTS writes one drawing file per scenario into a shared folder
-(`Scenarios:RootPath`); the format is in docs/knowledge/ewts-api.md, Scenario Files.
+Decisions 0006 and 0007. EWTS writes one drawing file per scenario into a shared folder
+(`Scenarios:RootPath`; TradeViewer writes an expert file only for a scenario the user has
+reviewed and changed); the format is in docs/knowledge/ewts-api.md, Scenario Files.
 
 ```text
 IScenarioFileReader                                 Abstractions/Ewts
 
-ListAsync()                                         the head of every *.json below the root
+ListAsync()                                         the head of every scenario below the root, joined with its expert file
 ReadAsync(path)                                     one file with its groups and shapes
+
+IExpertAnalysisStore                                Abstractions/Ewts
+
+SaveAsync(scenarioPath, file)                       write <id>.expert.json beside the scenario
+CreateAsync(file)                                   write expert/<id>.expert.json (SC13)
 ```
 
-- TradeViewer only reads the folder and stores nothing. Every request reads the files, so a
-  changed file is visible at the next reload (SC7). There is no watcher and no index.
+- TradeViewer reads every request from the files, so a changed file is visible at the next
+  reload (SC7). There is no watcher and no stored index; the parsed heads are kept in memory by file size and modified time, so a list request reads only files that changed. It writes only `*.expert.json` files, and only when
+  the user has changed something (SC12, SC13); viewing a scenario creates nothing, atomically (`.part`, then rename), and never a file of EWTS. The list joins a
+  scenario with its expert file by the id in the name.
+- An expert file holds the analysis of the user twice: `groups` with shapes (for EWTS and for
+  display) and `drawings` with the records of the drawing tools (to edit again), both written
+  by the same handler.
 - A scenario is addressed by its path relative to the root; the reader rejects a path that
   leaves the root.
 - The shapes are the records of the analysis drawings and are drawn by the same primitives of
   the chart module (`setOverlays`).
 - The scenario page is a chart apart from the chart page: it takes asset, timeframe and time
-  span from the file and saves nothing to the workspace.
+  span from the file. Its own analysis is saved in the expert file, not in the workspace.
 - The scenarios of a test run are ordinary scenario files in the folder
   `test-runs/<run id>/` below the root. The test run names that folder; TradeViewer lists it
   with the same reader (BT4, BT5). Nothing about a trade is drawn from the report itself.
@@ -414,12 +441,14 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 ```text
 /api/symbols/{source}?q=                      symbols that can be added
 /api/assets                                   list, add
-/api/assets/{source}/{symbol}                 get (with loading progress), change history, remove
-/api/candles/{source}/{symbol}/{timeframe}
+/api/assets/{source}/{symbol}                 get (loading progress, available timeframes), change history, remove
+/api/assets/{source}/{symbol}/rescan          reload the files; /rebuild deletes the candles and imports again (MD5)
+/api/candles/{source}/{symbol}/{timeframe}    column arrays; 422 when the timeframe can be neither read nor built (MD3)
 /api/indicators/{source}/{symbol}/{timeframe}
 /api/indicator-templates
 /api/watchlists                               the five lists with their rows; reorder
 /api/chart-settings/{source}/{symbol}         get, put
+/api/settings                                 default history, last chart (AS3, CP3); get, put
 /api/drawings                                 by asset
 /api/fibonacci-presets
 /api/downloader/status
@@ -427,20 +456,27 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/downloader/assets/{source}/{symbol}      coverage, gaps, import errors
 /api/ewts/instances
 /api/ewts/instances/{id}/assets
-/api/ewts/instances/{id}/assets/{symbol}
+/api/ewts/instances/{id}/assets/{symbol}      put switches analysis on, delete off, get details
+/api/ewts/instances/{id}/profiles
 /api/ewts/instances/{id}/overlays/{symbol}
-/api/ewts/instances/{id}/test-runs
+/api/ewts/instances/{id}/test-runs            list, start; /{runId} get, delete (cancel or delete)
+/api/ewts/instances/{id}/test-runs/{runId}/scenarios.zip   ZIP of the run's scenario files, built on request (BT6)
 /api/ewts/instances/{id}/alerts
 /api/ewts/instances/{id}/alert-settings
-/api/scenarios                                list
+/api/alerts                                   history across all instances, filters (AL2); /read marks them read (AL3)
+/api/scenarios                                list; post creates an expert scenario (SC13)
 /api/scenarios/{path}                         one scenario with its shapes
-/api/workspace/backups
+/api/scenarios/{path}/expert                  get, put the analysis of the user (SC12)
+/api/workspace/backups                        list; /{name} download; /{name}/restore; post uploads a file to restore
 /health
 ```
 
-- Drawings and watchlists get their id (UUID) from the client and are written with
-  an idempotent `PUT`, so the client can show a change at once and save it in the background
-  (NF3, WS1).
+- Drawings get their id (UUID) from the client and are written with an idempotent `PUT`, so the
+  client can show a change at once and save it in the background (NF3, WS1). Chart settings,
+  settings and the order of a watchlist are replaced as a whole.
+- A ZIP and a backup download are file results: a handler returns `Result<FileContent>` (stream,
+  name, media type) and the endpoint streams it; the ZIP is built in memory from the scenario
+  files of the run.
 - No OpenAPI document; `src/TradeViewer.Api/TradeViewer.Api.http` holds example requests.
 
 ### SignalR Hub `/hubs/workspace`
@@ -458,7 +494,8 @@ AlertReceived(instanceId, alert)
 ```
 
 An event says what changed; the client then reads the data through REST. After a reconnect the
-client reloads what it shows.
+client reloads what it shows. The scenario list has no event: the scenario page asks
+`/api/scenarios` every 30 seconds (SC7).
 
 ---
 
@@ -471,8 +508,8 @@ bundling through an MSBuild target (`-p:SkipChartBuild=true` skips it).
 ```text
 TradeViewer.Chart/src/
 ├── index.ts               entry point exposed to Blazor
-├── ChartPaneController    one chart: series, scales, crosshair, paging
-├── data/                  fetching candles and indicators from the Api, page cache
+├── ChartPaneController    one chart: series, scales, crosshair, paging, last-price line, jump to latest (CH5)
+├── data/                  fetching candles, indicators and gaps from the Api, page cache; shows the error of a timeframe without data (MD3)
 ├── indicators/            indicator series and panes (values come from the Api)
 ├── tools/                 interaction: hit testing, handles, tool state machine
 └── primitives/            one series primitive per drawing type and per overlay shape
@@ -484,7 +521,7 @@ TradeViewer.Chart/src/
 Blazor -> chart    createPane, setSeries(asset, timeframe), setIndicators, setDrawings,
                    setOverlays, setTool, setOptions, refresh, dispose
 chart  -> Blazor   drawingCreated, drawingChanged, drawingDeleted, selectionChanged,
-                   crosshairMoved, visibleRangeChanged, contextMenuRequested
+                   contextMenuRequested
 ```
 
 - `ChartHost` (Web) wraps the calls in typed C# methods; events return through a
@@ -496,7 +533,11 @@ chart  -> Blazor   drawingCreated, drawingChanged, drawingDeleted, selectionChan
 - Drawings and overlays are positioned by time and price. Switching the timeframe reloads
   candles and indicators only; a time between two candles is drawn at the candle that contains
   it.
-- Zoom, pan and crosshair are handled in the browser without a request (NF2).
+- Zoom, pan and crosshair are handled in the browser without a request (NF2). The module keeps
+  the number of visible candles and the anchor itself when the timeframe or asset changes (CH3).
+- The drawing layer of the scenario page uses the same calls; Web saves it to the expert file
+  instead of the workspace. Toolbars, the instance selector and the corner display (OV5) are
+  Blazor components next to the canvas.
 
 ---
 
@@ -509,8 +550,9 @@ marketdata.db    candle store (see 6)      cache, may be deleted
 workspace.db     what the user creates     backed up, upgraded, never deleted
 ```
 
-Workspace tables: assets (with their position in the watchlist), chart settings per asset, indicator templates,
-drawings, Fibonacci presets, EWTS instances, settings.
+Workspace tables: assets (with their position in the watchlist), chart settings per asset,
+indicator templates, drawings, Fibonacci presets, EWTS instances (with the last seen change
+and alert numbers), settings (default history, last chart).
 
 - Microsoft.Data.Sqlite with plain SQL
 - Schema changes are numbered SQL scripts in Infrastructure, applied at startup in one
@@ -520,7 +562,8 @@ drawings, Fibonacci presets, EWTS instances, settings.
 - Chart settings, indicator instances and drawings are stored as JSON with a type discriminator
   and a payload version, so a new drawing type needs no schema change
 - Daily backup with the SQLite online backup API into `backups/`, keeping `KeepCount` copies;
-  restoring replaces workspace.db after backing up the current one (WS3)
+  restoring closes workspace.db, replaces it by the chosen backup and opens it again, without a
+  restart (WS3)
 
 ---
 
@@ -540,10 +583,10 @@ MarketData:Downloader:RequestTimeoutSeconds  30
 Ewts:Enabled                                 false   (tests keep false)
 Ewts:PollSeconds                             30
 Ewts:RequestTimeoutSeconds                   30
-Scenarios:RootPath                           none; the folder of EWTS's scenario drawing files, read only
+Scenarios:RootPath                           none; the folder of EWTS's scenario drawing files; TradeViewer writes only its *.expert.json
 Storage:DataPath                             required; holds marketdata.db, workspace.db, backups/
 Storage:Backup:KeepCount                     14
-Storage:Backup:Time                          03:00   (local time of the host)
+Storage:Backup:Time                          03:00   (UTC)
 ```
 
 With `Enabled` false the client is not called and the background service does not start;
@@ -553,7 +596,8 @@ Without the Downloader).
 Development starts on a frozen copy of the output root with the Downloader switched off
 (`/home/admin/marketdata`, owner decision 2026-11-11). The Downloader is switched on in
 development when the sync of the Assets and Market Data epic is built. A missing root path or data path
-stops the start with a clear message. EWTS instances are not configured here; the user
+stops the start with a clear message. A `Scenarios:RootPath` that is not writable switches
+off only SC10 to SC13; the viewer still works. EWTS instances are not configured here; the user
 registers them (EW1).
 
 ---
@@ -566,13 +610,16 @@ deploy/docker-compose.yml  one service
 
 volumes
   /data/marketdata    the Downloader's output root, mounted read-only
-  /data/scenarios     EWTS's scenario folder, mounted read-only (optional)
+  /data/scenarios     EWTS's scenario folder, read-write for the expert files (optional)
   /data/app           Storage:DataPath, read-write
 ```
 
 - One image for linux/arm64 and linux/amd64; the .NET output is framework-dependent and has no
   runtime identifier
 - Port 8080, http only, no authentication (NF8)
+- The compose file limits the memory to 512 MB (NF9), checks `/health`, and runs the container as
+  a configurable user (`user:`), so the expert files written into the scenario folder belong
+  to the owner of that folder and EWTS can read them
 - Logs go to the console (container log) through `ILogger`
 - The databases belong on an SSD, not on the SD card of the Pi
 
@@ -582,14 +629,21 @@ volumes
 
 ```text
 UnitTests           Domain: aggregation, indicators (against reference values), file rules,
-                    drawing payloads. Application: handlers with in-memory ports.
+                    drawing payloads, the due times of the sync with a fake `TimeProvider`
+                    (MD2), client state of Web such as undo and redo (DR2). Application:
+                    handlers with in-memory ports.
 IntegrationTests    Api with WebApplicationFactory, temporary SQLite files, CSV fixtures;
-                    DownloaderClient and EwtsClient against recorded responses.
+                    DownloaderClient and EwtsClient against recorded responses; scenario files
+                    read from fixtures, expert files written to a temporary folder (atomic,
+                    never touching a file of EWTS).
 ArchitectureTests   dependency rules, feature rules.
 Chart (Vitest)      tool geometry, hit testing, time-to-candle mapping.
+Benchmark           first candle page over 10 years of 15m candles (NF1); run on request,
+                    not with the normal tests.
 ```
 
 - xUnit for the C# tests
+- No browser tests in V1: the pages are checked by hand, the chart by its Vitest tests
 - Tests never contact the Downloader or an EWTS instance and never read the live output root
 
 ---
@@ -613,8 +667,7 @@ Not decided yet; each must be closed before the epic that needs it starts.
 ```text
 O1  EWTS has to accept and build the interface of ewts-api.md, chapter "Required Interface":
     the scenario drawing files for the Scenario Viewer, the API for the epics EWTS Instances,
-    Analysis Overlays, Test Runs and Alerts. The owner aligns this with the EWTS agent by a
+    Analysis Overlays, Test Runs and Alerts, and the reading of the `*.expert.json` files
+    TradeViewer writes (decision 0007). The owner aligns this with the EWTS agent by a
     prompt written from that chapter.
-O2  The colour of each overlay role is not specified; it is set in the plan of the Scenario
-    Viewer epic.
 ```

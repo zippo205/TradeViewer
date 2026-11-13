@@ -21,7 +21,7 @@ Branch: `feature/solution-foundation`
 - Health endpoint, error handling as problem details
 - Docker image for linux/arm64 and linux/amd64, compose file
 
-Requirements: NF6, NF7, NF8
+Requirements: NF6, NF7, NF8, NF9, NF11
 Outcome: the empty application builds, passes its tests and runs in Docker on a Raspberry Pi 5.
 
 ## Epic: Workspace Persistence
@@ -31,7 +31,7 @@ Branch: `feature/workspace-persistence`
 - workspace.db with numbered schema scripts and upgrade at startup
 - Daily backup, list, download and restore of backups
 
-Requirements: WS1, WS2, WS3, WS4
+Requirements: WS1, WS2, WS3, WS4, WS5
 Depends on: Solution Foundation
 Outcome: a place for user data that survives restarts, updates and restores.
 
@@ -40,12 +40,12 @@ Outcome: a place for user data that survives restarts, updates and restores.
 Branch: `feature/market-data`
 
 - Downloader client with the copied contracts
-- Symbol list per source; add an asset, loading progress, change its history, remove it
+- Symbol file `Symbols/binance.json` (copy of the Downloader's `symbols.json`); add an asset, loading progress, change its history, remove it
 - CSV reader for the Binance spot format, file rules and validation
 - Candle store, import, rescan, sync service on the Downloader's change numbers
 - Candle endpoint in column format, with the current candle built from the smallest timeframe
 
-Requirements: AS2, AS3, AS4, AS5, MD1, MD2, MD5, MD6, MD8, NF4, NF5
+Requirements: AS2, AS3, AS4, AS5, MD1, MD2, MD5, MD6, MD8, NF4, NF5, NF10
 Depends on: Workspace Persistence
 Knowledge: docs/knowledge/downloader-api.md
 Outcome: the candles of every added asset are in the store and stay up to date.
@@ -76,7 +76,7 @@ Branch: `feature/scenario-viewer`
   vertical line), with groups and the detail text on pointing
 - Scenario list with filters, scenario page with chart, panel, previous and next
 
-Requirements: SC1, SC2, SC3, SC4, SC5, SC6, SC7, SC8, SC9
+Requirements: SC1, SC2, SC3, SC4, SC5, SC6, SC7, SC8, SC9, OV6
 Depends on: Price Chart; EWTS writes the drawing files (architecture, open point O1)
 Knowledge: docs/knowledge/ewts-api.md (Drawings, Scenario Files)
 Outcome: a scenario is checked in TradeViewer instead of pasting a Pine script into
@@ -101,6 +101,19 @@ Branch: `feature/drawing-tools`
 Requirements: DR1, DR2, DR3, DR4, DR5, DR6, NF3
 Depends on: Price Chart
 Outcome: drawings behave the same on every timeframe and are never lost.
+
+## Epic: Scenario Analysis
+
+Branch: `feature/scenario-analysis`
+
+- Drawing layer on the scenario page with the tools of Drawing Tools, verdict and remarks
+- Writer of the `*.expert.json` files (decision 0007), mark and filter in the scenario list
+- Create an expert scenario
+
+Requirements: SC10, SC11, SC12, SC13
+Depends on: Scenario Viewer, Drawing Tools
+Knowledge: docs/knowledge/ewts-api.md (Scenario Files, Expert Analysis Files)
+Outcome: the own analysis of the user sits beside the one of EWTS and reaches EWTS as a file.
 
 ## Epic: Indicators
 
@@ -149,10 +162,10 @@ Knowledge: docs/knowledge/ewts-api.md
 Branch: `feature/analysis-overlays`
 
 - Overlays of an instance on the chart, with the shape primitives of the Scenario
-  Viewer; groups with show and hide, copy to an own drawing
+  Viewer; groups with show and hide, instance selector with last calculation time
 - Update on `OverlaysChanged`
 
-Requirements: OV1, OV2, OV3, OV4, OV5
+Requirements: OV1, OV2, OV3, OV4, OV5, OV6
 Depends on: EWTS Instances, Scenario Viewer, Drawing Tools
 Knowledge: docs/knowledge/ewts-api.md
 
@@ -160,10 +173,10 @@ Knowledge: docs/knowledge/ewts-api.md
 
 Branch: `feature/test-runs`
 
-- Start, progress with running statistics, cancel, list, result view, comparison, export
+- Start, state, elapsed time and running statistics, cancel, runs table, result view, delete, ZIP of a run's scenarios
 - Scenarios of a run listed with their figures and opened in the Scenario Viewer
 
-Requirements: BT1, BT2, BT3, BT4, BT5, BT6, BT7, BT8
+Requirements: BT1, BT2, BT3, BT4, BT5, BT6, BT7
 Depends on: EWTS Instances, Scenario Viewer
 Knowledge: docs/knowledge/ewts-api.md
 

@@ -1,6 +1,6 @@
 # 0006 - Scenario Viewer
 
-Status: accepted (2026-11-11, owner)
+Status: accepted (2026-11-11, owner); points 1, 3 and 4 amended by 0007
 
 ## Context
 
