@@ -208,7 +208,7 @@ Asset               source, symbol, display name, asset class, tick size, sessio
 HistorySettings     default history per timeframe, history start per asset (AS3)
 AssetClass          Crypto, Stock, Etf, Forex, Commodity; also the watchlist of the asset
 Session             Continuous, Exchange (time zone, open, close), NewYorkClose
-Timeframe           M15, H1, H4, D1, W1 (later M1, M5, H12, MN1); codes 15m, 1h, 4h, 1d, 1w
+Timeframe           15m, 1h, 4h, 1d, 1w (later 1m, 5m, 12h, 1M); the same codes everywhere
 Candle              open time (UTC), open, high, low, close, volume
 CandleSeries        ordered candles of one asset and timeframe
 TimeframeAggregator builds a timeframe, or only its current candle, from a lower one along the session (MD3, MD8)
@@ -364,12 +364,12 @@ Decision 0004. Interface: docs/knowledge/ewts-api.md.
 IEwtsClient                                         Abstractions/Ewts
 every method takes the EwtsInstance it talks to
 
-GetInstanceAsync                                    status, version, source
-GetObservedAssetsAsync / AddObservedAssetAsync / RemoveObservedAssetAsync
-GetAssetDetailsAsync                                count, setups, history
-GetOverlaysAsync(symbol)                            drawings as data
+GetStatusAsync                                      identity, state, version, sources
+GetObservedAssetsAsync / AddObservedAssetAsync(source, symbol, ...) / RemoveObservedAssetAsync(source, symbol)
+GetAssetDetailsAsync(source, symbol)                 count, setups, history
+GetOverlaysAsync(source, symbol)                    drawings as data
 StartTestRunAsync / GetTestRunsAsync / GetTestRunAsync
-CancelTestRunAsync / DeleteTestRunAsync              both are DELETE; EWTS cancels a running and deletes a finished run
+CancelTestRunAsync / DeleteTestRunAsync              POST .../cancel and DELETE
 GetProfilesAsync                                    parameter profiles for switching analysis on (EW3)
 GetAlertsAsync(after) / GetAlertSettingsAsync / UpdateAlertSettingsAsync
 GetChangesAsync(after)                              what changed since change number n
@@ -385,8 +385,8 @@ GetChangesAsync(after)                              what changed since change nu
   TradeViewer with an unreachable instance there is nothing to show but "unreachable".
 - **Change detection.** `EwtsPollingService` asks every instance for its changes every
   `PollSeconds` and publishes them through `IWorkspaceNotifier`. EWTS does not push.
-- **Timeframes.** EWTS writes `M15, H1, H4, D1, W1`; TradeViewer's own API uses the
-  Downloader's codes. `EwtsClient` converts.
+- **Timeframes.** The EWTS API and its files use the Downloader's codes, so TradeViewer
+  converts nothing.
 - **Assets.** Analysis is switched on for an asset that is already in a watchlist (EW3);
   TradeViewer then calls the instance, which subscribes at the Downloader under its own
   client name. Which instance analyses an asset is known from the instance's own asset list,
@@ -459,7 +459,7 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/ewts/instances/{id}/assets/{symbol}      put switches analysis on, delete off, get details
 /api/ewts/instances/{id}/profiles
 /api/ewts/instances/{id}/overlays/{symbol}
-/api/ewts/instances/{id}/test-runs            list, start; /{runId} get, delete (cancel or delete)
+/api/ewts/instances/{id}/test-runs            list, start; /{runId} get, delete; /{runId}/cancel
 /api/ewts/instances/{id}/test-runs/{runId}/scenarios.zip   ZIP of the run's scenario files, built on request (BT6)
 /api/ewts/instances/{id}/alerts
 /api/ewts/instances/{id}/alert-settings

@@ -170,49 +170,54 @@ The same as the Downloader's control API, so TradeViewer handles both alike:
 - No authentication (trusted home network).
 - The request and response records live in a project `EWTS.Contracts` without dependencies,
   which TradeViewer copies unchanged, as it does with `Downloader.Contracts`.
-- Timeframes stay `M15 ... W1`; TradeViewer converts.
+- Timeframes are the Downloader's codes (`15m`, `1h`, `4h`, `1d`, `1w`) in the API and in the
+  scenario files; EWTS converts to its own enumeration at that boundary. The setup and context
+  timeframes are `1d` or `4h`.
 - The existing unversioned routes are not used by TradeViewer and may stay as they are.
 
 ```text
 GET    /health                                 liveness
-GET    /api/v1/instance                        identity and status
+GET    /api/v1/status                          identity and state of the instance
 GET    /api/v1/profiles                        parameter profiles an asset or a test run can use
 GET    /api/v1/assets                          observed assets, one overview row each
-PUT    /api/v1/assets/{symbol}                 observe an asset or change its settings
-DELETE /api/v1/assets/{symbol}                 stop observing: 204, 404 if not observed
-GET    /api/v1/assets/{symbol}                 details: count, setups, setup history
-GET    /api/v1/assets/{symbol}/drawings        analysis drawings as data
+PUT    /api/v1/assets/{source}/{symbol}        observe an asset or change its settings
+DELETE /api/v1/assets/{source}/{symbol}        stop observing: 204, 404 if not observed
+GET    /api/v1/assets/{source}/{symbol}        details: count, setups, setup history
+GET    /api/v1/assets/{source}/{symbol}/drawings  analysis drawings as data
 POST   /api/v1/test-runs                       start a test run: 202
-GET    /api/v1/test-runs?symbol=               test runs, newest first, without reports
+GET    /api/v1/test-runs?source=&symbol=             test runs, newest first, without reports
 GET    /api/v1/test-runs/{id}                  state, progress and, when finished, the report
-DELETE /api/v1/test-runs/{id}                  cancel a running test, delete a finished one
+POST   /api/v1/test-runs/{id}/cancel           cancel a running test: 204, 409 if it is not running
+DELETE /api/v1/test-runs/{id}                  delete a finished run and its scenarios: 204, 409 while it runs
 GET    /api/v1/alerts?after={n}&limit={n}      alerts after alert number n, oldest first
 GET    /api/v1/alert-settings                  channels and kinds
 PUT    /api/v1/alert-settings                  replace the settings
 GET    /api/v1/changes?after={n}               what changed after change number n
 ```
 
-## Instance
+## Status
 
-`GET /api/v1/instance`
+`GET /api/v1/status`
 
 ```json
-{ "instanceId": "pi-binance", "version": "2.0.0", "startedAt": "2026-11-11T06:00:00Z",
-  "source": "binance", "observedAssets": 13, "lastAnalysisAt": "2026-11-11T09:15:40Z",
+{ "instanceId": "pi-binance", "state": "running", "version": "2.0.0", "startedAt": "2026-11-11T06:00:00Z",
+  "sources": ["binance"], "observedAssets": 13, "lastAnalysisAt": "2026-11-11T09:15:40Z",
   "lastChange": 9120,
   "downloader": { "reachable": true, "since": "2026-11-11T06:00:05Z" } }
 ```
 
-`instanceId` is `Journal:InstanceId`. One instance handles one source; a request for an asset
-of another source cannot be expressed (assets are addressed by symbol), so TradeViewer checks
-the source before it calls.
+`instanceId` is `Journal:InstanceId`. `state` is `running` as in the Downloader's status. `sources`
+lists the sources the instance handles (today one). Every asset is addressed by `source` and
+`symbol`, as in the Downloader. A source the instance does not handle is answered with 422 on
+PUT and POST and with 404 on the other requests, so an instance can become source independent
+later without a change of the interface. TradeViewer offers only matching instances.
 
 ## Observed Assets
 
-`PUT /api/v1/assets/BTCUSDT`
+`PUT /api/v1/assets/binance/BTCUSDT`
 
 ```json
-{ "setupTimeframe": "D1", "historyFrom": "2019-01-01", "profile": "default" }
+{ "setupTimeframe": "1d", "historyFrom": "2019-01-01", "profile": "default" }
 ```
 
 - Idempotent. Adding subscribes the asset at the Downloader under EWTS's client name and starts
@@ -225,7 +230,7 @@ the source before it calls.
 
 ```json
 { "assets": [
-  { "symbol": "BTCUSDT", "displayName": "BTC/USDT", "setupTimeframe": "D1",
+  { "source": "binance", "symbol": "BTCUSDT", "displayName": "BTC/USDT", "setupTimeframe": "1d",
     "historyFrom": "2019-01-01", "profile": "default",
     "state": "watching", "lastAnalysisAt": "2026-11-11T09:15:40Z", "lastError": null,
     "bestSetup": { "direction": "long", "grade": "B", "score": 71.5 },
@@ -234,7 +239,7 @@ the source before it calls.
 
 `state`: `pending` (not analysed yet), `noSetup`, `setup`, `watching`, `planOpen`, `error`.
 
-`GET /api/v1/assets/BTCUSDT`: the overview row plus
+`GET /api/v1/assets/binance/BTCUSDT`: the overview row plus
 
 ```text
 count           timeframe, pattern, direction, lastWave, nextWave, invalidation level, confidence score
@@ -251,9 +256,9 @@ The current analysis of the asset as shapes a chart can draw without knowing wha
 Every position is a time and a price, so the shapes fit every timeframe.
 
 ```json
-{ "symbol": "BTCUSDT", "analysedAt": "2026-11-11T09:15:40Z", "asOf": "2026-11-11T00:00:00Z",
+{ "source": "binance", "symbol": "BTCUSDT", "analysedAt": "2026-11-11T09:15:40Z", "asOf": "2026-11-11T00:00:00Z",
   "groups": [
-    { "key": "count.preferred.D1", "title": "Preferred count D1", "kind": "count", "timeframe": "D1",
+    { "key": "count.preferred.1d", "title": "Preferred count 1d", "kind": "count", "timeframe": "1d",
       "shapes": [
         { "type": "line",  "role": "bullish",
           "points": [ { "time": "2026-08-05T00:00:00Z", "price": 49000 },
@@ -262,7 +267,7 @@ Every position is a time and a price, so the shapes fit every timeframe.
           "text": "(1)", "side": "above" },
         { "type": "level", "role": "invalidation", "price": 49000,
           "from": "2026-08-05T00:00:00Z", "to": null, "text": "Invalidation" } ] },
-    { "key": "setup.1", "title": "Setup long B", "kind": "setup", "timeframe": "D1",
+    { "key": "setup.1", "title": "Setup long B", "kind": "setup", "timeframe": "1d",
       "shapes": [
         { "type": "zone",   "role": "target", "lower": 78000, "upper": 79500,
           "from": "2026-11-01T00:00:00Z", "to": null, "text": "Target 1" },
@@ -324,7 +329,7 @@ the repository folder must lie below one root (e.g. `test-runs` as a mounted fol
 ```json
 { "version": 1,
   "id": "ethusdt-h4-2026-08-long", "source": "binance", "symbol": "ETHUSDT",
-  "contextTimeframe": "H4", "direction": "long", "verdict": "trade-win", "draft": false,
+  "contextTimeframe": "4h", "direction": "long", "verdict": "trade-win", "draft": false,
   "reason": "Wave 1 and a zigzag wave 2 at 73.3 % (log) by wick. ...",
   "notes": "The prices here are the Binance wick extremes. ...",
   "knownAt": "2026-08-19T14:45:00Z", "chart": null,
@@ -333,14 +338,14 @@ the repository folder must lie below one root (e.g. `test-runs` as a mounted fol
   "figures": [ { "name": "Grade", "value": "B" }, { "name": "Score", "value": 71.5 },
                { "name": "Result (R)", "value": 0.45 }, { "name": "Exit", "value": "TargetThenStop" } ],
   "groups": [
-    { "key": "waves", "title": "Waves", "kind": "waves", "timeframe": "H4",
+    { "key": "waves", "title": "Waves", "kind": "waves", "timeframe": "4h",
       "shapes": [
         { "type": "line", "role": "wave", "weight": "strong",
           "points": [ { "time": "2026-08-01T16:00:00Z", "price": 1822.06 },
                       { "time": "2026-08-07T12:00:00Z", "price": 1943.02 } ] },
         { "type": "label", "role": "wave", "time": "2026-08-07T12:00:00Z", "price": 1943.02,
           "text": "1", "side": "above", "detail": "1: 1943.02 at 2026-08-07 12:00 UTC" } ] },
-    { "key": "levels", "title": "Levels (log)", "kind": "levels", "timeframe": "H4",
+    { "key": "levels", "title": "Levels (log)", "kind": "levels", "timeframe": "4h",
       "shapes": [
         { "type": "level", "role": "target", "price": 2056.77, "style": "dotted",
           "from": "2026-08-11T12:00:00Z", "to": "2026-11-11T00:00:00Z", "text": "161.8 % (EM11)" },
@@ -383,7 +388,7 @@ expert/<id>.expert.json     a new expert scenario made in TradeViewer (no <id>.j
 ## Test Runs
 
 `POST /api/v1/test-runs`: the body of today's `POST /api/backtests` plus `"kind": "backtest"`
-(later `"walkForward"`) and an optional `"profile"`. Answer 202:
+(later `"walkForward"`) and an optional `"profile"`. The timeframe is a code (`1d`, `4h`). Answer 202:
 
 ```json
 { "id": "pi-binance-17", "state": "queued" }
@@ -398,14 +403,17 @@ all instances that write to the same scenario root.
 
 ```json
 { "id": "pi-binance-17", "kind": "backtest", "state": "running",
-  "request": { "symbol": "BTCUSDT", "timeframe": "D1", "from": "2024-01-01", "to": "2025-12-31" },
+  "request": { "source": "binance", "symbol": "BTCUSDT", "timeframe": "1d", "from": "2024-01-01", "to": "2025-12-31" },
   "createdAt": "2026-11-11T09:20:00Z", "startedAt": "2026-11-11T09:20:01Z", "finishedAt": null,
   "progress": { "done": 212, "total": 731 }, "error": null,
   "statistics": { }, "scenarioFolder": "test-runs/pi-binance-17",
   "report": null }
 ```
 
-- `state`: `queued`, `running`, `finished`, `failed`, `cancelled`.
+- `state`: `queued`, `downloadingData` (waiting for the Downloader), `checkingData`, `running`,
+  `finished`, `dataError`, `failed`, `cancelled`. `error` says why for `dataError` and `failed`.
+  TradeViewer shows the state as it comes and computes the elapsed time from `startedAt` and
+  `finishedAt`.
 - `progress` and `statistics` (the statistics so far, in the shape of the report's
   `statistics`) are updated while the run is going.
 - `report` is today's backtest report, set when the run has finished.
@@ -424,12 +432,12 @@ all instances that write to the same scenario root.
 
 EWTS creates and sends alerts. Every alert gets an instance-wide, strictly increasing number.
 
-`GET /api/v1/alerts?after=530&limit=100`
+`GET /api/v1/alerts?after=530&limit=100`  (`limit`: default 100, maximum 500, on every list)
 
 ```json
 { "lastAlert": 532,
   "alerts": [
-    { "alert": 531, "at": "2026-11-11T09:15:41Z", "symbol": "BTCUSDT", "kind": "setupFound",
+    { "alert": 531, "at": "2026-11-11T09:15:41Z", "source": "binance", "symbol": "BTCUSDT", "kind": "setupFound",
       "title": "BTCUSDT long setup B", "text": "Wave 2 complete at 58,400. Trigger above 61,200.",
       "deliveries": [ { "channel": "telegram", "sentAt": "2026-11-11T09:15:42Z", "error": null } ] } ] }
 ```
@@ -459,14 +467,14 @@ number.
 ```json
 { "lastChange": 9120, "complete": true,
   "changes": [
-    { "change": 9118, "kind": "assetAnalysed", "symbol": "BTCUSDT", "at": "2026-11-11T09:15:40Z" },
-    { "change": 9119, "kind": "alert", "symbol": "BTCUSDT", "alert": 531, "at": "2026-11-11T09:15:41Z" },
+    { "change": 9118, "kind": "assetAnalysed", "source": "binance", "symbol": "BTCUSDT", "at": "2026-11-11T09:15:40Z" },
+    { "change": 9119, "kind": "alert", "source": "binance", "symbol": "BTCUSDT", "alert": 531, "at": "2026-11-11T09:15:41Z" },
     { "change": 9120, "kind": "testRun", "testRunId": "pi-binance-17", "state": "finished",
       "at": "2026-11-11T09:31:07Z" } ] }
 ```
 
 - `kind`: `assetAdded`, `assetRemoved`, `assetAnalysed`, `testRun`, `alert`, `alertSettings`.
-- Changes are kept for a limited time; for an older `after` the answer has `complete: false`
+- Changes are kept 30 days, as in the Downloader; for an older `after` the answer has `complete: false`
   and the client reloads everything it shows.
 - There is no push; TradeViewer polls this endpoint. `lastChange` is also part of
-  `GET /api/v1/instance`.
+  `GET /api/v1/status`.

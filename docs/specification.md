@@ -34,7 +34,7 @@ Asset           a symbol of a source, e.g. binance / BTCUSDT; the source is part
 Timeframe       candle size: 15m, 1h, 4h, 1d, 1w (later 1m, 5m, 12h, 1M)
 Candle store    TradeViewer's local copy of the candles of its assets
 Workspace       everything the user creates in TradeViewer (watchlists, drawings, chart settings)
-EWTS instance   one running EWTS; it handles the assets of exactly one source
+EWTS instance   one running EWTS; it handles the assets of the sources it reports (today one)
 Observed asset  an asset an EWTS instance analyses continuously
 Overlay         analysis drawings of EWTS shown on a chart; read-only in TradeViewer
 Test run        a backtest (later also a Walk Forward run) an EWTS instance runs on its own;
@@ -202,12 +202,12 @@ Every requirement has an id. The backlog refers to these ids.
 
 - **EW1** The user registers an EWTS instance by name and address, edits and removes it.
   Several instances can be registered.
-- **EW2** The instance list shows for each: reachable or not, version, source, number of
+- **EW2** The instance list shows for each: reachable or not, version, sources, number of
   observed assets, time of the last analysis.
 - **EW3** Assets are independent of EWTS: every asset of a watchlist can be charted and drawn
-  on without it. An instance handles exactly one source, so only the instances whose source
-  is the asset's source are offered, and a request for another source is refused. The user
-  switches the analysis of an asset on by choosing the instance, the setup timeframe (D1 or H4,
+  on without it. An instance handles the sources it reports (today one), so only the instances that handle
+  the asset's source are offered, and EWTS refuses a request for another source. The user
+  switches the analysis of an asset on by choosing the instance, the setup timeframe (1d or 4h,
   which fixes the timeframes of the analysis), the history start (pre-filled with the default
   of AS3, can be changed) and the parameter profile. The instance then analyses the asset on
   every new candle until the user switches the analysis off. Several instances can analyse the
@@ -260,7 +260,7 @@ Every requirement has an id. The backlog refers to these ids.
 
 ### 4.10 Test Runs
 
-- **BT1** The user starts a backtest at an instance: an asset of the instance's source,
+- **BT1** The user starts a backtest at an instance: an asset of a source the instance handles,
   timeframe, period, account size, risk per trade and the overrides the instance offers (shown
   as generic fields). The asset need not be in a watchlist: EWTS subscribes to the Downloader
   itself and waits until the data is there.
