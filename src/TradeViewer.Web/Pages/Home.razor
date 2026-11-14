@@ -1,0 +1,37 @@
+@page "/"
+@inject HttpClient Http
+
+<PageTitle>TradeViewer</PageTitle>
+
+<h1>TradeViewer</h1>
+<p class="muted">The charts, the Downloader and EWTS in one place. This is the empty application.</p>
+
+@if (_status == null)
+{
+    <p class="muted">Checking the server...</p>
+}
+else if (_status == "ok")
+{
+    <p class="status-ok">Server: ok</p>
+}
+else
+{
+    <p class="status-bad">Server: not reachable</p>
+}
+
+@code {
+    private string? _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var health = await Http.GetFromJsonAsync<HealthResponse>("health");
+            _status = health?.Status ?? "unknown";
+        }
+        catch (HttpRequestException)
+        {
+            _status = "unreachable";
+        }
+    }
+}

@@ -11,7 +11,7 @@ of EWTS.
 
 | Epic | Status |
 |------|--------|
-| Solution Foundation | open |
+| Solution Foundation | done (2026-11-14) |
 | Workspace Persistence | open |
 | Assets and Market Data | open |
 | Price Chart | open |

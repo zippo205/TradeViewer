@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TradeViewer.Application\TradeViewer.Application.csproj" />
+    <ProjectReference Include="..\TradeViewer.Infrastructure\TradeViewer.Infrastructure.csproj" />
+    <ProjectReference Include="..\TradeViewer.Contracts\TradeViewer.Contracts.csproj" />
+    <!-- Only brings the published files of the client to serve; no type of Web is used (architecture, chapter 3) -->
+    <ProjectReference Include="..\TradeViewer.Web\TradeViewer.Web.csproj" />
+  </ItemGroup>
+
+</Project>

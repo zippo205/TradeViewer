@@ -1,0 +1,11 @@
+# Adds EWTS's scenario folder to docker-compose.yml (see the usage there).
+services:
+  tradeviewer:
+    environment:
+      Scenarios__RootPath: /data/scenarios
+    volumes:
+      - type: bind
+        source: ${SCENARIOS_PATH:?set SCENARIOS_PATH to EWTS's scenario folder}
+        target: /data/scenarios
+        bind:
+          create_host_path: false
