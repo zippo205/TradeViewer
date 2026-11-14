@@ -20,6 +20,7 @@ Every piece of information has one home:
 | docs/backlog.md | the epics, their order and the requirements they deliver |
 | docs/roadmap.md | releases and the status of the epics |
 | docs/plans/ | the implementation plan of each epic |
+| docs/runbooks/ | how to run and deploy it, on WSL and on the Raspberry Pi |
 | docs/knowledge/ | the interfaces of the Downloader and EWTS as TradeViewer uses them |
 
 ## Prerequisites
@@ -69,4 +70,5 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.scenarios.y
 docker buildx build --platform linux/arm64,linux/amd64 -f deploy/Dockerfile -t tradeviewer .
 ```
 
-The folders, the user and the port are explained at the top of `deploy/docker-compose.yml`.
+The folders, the user and the port are explained at the top of `deploy/docker-compose.yml`. The
+steps for WSL and for the Raspberry Pi are in docs/runbooks/deploy.md.

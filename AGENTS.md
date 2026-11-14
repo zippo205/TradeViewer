@@ -43,6 +43,7 @@ Releases and status                           docs/roadmap.md
 Steps of the epic in work                     docs/plans/<epic-name>.md
 Interfaces of the Downloader and EWTS         docs/knowledge/
 Setup and commands                            README.md
+Running and deploying, the Raspberry Pi       docs/runbooks/
 Rules for agents                              AGENTS.md
 ```
 
