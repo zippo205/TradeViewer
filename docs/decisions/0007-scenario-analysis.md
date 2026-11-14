@@ -16,7 +16,7 @@ expert scenarios the same way. The drawing tools of TradeViewer already produce 
    kind is **expert**.
 2. On any scenario the user draws an own analysis, sets a verdict and writes remarks. They are
    saved as a file `<id>.expert.json` next to the scenario `<id>.json`: the id in the file
-   name is the reference. The file has the format of a scenario file (docs/knowledge/ewts-api.md,
+   name is the reference. The file has the format of a scenario file (docs/knowledge/ewts-interface.md,
    Scenario Files).
 3. A new expert scenario is created in the same view and saved as `expert/<id>.expert.json`,
    a file without a `<id>.json` beside it.

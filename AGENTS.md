@@ -23,9 +23,9 @@ TradeViewer is a viewer and an operating console. It never analyses and never pl
 5. docs/knowledge/ (only the interface the task uses)
 
 ```text
-Assets, market data, Downloader monitoring     -> docs/knowledge/downloader-api.md
+Assets, market data, Downloader monitoring     -> docs/knowledge/downloader-interface.md
 EWTS instances, overlays, test runs, alerts,
-scenario viewer                                -> docs/knowledge/ewts-api.md
+scenario viewer                                -> docs/knowledge/ewts-interface.md
 ```
 
 Commands and setup are in README.md.

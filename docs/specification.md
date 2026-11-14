@@ -23,8 +23,8 @@ scenarios EWTS is developed and tested with and lets the owner add an own analys
 orders.
 
 The Downloader and EWTS are specified in their own repositories. This document only states what
-TradeViewer needs from them; the interfaces are in docs/knowledge/downloader-api.md and
-docs/knowledge/ewts-api.md.
+TradeViewer needs from them; the interfaces are in docs/knowledge/downloader-interface.md and
+docs/knowledge/ewts-interface.md.
 
 ## 2. Terms
 
@@ -42,7 +42,7 @@ Test run        a backtest (later also a Walk Forward run) an EWTS instance runs
 Alert           a message of an EWTS instance about a setup or a trade plan event
 Scenario        one market situation written down in EWTS's scenario format: the waves of a
                 1-2, optionally the trade; the owner's reading (expert scenario) or the
-                engine's reading (generated scenario: analysis case or scenario of a test run)
+                engine's reading (generated scenario: one of a test run)
 ```
 
 ## 3. Users and Environment
@@ -207,16 +207,18 @@ Every requirement has an id. The backlog refers to these ids.
 - **EW3** Assets are independent of EWTS: every asset of a watchlist can be charted and drawn
   on without it. An instance handles the sources it reports (today one), so only the instances that handle
   the asset's source are offered, and EWTS refuses a request for another source. The user
-  switches the analysis of an asset on by choosing the instance, the setup timeframe (1d or 4h,
+  switches the analysis of an asset on by choosing the instance, the context timeframe (1d or 4h,
   which fixes the timeframes of the analysis), the history start (pre-filled with the default
   of AS3, can be changed) and the parameter profile. The instance then analyses the asset on
   every new candle until the user switches the analysis off. Several instances can analyse the
   same asset; the watchlist row shows a mark for each. Switching analysis on or off is refused
   with a message while the instance is not reachable.
-- **EW4** Overview per instance: one table of its observed assets with setup timeframe, time of
-  the last analysis, state of a watched setup or open plan, and grade of the best setup.
-- **EW5** Asset details, as the EWTS record offers them (docs/knowledge/ewts-api.md): the current count in short form, the setups with grade, score, entry,
-  add level, stop and targets, the time they were found, and the history of earlier setups.
+- **EW4** Overview per instance: one table of its observed assets with context timeframe, time of
+  the last analysis, data quality, the state of a watched setup or open plan, and the direction
+  and state of the best setup (its grade too, when EWTS provides one).
+- **EW5** Asset details, as the EWTS record offers them (docs/knowledge/ewts-interface.md): the current count in short form, the setups with state, entry,
+  add level, stop and target, the time they were found, and the history of earlier setups
+  (grade and score too, when EWTS provides them).
 - **EW6** When an instance is not reachable, everything else keeps working; its data is shown
   as last received, with the time, and marked as stale.
 
@@ -273,7 +275,7 @@ Every requirement has an id. The backlog refers to these ids.
   Selecting a row shows the details: funnel, statistics, equity curve, the list of trades and
   watches, and the table of the run's scenarios.
 - **BT4** For every setup a run watched or traded, EWTS writes a scenario. The scenario table
-  of a run shows its figures (e.g. grade, score, path, result in R, exit reason, duration) and
+  of a run shows its figures (e.g. result in R, exit reason, duration) and
   can be sorted and filtered by them. Scenarios appear while the run is still going.
 - **BT5** Selecting a scenario of a run opens the Scenario Viewer (4.12) on the run: the chart
   with the scenario drawn, and at its right the list of the run's scenarios to select from.
@@ -299,8 +301,8 @@ Replaces the present way of checking a scenario of EWTS: generating a Pine scrip
 it in TradingView.
 
 - **SC1** TradeViewer lists the scenarios EWTS provides in a shared folder: id, asset, context
-  timeframe, direction, verdict of EWTS, verdict of the user, draft mark and kind (expert, or generated: analysis case or
-  scenario of a test run), and a mark when the user has an own analysis of it (SC10). The list
+  timeframe, direction, verdict of EWTS, verdict of the user, draft mark and kind (expert, or generated: a scenario of a test
+  run), and a mark when the user has an own analysis of it (SC10). The list
   can be filtered by asset, kind, direction and verdict and sorted by any column.
 - **SC2** Opening a scenario shows a chart of its asset on its context timeframe, positioned
   on the time span of the scenario, with the scenario drawn: waves and their labels, levels,
@@ -392,7 +394,7 @@ Measured on a Raspberry Pi 5 with an SSD, a desktop browser in the same network,
 ## 7. Dependencies on EWTS
 
 Sections 4.8 to 4.11 need interfaces EWTS does not have yet. They are listed in
-docs/knowledge/ewts-api.md, chapter "Required Interface". Section 4.12 needs the scenario
+docs/knowledge/ewts-interface.md, chapter "Required Interface". Section 4.12 needs the scenario
 drawing files described there, which EWTS's existing overlay tool can write; SC10 to SC13 also
 need EWTS to read the expert files TradeViewer writes (decision 0007). Sections 4.1 to
 4.7 and 4.13 need only the Downloader, whose interface exists.

@@ -47,7 +47,7 @@ Branch: `feature/market-data`
 
 Requirements: AS2, AS3, AS4, AS5, MD1, MD2, MD5, MD6, MD8, NF4, NF5, NF10
 Depends on: Workspace Persistence
-Knowledge: docs/knowledge/downloader-api.md
+Knowledge: docs/knowledge/downloader-interface.md
 Outcome: the candles of every added asset are in the store and stay up to date.
 
 ## Epic: Price Chart
@@ -78,7 +78,7 @@ Branch: `feature/scenario-viewer`
 
 Requirements: SC1, SC2, SC3, SC4, SC5, SC6, SC7, SC8, SC9, OV6
 Depends on: Price Chart; EWTS writes the drawing files (architecture, open point O1)
-Knowledge: docs/knowledge/ewts-api.md (Drawings, Scenario Files)
+Knowledge: docs/knowledge/ewts-interface.md (Drawings, Scenario Files)
 Outcome: a scenario is checked in TradeViewer instead of pasting a Pine script into
 TradingView.
 
@@ -112,7 +112,7 @@ Branch: `feature/scenario-analysis`
 
 Requirements: SC10, SC11, SC12, SC13
 Depends on: Scenario Viewer, Drawing Tools
-Knowledge: docs/knowledge/ewts-api.md (Scenario Files, Expert Analysis Files)
+Knowledge: docs/knowledge/ewts-interface.md (Scenario Files, Expert Analysis Files)
 Outcome: the own analysis of the user sits beside the one of EWTS and reaches EWTS as a file.
 
 ## Epic: Indicators
@@ -135,13 +135,13 @@ Branch: `feature/downloader-monitoring`
 
 Requirements: DL1, DL2, DL3, DL4, MD3, MD4
 Depends on: Assets and Market Data
-Knowledge: docs/knowledge/downloader-api.md
+Knowledge: docs/knowledge/downloader-interface.md
 
 ---
 
 # P2 - EWTS
 
-These epics need the API of docs/knowledge/ewts-api.md, chapter "Required Interface", which
+These epics need the API of docs/knowledge/ewts-interface.md, chapter "Required Interface", which
 EWTS has to build first (architecture, open point O1). TradeViewer's side can be
 developed against recorded answers; an epic is finished only when it works against a real
 instance.
@@ -155,7 +155,7 @@ Branch: `feature/ewts-instances`
 
 Requirements: EW1, EW2, EW3, EW4, EW5, EW6
 Depends on: Assets and Market Data, Watchlists
-Knowledge: docs/knowledge/ewts-api.md
+Knowledge: docs/knowledge/ewts-interface.md
 
 ## Epic: Analysis Overlays
 
@@ -167,7 +167,7 @@ Branch: `feature/analysis-overlays`
 
 Requirements: OV1, OV2, OV3, OV4, OV5, OV6
 Depends on: EWTS Instances, Scenario Viewer, Drawing Tools
-Knowledge: docs/knowledge/ewts-api.md
+Knowledge: docs/knowledge/ewts-interface.md
 
 ## Epic: Test Runs
 
@@ -178,7 +178,7 @@ Branch: `feature/test-runs`
 
 Requirements: BT1, BT2, BT3, BT4, BT5, BT6, BT7
 Depends on: EWTS Instances, Scenario Viewer
-Knowledge: docs/knowledge/ewts-api.md
+Knowledge: docs/knowledge/ewts-interface.md
 
 ## Epic: Alerts
 
@@ -186,4 +186,4 @@ Branch: `feature/alerts`
 
 Requirements: AL1, AL2, AL3, AL4
 Depends on: EWTS Instances
-Knowledge: docs/knowledge/ewts-api.md
+Knowledge: docs/knowledge/ewts-interface.md

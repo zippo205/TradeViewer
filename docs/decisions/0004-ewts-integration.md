@@ -33,7 +33,7 @@ TradeViewer's first architecture contained its own Elliott Wave rule validation.
 ## Consequences
 
 - EWTS's specification and backlog (Workbench) must be changed to "API only" and must include
-  the interface in docs/knowledge/ewts-api.md, chapter "Required Interface".
+  the interface in docs/knowledge/ewts-interface.md, chapter "Required Interface".
 - The epics that use EWTS depend on that work in the EWTS repository.
 - The knowledge documents about Elliott Wave, Fibonacci, market structure and risk were
   removed from this repository; they live in EWTS.

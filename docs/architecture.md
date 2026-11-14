@@ -212,7 +212,7 @@ Timeframe           15m, 1h, 4h, 1d, 1w (later 1m, 5m, 12h, 1M); the same codes 
 Candle              open time (UTC), open, high, low, close, volume
 CandleSeries        ordered candles of one asset and timeframe
 TimeframeAggregator builds a timeframe, or only its current candle, from a lower one along the session (MD3, MD8)
-CandleFileRules     file name -> period, row validation (see downloader-api.md)
+CandleFileRules     file name -> period, row validation (see downloader-interface.md)
 
 Indicator           Sma, Ema, BollingerBands, Rsi, Macd, Atr: candles + parameters -> series
 IndicatorInstance   indicator type, parameters, style
@@ -238,7 +238,7 @@ EwtsInstance        id, name, base address
 
 ## 6. Market Data
 
-Decision 0003. Interface of the Downloader: docs/knowledge/downloader-api.md.
+Decision 0003. Interface of the Downloader: docs/knowledge/downloader-interface.md.
 
 ### Flow
 
@@ -358,7 +358,7 @@ GetChangesAsync(source, symbol, after)              GET  status/{source}/{symbol
 
 ## 8. EWTS Integration
 
-Decision 0004. Interface: docs/knowledge/ewts-api.md.
+Decision 0004. Interface: docs/knowledge/ewts-interface.md.
 
 ```text
 IEwtsClient                                         Abstractions/Ewts
@@ -396,7 +396,7 @@ GetChangesAsync(after)                              what changed since change nu
 
 Decisions 0006 and 0007. EWTS writes one drawing file per scenario into a shared folder
 (`Scenarios:RootPath`; TradeViewer writes an expert file only for a scenario the user has
-reviewed and changed); the format is in docs/knowledge/ewts-api.md, Scenario Files.
+reviewed and changed); the format is in docs/knowledge/ewts-interface.md, Scenario Files.
 
 ```text
 IScenarioFileReader                                 Abstractions/Ewts
@@ -665,7 +665,7 @@ The target framework is .NET 10, but code is written in a .NET 8 style:
 Not decided yet; each must be closed before the epic that needs it starts.
 
 ```text
-O1  EWTS has to accept and build the interface of ewts-api.md, chapter "Required Interface":
+O1  EWTS has to accept and build the interface of ewts-interface.md, chapter "Required Interface":
     the scenario drawing files for the Scenario Viewer, the API for the epics EWTS Instances,
     Analysis Overlays, Test Runs and Alerts, and the reading of the `*.expert.json` files
     TradeViewer writes (decision 0007). The owner aligns this with the EWTS agent by a

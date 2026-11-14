@@ -5,7 +5,7 @@ Status: accepted (2026-11-11, owner); points 1, 3 and 4 amended by 0007
 ## Context
 
 EWTS is developed against scenarios: YAML files with the waves of a 1-2 and optionally a trade
-(../EWTS/docs/knowledge/scenarios.md). To check one, the owner generates a Pine script, pastes
+(../EWTS/docs/architecture.md, chapter 7, section "Scenario Files"). To check one, the owner generates a Pine script, pastes
 it into TradingView and compares it with the candles. TradeViewer shall replace that step.
 
 EWTS's tool `scenario-to-pine.py` already builds the drawing of a scenario as plain shapes
@@ -15,7 +15,7 @@ before it writes Pine.
 
 1. TradeViewer lists and draws scenarios; it does not write them.
 2. EWTS writes, next to each scenario, a drawing file (JSON) with the head of the scenario and
-   its shapes in the vocabulary of the analysis drawings (docs/knowledge/ewts-api.md).
+   its shapes in the vocabulary of the analysis drawings (docs/knowledge/ewts-interface.md).
 3. The files are exchanged through a shared folder that TradeViewer only reads
    (`Scenarios:RootPath`), as market data is exchanged with the Downloader.
 4. TradeViewer reads the folder on request and stores nothing.
