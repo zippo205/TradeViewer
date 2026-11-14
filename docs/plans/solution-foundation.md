@@ -7,7 +7,7 @@ Epic:     Solution Foundation (P0 - Foundation)
 Status:   Implemented 2026-11-14 (all 9 steps); waiting for the owner's check of the arm64 image on the Pi and the approval
 Branch:   feature/solution-foundation
 Next:     Epic Workspace Persistence
-Baseline: docs as of commit 81229eb
+Baseline: docs as of commit d23a5f8
 ```
 
 Update this section whenever a step is completed.
