@@ -62,9 +62,19 @@ Downloader    /home/admin/trading/Downloader    /data/marketdata (rw)      8081
                                                 /data/downloader
 TradeViewer   /home/admin/trading/TradeViewer   /data/marketdata (ro)      8080
                                                 /data/tradeviewer
-EWTS          /home/admin/trading/EWTS          /data/marketdata (ro)      (not decided)
-                                                /data/ewts
+EWTS          /home/admin/trading/EWTS          /data/marketdata (ro)      8082-8089 (one port per
+                                                /data/ewts (one folder     instance, up to 8 instances)
+                                                per instance)
+                                                /data/ewts/scenarios
+                                                (shared with TradeViewer)
 ```
+
+EWTS can run several times on the Pi, each instance with its own data and its own unique
+`instanceId`. The first instance uses port 8082, every further one the next number, up to 8089.
+All instances write their scenario files into the one folder `/data/ewts/scenarios`; TradeViewer
+mounts it as `SCENARIOS_PATH` and writes its `*.expert.json` files there (docs/runbooks/deploy.md).
+TradeViewer reaches an instance at `http://host.docker.internal:<port>` (deploy.md, "Reaching the
+Downloader and EWTS").
 
 If this table and the Downloader's pi-setup.md differ, the Downloader's file is the original:
 correct this copy.

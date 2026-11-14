@@ -21,7 +21,8 @@ MARKETDATA_PATH   the Downloader's output root, mounted read-only
                   WSL: /home/admin/marketdata (frozen copy)   Pi: /data/marketdata
 APPDATA_PATH      TradeViewer's own data: marketdata.db, workspace.db, backups
                   WSL: /home/admin/tradeviewer                Pi: /data/tradeviewer
-SCENARIOS_PATH    EWTS's scenario folder, writable (only with docker-compose.scenarios.yml)
+SCENARIOS_PATH    the scenario folder that all EWTS instances write to, writable for TradeViewer too
+                  (only with docker-compose.scenarios.yml); Pi: /data/ewts/scenarios
 TRADEVIEWER_PORT  host port of the website (default 8080; the Downloader uses 8081)
 APP_UID/APP_GID   user the container runs as (default 1000:1000 = the first WSL/Pi user)
 ```
@@ -33,6 +34,27 @@ exported in one `~/.bashrc` without clashing.
 
 Without these variables compose falls back to the repository's `data/` folders (git-ignored): the
 service then starts on empty folders instead of the real data.
+
+## Reaching the Downloader and EWTS
+
+Inside the container `localhost` is the container itself. TradeViewer reaches the other applications
+through the host and their published ports; the compose file maps the name for that
+(`extra_hosts: "host.docker.internal:host-gateway"`). Docker Desktop defines the name by itself; the
+Docker engine on the Pi does not, so the mapping is needed there.
+
+```text
+Downloader     http://host.docker.internal:8081
+EWTS instance  http://host.docker.internal:8082 ... :8089 (one port per instance, up to 8)
+```
+
+- The Downloader's address is a setting: `MarketData:Downloader:BaseUrl`, in the container
+  `MarketData__Downloader__BaseUrl=http://host.docker.internal:8081` (its default
+  `http://localhost:8081` is for `dotnet run`). The Downloader client is off until the epic Assets
+  and Market Data (`MarketData:Downloader:Enabled`).
+- EWTS instances are not configured: the user registers each one by name and address in the website
+  (requirement EW1), for example `http://host.docker.internal:8082` and
+  `http://host.docker.internal:8083`. Several instances are normal.
+- With `dotnet run` on WSL (section B) use `localhost` and the published ports instead.
 
 ## One-time setup in ~/.bashrc (WSL)
 

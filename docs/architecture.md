@@ -622,6 +622,9 @@ volumes
 - One image for linux/arm64 and linux/amd64; the .NET output is framework-dependent and has no
   runtime identifier
 - Port 8080, http only, no authentication (NF8)
+- The container reaches the Downloader (8081) and the EWTS instances (8082-8089, several are normal)
+  through `http://host.docker.internal:<port>`; the compose file maps the name with `extra_hosts`
+  (`host-gateway`), which the Docker engine on the Pi needs
 - The compose file limits the memory to 512 MB (NF9), checks `/health`, and runs the container as
   a configurable user (`user:`), so the expert files written into the scenario folder belong
   to the owner of that folder and EWTS can read them

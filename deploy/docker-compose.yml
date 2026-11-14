@@ -8,7 +8,8 @@
 #                     calls it OUTPUT_PATH). Without it the service stops at startup.
 #   APPDATA_PATH      TradeViewer's own data: marketdata.db, workspace.db, backups. On an SSD, not
 #                     on the SD card of the Pi.
-#   SCENARIOS_PATH    EWTS's scenario folder (only with docker-compose.scenarios.yml); writable,
+#   SCENARIOS_PATH    the scenario folder of all EWTS instances (Pi: /data/ewts/scenarios; only with
+#                     docker-compose.scenarios.yml); writable,
 #                     TradeViewer writes its *.expert.json files there.
 #   APP_UID/APP_GID   user the container runs as; must be able to write APPDATA_PATH and
 #                     SCENARIOS_PATH (default 1000, the first Linux user, also on Raspberry Pi OS).
@@ -42,6 +43,11 @@ services:
         max-file: "3"
     ports:
       - "${TRADEVIEWER_PORT:-8080}:8080"
+    # The Downloader (8081) and the EWTS instances (8082-8089) are reached through the host and their
+    # published ports: http://host.docker.internal:<port>. Docker Desktop defines the name itself;
+    # the Docker engine on the Pi does not, so it is mapped here.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # Long syntax with create_host_path: false: a missing host folder is an error, not a new empty
       # folder owned by root.
