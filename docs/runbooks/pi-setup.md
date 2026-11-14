@@ -110,7 +110,13 @@ Rules for the agent:
 ## 6. State
 
 ```text
-2026-11-14   TradeViewer is not deployed on home8 yet. The image was built and checked on
-             Docker Desktop (amd64) only. To do: deploy.md C1-C5, in particular that the arm64
-             image builds, that it is healthy, and that a missing host folder is refused.
+2026-11-14   TradeViewer deployed on home8 by the agent at the owner's request (deploy.md C2, C4,
+             C5), commit a9b47ea of the branch feature/solution-foundation. The arm64 image built
+             in about 100 seconds, the container is healthy, uses about 29 MB of its 512 MB, serves
+             port 8080 (reachable from the PC), mounts /data/marketdata read-only, and reaches the
+             Downloader through host.docker.internal:8081. A missing host folder is refused by the
+             Pi's Docker engine (nothing is created). Data folder /data/tradeviewer (empty until
+             the Workspace Persistence epic). The agent passed the settings inline (its SSH sessions do
+             not read ~/.bashrc); the owner added the two export lines to ~/.bashrc the same day
+             (deploy.md C3). After the epic is merged: git checkout main on the Pi.
 ```

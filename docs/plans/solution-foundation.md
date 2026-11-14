@@ -4,7 +4,7 @@
 
 ```text
 Epic:     Solution Foundation (P0 - Foundation)
-Status:   Implemented 2026-11-14 (all 9 steps); waiting for the owner's check of the arm64 image on the Pi and the approval
+Status:   Implemented 2026-11-14 (all 9 steps); arm64 image proved on the Pi; waiting for the owner's approval
 Branch:   feature/solution-foundation
 Next:     Epic Workspace Persistence
 Baseline: docs as of commit d23a5f8
@@ -188,10 +188,14 @@ Out of scope (later epics):
   healthy, serves `/health`, `/`, the framework files, the minified chart bundle and a 404 with
   problem details for `/api/x`, runs as 1000:1000, uses about 26 MB of the 512 MB, cannot write to
   the read-only market data mount and can write to the scenario folder.
-- **Not verified:** (1) the arm64 image and the Pi (owner, before approval); (2) that a missing
-  host folder is refused. On Docker Desktop `create_host_path: false` was ignored and the engine
-  created an empty root-owned folder, so the container started on nothing. The Downloader's compose
-  file uses the same option; check on the Pi that the native engine refuses a missing
-  `MARKETDATA_PATH` as intended.
+- **Verified on the Pi (home8, arm64, 2026-11-14, by the agent at the owner's request):** the
+  image builds (about 100 seconds), the container is healthy and restarts by itself, uses about
+  29 MB of 512 MB (memory accounting works), serves the page, the framework files, the chart bundle
+  and a 404 with problem details, is reachable from the PC at http://192.168.178.47:8080, cannot
+  write to `/data/marketdata` and reaches the Downloader at `host.docker.internal:8081` (`/health`
+  answers 200). On Docker Desktop `create_host_path: false` was ignored and the engine created an
+  empty root-owned folder; **the Pi's native engine refuses a missing host folder** ("bind source
+  path does not exist") and creates nothing, as intended. The Downloader's container was not
+  touched. The owner checks the page in a browser on the PC.
 - **README commands** were run: build, test, the filtered test, `npm test`, `dotnet format
   --verify-no-changes` (clean) and `dotnet run` with the `http` profile.
