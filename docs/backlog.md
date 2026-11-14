@@ -54,7 +54,9 @@ Outcome: the candles of every added asset are in the store and stay up to date.
 
 Branch: `feature/price-chart`
 
-- Chart module with candles, volume, scales, crosshair, zoom, pan and paging
+- Chart module with candles, volume, scales, crosshair, zoom, pan and paging; the version of
+  Lightweight Charts is pinned and its primitive API checked first (the reference project
+  OpenCharts uses 4.2)
 - `ChartHost` and the interop contract
 - One chart page with asset and timeframe selection, address per chart, settings per asset
 - Live update on `CandlesUpdated`
@@ -94,7 +96,9 @@ Outcome: the user finds the assets in their five lists and opens any of them in 
 
 Branch: `feature/drawing-tools`
 
-- Interaction layer of the chart module: tool state machine, hit testing, handles
+- Interaction layer of the chart module: tool state machine, hit testing, handles; before the
+  plan, study how OpenCharts maps time to x for times between and after the candles
+  (`../relatedProjects/OpenCharts`, drawing-tools) and decide the mapping
 - One primitive per tool, Fibonacci presets, wave label markers
 - Saving in the background, undo and redo
 

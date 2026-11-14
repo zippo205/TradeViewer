@@ -67,6 +67,9 @@ rewritten, they are replaced by a later one.
 - ../TradeViewerMVP is an earlier implementation with a different scope. Consult it to see how
   something was solved, but write new code from the current documents. Never copy files from
   it.
+- ../relatedProjects holds foreign projects for learning only. OpenCharts is the reference for
+  drawing tools on Lightweight Charts. Consult them; never copy code (licences differ, PineTS is
+  AGPL).
 - ../Downloader and ../EWTS own their interfaces. Never change those repositories from here;
   a needed change is written into docs/knowledge/ and raised with the owner.
 - The Downloader's output root (`MarketData:RootPath`) is read-only. Never write there.
