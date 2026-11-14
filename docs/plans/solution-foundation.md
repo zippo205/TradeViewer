@@ -4,7 +4,7 @@
 
 ```text
 Epic:     Solution Foundation (P0 - Foundation)
-Status:   Implemented 2026-11-14 (all 9 steps); arm64 image proved on the Pi; waiting for the owner's approval
+Status:   Completed 2026-11-14 (all 9 steps), approved by the owner and merged into main
 Branch:   feature/solution-foundation
 Next:     Epic Workspace Persistence
 Baseline: docs as of commit d23a5f8
@@ -150,9 +150,9 @@ Out of scope (later epics):
   exercised. No script, font or style comes from outside (NF6); `app.css` defines colours as
   variables and follows the dark or light setting of the browser. The Api serves every page of
   the client (`index.html` as fallback) and the framework files.
-- **Not verified in a browser:** this environment has none. The served files and the routes are
-  tested over HTTP; that the page renders and shows "Server: ok" has to be checked by the owner
-  at http://localhost:8080 (`dotnet run --project src/TradeViewer.Api --launch-profile http`).
+- **Browser:** the agent's environment has none, so the served files and the routes are tested over
+  HTTP. The owner opened the page in a browser, with `dotnet run` on WSL and on the Pi
+  (http://192.168.178.47:8080), and it shows "Server: ok".
 - **Chart module:** `src/TradeViewer.Chart` with `package.json` (exact versions: esbuild 0.28.2,
   TypeScript 7.0.2, Vitest 5.1.0; Node 22.12 or later because of Vitest 5), `tsconfig.json`
   (strict), `build.mjs` (esbuild, ESM, minified and without source map when the configuration is
