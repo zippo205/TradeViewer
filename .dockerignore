@@ -1,0 +1,14 @@
+# Keep the build context small and never send local data into an image
+.git/
+data/
+docs/
+tests/
+**/bin/
+**/obj/
+**/TestResults/
+**/node_modules/
+src/TradeViewer.Web/wwwroot/chart/
+.vs/
+.idea/
+.vscode/
+*.user

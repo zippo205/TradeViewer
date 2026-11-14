@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TradeViewer.Domain\TradeViewer.Domain.csproj" />
+    <ProjectReference Include="..\TradeViewer.Contracts\TradeViewer.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

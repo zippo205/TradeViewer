@@ -31,7 +31,7 @@ Every piece of information has one home:
   export PATH="$HOME/.dotnet:$PATH"
   ```
 
-- Node.js 20 or later, at build time only (chart module)
+- Node.js 22.12 or later (24 recommended), at build time only (chart module; Vitest 5 needs it)
 - The Downloader's output root (or a frozen copy of it) readable on this machine; its control
   API is needed only when `MarketData:Downloader:Enabled` is true
 
@@ -63,6 +63,10 @@ MarketData__RootPath=/srv/marketdata Storage__DataPath=/srv/tradeviewer dotnet r
 ## Docker
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d --build
+export MARKETDATA_PATH=/srv/marketdata APPDATA_PATH=/srv/tradeviewer     # both folders must exist
+docker compose -f deploy/docker-compose.yml up -d --build                 # http://localhost:8080
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.scenarios.yml up -d --build   # with SCENARIOS_PATH
 docker buildx build --platform linux/arm64,linux/amd64 -f deploy/Dockerfile -t tradeviewer .
 ```
+
+The folders, the user and the port are explained at the top of `deploy/docker-compose.yml`.

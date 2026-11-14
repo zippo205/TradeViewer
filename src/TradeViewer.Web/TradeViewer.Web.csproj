@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TradeViewer.Contracts\TradeViewer.Contracts.csproj" />
+  </ItemGroup>
+
+  <!--
+    The chart module (TypeScript, src/TradeViewer.Chart) is bundled into wwwroot/chart/ before every build:
+    `npm ci` when package-lock.json changed, then esbuild. -p:SkipChartBuild=true skips both (architecture, chapter 10).
+  -->
+  <PropertyGroup>
+    <ChartDirectory>$(MSBuildThisFileDirectory)..\TradeViewer.Chart\</ChartDirectory>
+    <ChartConfiguration>$(Configuration)</ChartConfiguration>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ChartSource Include="$(ChartDirectory)src\**\*.ts" />
+    <ChartSource Include="$(ChartDirectory)build.mjs;$(ChartDirectory)package.json" />
+  </ItemGroup>
+
+  <Target Name="ChartInstall"
+          BeforeTargets="ChartBuild"
+          Condition="'$(SkipChartBuild)' != 'true'"
+          Inputs="$(ChartDirectory)package-lock.json"
+          Outputs="$(ChartDirectory)node_modules\.package-lock.json">
+    <Exec Command="npm ci" WorkingDirectory="$(ChartDirectory)" />
+  </Target>
+
+  <Target Name="ChartBuild"
+          BeforeTargets="BeforeBuild;AssignTargetPaths"
+          Condition="'$(SkipChartBuild)' != 'true'"
+          Inputs="@(ChartSource);$(ChartDirectory)package-lock.json"
+          Outputs="$(MSBuildThisFileDirectory)wwwroot\chart\index.js">
+    <Exec Command="npm run build" WorkingDirectory="$(ChartDirectory)" EnvironmentVariables="CHART_CONFIGURATION=$(ChartConfiguration)" />
+  </Target>
+
+</Project>

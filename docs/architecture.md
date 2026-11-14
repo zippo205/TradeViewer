@@ -101,8 +101,10 @@ Chart           rendering and pointer interaction only.
 
 ```text
 Api            -> Application, Contracts, Infrastructure (registration only)
+Api            -> Web (a build reference that brings the published files of the client to
+                  serve; no type of Web is used)
 Application    -> Domain, Contracts
-Infrastructure -> Application, Domain
+Infrastructure -> Application, Domain, Contracts (the ports return the records of the Contracts)
 Web            -> Contracts
 Domain         -> nothing
 Contracts      -> nothing
@@ -596,8 +598,11 @@ Without the Downloader).
 Development starts on a frozen copy of the output root with the Downloader switched off
 (`/home/admin/marketdata`, owner decision 2026-11-11). The Downloader is switched on in
 development when the sync of the Assets and Market Data epic is built. A missing root path or data path
-stops the start with a clear message. A `Scenarios:RootPath` that is not writable switches
-off only SC10 to SC13; the viewer still works. EWTS instances are not configured here; the user
+stops the start with a clear message, and so does an output root or a scenario folder that
+does not exist (a missing mount; the output root is never created), and a data path that is,
+or lies inside, the output root or the scenario folder. A path may start with `~` (home
+folder); a relative path is resolved against the content root of the Api. A `Scenarios:RootPath`
+that is not writable switches off only SC10 to SC13; the viewer still works. EWTS instances are not configured here; the user
 registers them (EW1).
 
 ---
