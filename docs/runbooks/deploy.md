@@ -44,7 +44,8 @@ Docker engine on the Pi does not, so the mapping is needed there.
 
 ```text
 Downloader     http://host.docker.internal:8081
-EWTS instance  http://host.docker.internal:8082 ... :8089 (one port per instance, up to 8)
+EWTS instance  http://host.docker.internal:<8081 + n> for instance n = 1..8
+               (:8082 for instance 1, :8083 for instance 2, ... :8089 for instance 8)
 ```
 
 - The Downloader's address is a setting: `MarketData:Downloader:BaseUrl`, in the container
