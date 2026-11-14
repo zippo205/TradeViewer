@@ -77,6 +77,10 @@ rewritten, they are replaced by a later one.
 - In the scenario folder (`Scenarios:RootPath`) TradeViewer writes only `*.expert.json` files
   (decision 0007), and only for a scenario the user has changed. Never change a file of EWTS.
 - Tests never contact the Downloader or an EWTS instance.
+- The agent can log in to the Raspberry Pi (`ssh home8`), but deploys there only after the owner
+  has said so, every time (docs/runbooks/pi-setup.md, section 5).
+- Commits and pushes use the private identity set in this repository (`git config --local`),
+  never the global work address; the remote is `github-private`.
 
 ## Authority Order
 

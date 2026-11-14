@@ -69,7 +69,32 @@ EWTS          /home/admin/trading/EWTS          /data/marketdata (ro)      (not 
 If this table and the Downloader's pi-setup.md differ, the Downloader's file is the original:
 correct this copy.
 
-## 5. State
+## 5. Access for the agent
+
+The owner has created an SSH key so that the coding agent can log in to the Pi as user `admin` and
+deploy on its own. On the WSL machine `~/.ssh/config` has the entry `Host home8` (192.168.178.47,
+user `admin`, key `~/.ssh/id_ed25519_home8`); the Pi accepts that key
+(`~/.ssh/authorized_keys`; the Downloader's pi-setup.md, section 8, describes how to remove it).
+
+```text
+ssh home8 'hostname'        # home8  (a test that changes nothing)
+```
+
+Rules for the agent:
+
+- **Always ask the owner first.** The key allows it to log in; it does not give permission to
+  deploy. Each deployment, update, restart or other change on the Pi needs the owner's go-ahead in
+  that conversation. The owner decides when something goes to the Pi.
+- Read-only checks (`findmnt /data`, `docker ps`, `docker logs`, `ls`) are fine to look at the
+  state once the owner has asked for a deployment or a check.
+- Only the steps of this application: its folder `/home/admin/trading/TradeViewer`, its data
+  `/data/tradeviewer` and its container. Never touch the Downloader, its folders or containers,
+  `/data/marketdata`, or the OS and Docker settings; anything with `sudo` needs a separate question.
+- Never print files that may hold secrets (`~/.bashrc`, `~/.ssh/`) into the conversation.
+- Write files and long texts with the file tools, not with a shell heredoc: the text may contain its
+  own `EOF` and the rest would run as commands.
+
+## 6. State
 
 ```text
 2026-11-14   TradeViewer is not deployed on home8 yet. The image was built and checked on
