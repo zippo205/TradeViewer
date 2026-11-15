@@ -96,9 +96,9 @@ Out of scope (later epics):
 ```text
  1  Domain: Timeframe (codes, duration, period start), AssetClass, Session, Candle, CandleSeries,
     Asset, HistorySettings; CandleFileRules for the Binance layout (name -> timeframe and period,
-    row rules)                                                                                    open
+    row rules)                                                                                    done
  2  CSV reader: ICandleFileReader, Binance spot (columns 0-5, unit per value, header row skipped),
-    invalid data with file and line; fixtures cut from the frozen copy plus broken files          open
+    invalid data with file and line; fixtures cut from the frozen copy plus broken files          done
  3  Candle store: shared schema runner for both databases, MarketDataDatabase, tables series,
     candles, import_log, sync_state; ICandleStore (replace a period, read a page, delete an
     asset, delete before a date); a damaged or unknown store is set aside and rebuilt            open
