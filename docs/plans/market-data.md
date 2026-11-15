@@ -108,7 +108,7 @@ Out of scope (later epics):
     rescan against the import log, errors into the log; background queue with one worker and
     progress; rescan of all assets at startup in the background                                  done
  6  Downloader: copied contracts, IDownloaderClient / DownloaderClient (typed HttpClient, results
-    for problem details, timeouts and network errors), tests on recorded responses               open
+    for problem details, timeouts and network errors), tests on recorded responses               done
  7  Assets feature: add (catalog -> lookup -> subscribe -> store -> import), change history,
     remove, reload, rebuild, list and status with the loading progress; the mode without the
     Downloader; endpoints /api/symbols, /api/assets, /api/settings                               open
@@ -162,7 +162,8 @@ architecture when the step that needs them is done, and the owner may still chan
 - **Default history** (AS3: 1d and 1w complete, 4h two years, 1h one year, 15m 90 days) is one
   setting `defaultHistory` in the workspace: per timeframe either "complete" or a number of days.
   The start date of an asset is fixed when it is added (today minus the days) and stored with the
-  asset; "complete" is stored as no date and sent to the Downloader as its earliest date.
+  asset; "complete" is stored as no date and sent to the Downloader as 1970-01-01, which it clips
+  to the first day the source has (without a date its own defaults would apply, e.g. 4h two years).
 - **Adding fails as a whole.** The asset is stored only after the Downloader accepted the
   subscription (422 and 503 are shown with the Downloader's message, AS2). Only a later change of
   the history that fails is kept and sent again by the sync.
@@ -208,3 +209,11 @@ architecture when the step that needs them is done, and the owner may still chan
                     imported in 1.7 s (200 files per transaction, files in the page cache), store
                     40 MB; first page of 2,000 15m candles 2 ms, an older page of 5,000 4 ms (WSL)
 ```
+
+# Notes on the Way
+
+- Step 6: the responses in tests/fixtures/downloader are written from the examples of
+  downloader-interface.md, not recorded from a running Downloader (the tests must not contact it,
+  and the agent does not call the Pi's Downloader without being asked). The proof against the
+  real service is part of step 12. `GetSubscriptionsAsync` and `GetServiceStatusAsync` of chapter 7
+  come with the epic Downloader Monitoring, which is their first user.

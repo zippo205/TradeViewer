@@ -1,0 +1,6 @@
+{ "source": "binance", "symbol": "BTCUSDT", "sourceSymbol": "BTCUSDT", "assetClass": "crypto",
+  "sourceTimeframes": ["15m", "1h", "4h", "1d", "1w"],
+  "timeframes": [
+    { "timeframe": "15m", "status": "accepted", "historyFrom": "2023-01-01", "clipped": false },
+    { "timeframe": "1h",  "status": "unsupported" },
+    { "timeframe": "1d",  "status": "accepted", "historyFrom": "2017-08-17", "clipped": true } ] }

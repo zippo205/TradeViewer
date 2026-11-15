@@ -1,0 +1,6 @@
+{ "source": "binance", "symbol": "BTCUSDT", "sourceSymbol": "BTCUSDT", "assetClass": "crypto",
+  "displayName": "BTC/USDT", "tickSize": 0.01, "exchangeTimezone": null,
+  "session": { "type": "continuous", "timeZone": "UTC", "open": null, "close": null },
+  "sourceTimeframes": ["1m", "15m", "1h", "4h", "1d", "1w", "1M"],
+  "earliest": { "1d": "2017-08-17", "15m": "2017-08-17", "1M": "2017-08-01" },
+  "addedLater": "a field this version does not know" }

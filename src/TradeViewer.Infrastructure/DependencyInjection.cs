@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using TradeViewer.Application.Abstractions.MarketData;
 using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Infrastructure.Configuration;
+using TradeViewer.Infrastructure.MarketData.Downloader;
 using TradeViewer.Infrastructure.MarketData.Files;
 using TradeViewer.Infrastructure.MarketData.Import;
 using TradeViewer.Infrastructure.MarketData.Store;
@@ -61,6 +62,12 @@ public static class DependencyInjection
         services.AddSingleton<ICandleStore, SqliteCandleStore>();
         services.AddSingleton<ICandleFileReader, BinanceCandleFileReader>();
         services.AddSingleton<ISymbolCatalog, EmbeddedSymbolCatalog>();
+        services.AddHttpClient<IDownloaderClient, DownloaderClient>((provider, http) =>
+        {
+            var downloader = provider.GetRequiredService<IOptions<MarketDataOptions>>().Value.Downloader;
+            http.BaseAddress = new Uri(downloader.BaseUrl.TrimEnd('/') + "/");
+            http.Timeout = TimeSpan.FromSeconds(downloader.RequestTimeoutSeconds);
+        });
         services.AddSingleton<AssetFiles>();
         services.AddSingleton<AssetImporter>();
         services.AddSingleton<ImportService>();
