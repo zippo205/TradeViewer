@@ -2,14 +2,16 @@ using System.Threading.Channels;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TradeViewer.Application.Abstractions.MarketData;
+using TradeViewer.Application.Abstractions.Realtime;
 using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Domain.MarketData;
 
 namespace TradeViewer.Infrastructure.MarketData.Import;
 
 /// <summary>
-/// The one worker that writes the candle store. It takes the tasks in the order they were asked for. At the
-/// start it rescans every asset in the background, so the application is usable at once (NF10).
+/// The one worker that writes the candles of the candle store. It takes the tasks in the order they were
+/// asked for and tells the open windows what changed. At the start it rescans every asset in the background,
+/// so the application is usable at once (NF10).
 /// </summary>
 public sealed class ImportService : BackgroundService, IImportQueue
 {
@@ -24,13 +26,21 @@ public sealed class ImportService : BackgroundService, IImportQueue
     private readonly AssetFiles _files;
     private readonly AssetImporter _importer;
     private readonly ICandleStore _store;
+    private readonly IWorkspaceNotifier _notifier;
     private readonly ILogger<ImportService> _logger;
 
     private Work? _current;
     private CancellationTokenSource? _currentCancel;
 
-    public ImportService(IAssetRepository assets, AssetFiles files, AssetImporter importer, ICandleStore store, ILogger<ImportService> logger)
+    public ImportService(
+        IAssetRepository assets,
+        AssetFiles files,
+        AssetImporter importer,
+        ICandleStore store,
+        IWorkspaceNotifier notifier,
+        ILogger<ImportService> logger)
     {
+        _notifier = notifier;
         _assets = assets;
         _files = files;
         _importer = importer;
@@ -175,6 +185,8 @@ public sealed class ImportService : BackgroundService, IImportQueue
                     _pending[key]--;
                 }
             }
+
+            await _notifier.AssetStatusChangedAsync(work.Source, work.Symbol);
         }
     }
 
@@ -204,7 +216,12 @@ public sealed class ImportService : BackgroundService, IImportQueue
 
         if (work.Kind == WorkKind.Files)
         {
-            _importer.ImportFiles(asset, work.Files!);
+            var updated = _importer.ImportFiles(asset, work.Files!);
+            if (updated.Count > 0)
+            {
+                await _notifier.CandlesUpdatedAsync(asset.Source, asset.Symbol, updated.Select(Timeframes.Code).ToList());
+            }
+
             return;
         }
 
@@ -213,7 +230,11 @@ public sealed class ImportService : BackgroundService, IImportQueue
             _logger.LogWarning("{Source}/{Symbol} has no folder in the Downloader's output root: no data.", asset.Source, asset.Symbol);
         }
 
-        _importer.Rescan(asset, progress => SetProgress(key, progress), cancellationToken);
+        var changed = _importer.Rescan(asset, progress => SetProgress(key, progress), cancellationToken);
+        if (changed.Count > 0)
+        {
+            await _notifier.CandlesUpdatedAsync(asset.Source, asset.Symbol, changed.Select(Timeframes.Code).ToList());
+        }
     }
 
     private void SetProgress((string Source, string Symbol) key, TimeframeProgress progress)
@@ -228,6 +249,9 @@ public sealed class ImportService : BackgroundService, IImportQueue
 
             timeframes[progress.Timeframe] = progress;
         }
+
+        // The loading progress on the open pages (AS4); the notifier never fails the caller.
+        _ = _notifier.AssetStatusChangedAsync(key.Source, key.Symbol);
     }
 
     private enum WorkKind

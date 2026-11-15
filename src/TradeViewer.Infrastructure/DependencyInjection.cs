@@ -12,6 +12,7 @@ using TradeViewer.Infrastructure.MarketData.Files;
 using TradeViewer.Infrastructure.MarketData.Import;
 using TradeViewer.Infrastructure.MarketData.Store;
 using TradeViewer.Infrastructure.MarketData.Symbols;
+using TradeViewer.Infrastructure.MarketData.Sync;
 using TradeViewer.Infrastructure.Storage;
 using TradeViewer.Infrastructure.Workspace;
 using TradeViewer.Infrastructure.Workspace.Backups;
@@ -73,12 +74,14 @@ public static class DependencyInjection
         services.AddSingleton<AssetImporter>();
         services.AddSingleton<ImportService>();
         services.AddSingleton<IImportQueue>(provider => provider.GetRequiredService<ImportService>());
+        services.AddSingleton<MarketDataSync>();
 
         // Hosted services start in registration order: the folders first, then the workspace, then what uses it.
         services.AddHostedService<StorageInitializer>();
         services.AddHostedService(provider => provider.GetRequiredService<WorkspaceInitializer>());
         services.AddHostedService<MarketDataInitializer>();
         services.AddHostedService(provider => provider.GetRequiredService<ImportService>());
+        services.AddHostedService<MarketDataSyncService>();
         services.AddHostedService<DailyBackupService>();
 
         return services;

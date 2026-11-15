@@ -282,3 +282,27 @@ internal sealed class FixedClock : TimeProvider
         return Now;
     }
 }
+
+internal sealed class FakeNotifier : TradeViewer.Application.Abstractions.Realtime.IWorkspaceNotifier
+{
+    /// <summary>The events in their order, e.g. "AssetStatusChanged binance/BTCUSDT".</summary>
+    public List<string> Events { get; } = new List<string>();
+
+    public Task CandlesUpdatedAsync(string source, string symbol, IReadOnlyList<string> timeframes)
+    {
+        Events.Add("CandlesUpdated " + source + "/" + symbol + " " + string.Join(",", timeframes));
+        return Task.CompletedTask;
+    }
+
+    public Task AssetStatusChangedAsync(string source, string symbol)
+    {
+        Events.Add("AssetStatusChanged " + source + "/" + symbol);
+        return Task.CompletedTask;
+    }
+
+    public Task DownloaderStatusChangedAsync(bool reachable)
+    {
+        Events.Add("DownloaderStatusChanged " + reachable);
+        return Task.CompletedTask;
+    }
+}

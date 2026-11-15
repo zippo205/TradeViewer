@@ -114,8 +114,8 @@ Out of scope (later epics):
     Downloader; endpoints /api/symbols, /api/assets, /api/settings                               done
  8  Sync: due times (pure, TimeProvider), MarketDataSyncService (status -> changes -> import,
     complete == false -> rescan, subscriptions and unsubscriptions that failed are sent again,
-    unreachable logged once), sync_state                                                         open
- 9  Realtime: hub /hubs/workspace, IWorkspaceNotifier in the Api; events from import and sync     open
+    unreachable logged once), sync_state                                                         done
+ 9  Realtime: hub /hubs/workspace, IWorkspaceNotifier in the Api; events from import and sync     done
 10  Candles: current candle (TimeframeAggregator), GetCandlesQuery, endpoint with to and limit,
     column arrays, "partial"                                                                     open
 11  Web: assets page (add with symbol search, status and progress, history, reload, rebuild,
@@ -218,3 +218,10 @@ architecture when the step that needs them is done, and the owner may still chan
   and the agent does not call the Pi's Downloader without being asked). The proof against the
   real service is part of step 12. `GetSubscriptionsAsync` and `GetServiceStatusAsync` of chapter 7
   come with the epic Downloader Monitoring, which is their first user.
+- Step 8: after a change the sync asks once more before it waits for the next due time: a cycle of
+  the Downloader writes several timeframes one after the other, each with its own change number.
+  While the Downloader still downloads history for an asset, that asset is polled all the time.
+  The loop itself wakes with every poll (a read of the assets) so that subscriptions and
+  unsubscriptions waiting to be sent again are not held up; it asks the Downloader only when due.
+- Step 9: the notifier port carries timeframe codes, not the Domain type: the architecture tests
+  refused an Api that depends on the Domain.

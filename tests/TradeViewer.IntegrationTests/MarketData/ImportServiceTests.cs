@@ -155,6 +155,30 @@ public class ImportServiceTests : IDisposable
         Assert.Empty(progress.Timeframes);
     }
 
+    [Fact]
+    public async Task The_worker_tells_which_candles_changed_and_that_the_state_of_the_asset_changed()
+    {
+        await AddAssetAsync("BTCUSDT");
+        _data.WriteFile("BTCUSDT", "BTCUSDT-15m-2026-11-04.csv", 30);
+        _data.WriteFile("BTCUSDT", "BTCUSDT-1d-2026-11-03.csv", 1);
+        await StartAsync();
+
+        Assert.Contains("CandlesUpdated binance/BTCUSDT 1d,15m", _data.Notifier.Events);
+        Assert.Equal("AssetStatusChanged binance/BTCUSDT", _data.Notifier.Events[_data.Notifier.Events.Count - 1]);
+
+        // Nothing changed: no candle event.
+        var before = _data.Notifier.Events.Count(item => item.StartsWith("CandlesUpdated", StringComparison.Ordinal));
+        _service!.Rescan("binance", "BTCUSDT");
+        await WaitUntilIdleAsync();
+        Assert.Equal(before, _data.Notifier.Events.Count(item => item.StartsWith("CandlesUpdated", StringComparison.Ordinal)));
+
+        // One file grew.
+        _data.WriteFile("BTCUSDT", "BTCUSDT-15m-2026-11-04.csv", 31);
+        _service.ImportFiles("binance", "BTCUSDT", new[] { "15m/BTCUSDT-15m-2026-11-04.csv" });
+        await WaitUntilIdleAsync();
+        Assert.Contains("CandlesUpdated binance/BTCUSDT 15m", _data.Notifier.Events);
+    }
+
     private Task AddAssetAsync(string symbol)
     {
         return _data.Workspace.Assets.AddAsync(MarketDataFixture.Symbol(symbol), Complete, CancellationToken.None);

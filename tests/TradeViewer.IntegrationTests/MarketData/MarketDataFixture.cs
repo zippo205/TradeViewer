@@ -42,6 +42,8 @@ public sealed class MarketDataFixture : IDisposable
 
     public AssetImporter Importer { get; }
 
+    public RecordingNotifier Notifier { get; } = new RecordingNotifier();
+
     public static SymbolInfo Symbol(string symbol)
     {
         return new SymbolInfo("binance", symbol, symbol, AssetClass.Crypto, 0.01, Session.ContinuousUtc, Timeframes.All);
@@ -56,7 +58,7 @@ public sealed class MarketDataFixture : IDisposable
 
     public ImportService NewImportService()
     {
-        return new ImportService(Workspace.Assets, Files, Importer, Store, NullLogger<ImportService>.Instance);
+        return new ImportService(Workspace.Assets, Files, Importer, Store, Notifier, NullLogger<ImportService>.Instance);
     }
 
     public string FilePath(string symbol, string name)
