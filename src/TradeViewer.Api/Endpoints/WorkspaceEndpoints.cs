@@ -11,6 +11,23 @@ public static class WorkspaceEndpoints
 {
     public static IEndpointRouteBuilder MapWorkspaceEndpoints(this IEndpointRouteBuilder routes)
     {
+        routes.MapGet("/api/settings", async (
+            IQueryHandler<GetSettingsQuery, SettingsResponse> handler,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await handler.HandleAsync(new GetSettingsQuery(), cancellationToken);
+            return result.ToHttpResult();
+        });
+
+        routes.MapPut("/api/settings", async (
+            SettingsResponse request,
+            ICommandHandler<UpdateSettingsCommand, SettingsResponse> handler,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await handler.HandleAsync(new UpdateSettingsCommand(request.DefaultHistory), cancellationToken);
+            return result.ToHttpResult();
+        });
+
         var backups = routes.MapGroup("/api/workspace/backups");
 
         backups.MapGet("", async (

@@ -69,6 +69,7 @@ public static class DependencyInjection
             http.Timeout = TimeSpan.FromSeconds(downloader.RequestTimeoutSeconds);
         });
         services.AddSingleton<AssetFiles>();
+        services.AddSingleton<IAssetFolders>(provider => provider.GetRequiredService<AssetFiles>());
         services.AddSingleton<AssetImporter>();
         services.AddSingleton<ImportService>();
         services.AddSingleton<IImportQueue>(provider => provider.GetRequiredService<ImportService>());

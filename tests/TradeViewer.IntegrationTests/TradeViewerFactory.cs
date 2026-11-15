@@ -8,7 +8,7 @@ namespace TradeViewer.IntegrationTests;
 public sealed class TradeViewerFactory : WebApplicationFactory<Program>
 {
     private readonly string _root;
-    private readonly bool _ownsRoot;
+    private bool _ownsRoot;
 
     public TradeViewerFactory()
     {
@@ -19,11 +19,18 @@ public sealed class TradeViewerFactory : WebApplicationFactory<Program>
     private TradeViewerFactory(string existingRoot)
     {
         _root = existingRoot;
+        _ownsRoot = true;
     }
 
-    /// <summary>A second application on the folders of this one, like a restart; it leaves the folders in place when disposed.</summary>
-    public TradeViewerFactory Restart()
+    /// <summary>
+    /// Stops this application and returns a new one on the same folders: a restart. The new one removes the
+    /// folders when it is disposed. beforeStart runs while no application is running.
+    /// </summary>
+    public TradeViewerFactory Restart(Action? beforeStart = null)
     {
+        _ownsRoot = false;
+        Dispose();
+        beforeStart?.Invoke();
         return new TradeViewerFactory(_root);
     }
 

@@ -197,7 +197,7 @@ public sealed class AssetRepository : IAssetRepository
         }
 
         var assets = new List<Asset>();
-        using (var command = workspace.CreateCommand("SELECT " + AssetColumns + " FROM assets WHERE " + where + " ORDER BY asset_class, position;"))
+        using (var command = workspace.CreateCommand("SELECT " + AssetColumns + ", subscription_sent FROM assets WHERE " + where + " ORDER BY asset_class, position;"))
         {
             addParameters?.Invoke(command);
             using var reader = command.ExecuteReader();
@@ -227,7 +227,7 @@ public sealed class AssetRepository : IAssetRepository
                     timeframes);
 
                 histories.TryGetValue((source, symbol), out var starts);
-                assets.Add(new Asset(info, new AssetHistory(starts ?? new Dictionary<Timeframe, DateOnly?>()), reader.GetInt32(10)));
+                assets.Add(new Asset(info, new AssetHistory(starts ?? new Dictionary<Timeframe, DateOnly?>()), reader.GetInt32(10), reader.GetInt64(11) != 0));
             }
         }
 

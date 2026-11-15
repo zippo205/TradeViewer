@@ -184,9 +184,27 @@ public class CandleStoreTests : IDisposable
     {
         Assert.Null(_store.GetSyncState("binance", "BTCUSDT"));
 
-        _store.SetSyncState("binance", "BTCUSDT", new SyncState(48100, "{\"a\":1}", 1000));
-        _store.SetSyncState("binance", "BTCUSDT", new SyncState(48213, null, 2000));
+        var status = new SymbolStatus(48100, new[]
+        {
+            new TimeframeStatus(
+                Timeframe.M15,
+                new DateOnly(2019, 1, 1),
+                DateTimeOffset.UnixEpoch,
+                null,
+                3,
+                new[] { new CoverageGap(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddHours(1), "pending") },
+                "an error")
+        });
+        _store.SetSyncState("binance", "BTCUSDT", new SyncState(48100, status, 1000));
 
+        var read = _store.GetSyncState("binance", "BTCUSDT")!;
+        Assert.Equal(48100, read.LastChange);
+        Assert.Equal(1000, read.CheckedAt);
+        var timeframe = Assert.Single(read.LastStatus!.Timeframes);
+        Assert.Equal(status.Timeframes[0] with { Gaps = timeframe.Gaps }, timeframe);
+        Assert.Equal(status.Timeframes[0].Gaps, timeframe.Gaps);
+
+        _store.SetSyncState("binance", "BTCUSDT", new SyncState(48213, null, 2000));
         Assert.Equal(new SyncState(48213, null, 2000), _store.GetSyncState("binance", "BTCUSDT"));
     }
 

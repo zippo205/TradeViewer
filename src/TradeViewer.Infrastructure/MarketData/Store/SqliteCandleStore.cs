@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using TradeViewer.Application.Abstractions.MarketData;
 using TradeViewer.Domain.MarketData;
@@ -269,7 +270,8 @@ public sealed class SqliteCandleStore : ICandleStore
             return null;
         }
 
-        return new SyncState(reader.GetInt64(0), reader.IsDBNull(1) ? null : reader.GetString(1), reader.GetInt64(2));
+        var status = reader.IsDBNull(1) ? null : JsonSerializer.Deserialize<SymbolStatus>(reader.GetString(1));
+        return new SyncState(reader.GetInt64(0), status, reader.GetInt64(2));
     }
 
     public void SetSyncState(string source, string symbol, SyncState state)
@@ -285,7 +287,7 @@ public sealed class SqliteCandleStore : ICandleStore
         command.Parameters.AddWithValue("$source", source);
         command.Parameters.AddWithValue("$symbol", symbol);
         command.Parameters.AddWithValue("$lastChange", state.LastChange);
-        command.Parameters.AddWithValue("$status", (object?)state.LastStatusJson ?? DBNull.Value);
+        command.Parameters.AddWithValue("$status", state.LastStatus == null ? DBNull.Value : JsonSerializer.Serialize(state.LastStatus));
         command.Parameters.AddWithValue("$checkedAt", state.CheckedAt);
         command.ExecuteNonQuery();
     }

@@ -111,7 +111,7 @@ Out of scope (later epics):
     for problem details, timeouts and network errors), tests on recorded responses               done
  7  Assets feature: add (catalog -> lookup -> subscribe -> store -> import), change history,
     remove, reload, rebuild, list and status with the loading progress; the mode without the
-    Downloader; endpoints /api/symbols, /api/assets, /api/settings                               open
+    Downloader; endpoints /api/symbols, /api/assets, /api/settings                               done
  8  Sync: due times (pure, TimeProvider), MarketDataSyncService (status -> changes -> import,
     complete == false -> rescan, subscriptions and unsubscriptions that failed are sent again,
     unreachable logged once), sync_state                                                         open
@@ -156,9 +156,10 @@ architecture when the step that needs them is done, and the owner may still chan
   files first. So a timeframe can be charted after seconds (AS4) and the long 15m history fills in
   behind. One import worker for the whole application: SQLite has one writer, and the Pi stays
   responsive.
-- **Loading progress** per timeframe is the share of the wanted files that are imported, combined
-  with the Downloader's coverage (`coveredFrom` against `wantedFrom`, pending jobs) while it still
-  downloads. Without the Downloader only the import counts.
+- **Loading progress** per timeframe is the share of the wanted files that are imported. A
+  timeframe also counts as loading while the Downloader has jobs for it or reports a part of it as
+  `pending` (its own word for "not downloaded yet"; what the source does not have is `unavailable`
+  or `missingUpstream` and nothing to wait for). Without the Downloader only the import counts.
 - **Default history** (AS3: 1d and 1w complete, 4h two years, 1h one year, 15m 90 days) is one
   setting `defaultHistory` in the workspace: per timeframe either "complete" or a number of days.
   The start date of an asset is fixed when it is added (today minus the days) and stored with the

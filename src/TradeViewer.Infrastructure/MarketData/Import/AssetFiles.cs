@@ -1,3 +1,4 @@
+using TradeViewer.Application.Abstractions.MarketData;
 using TradeViewer.Domain.Assets;
 using TradeViewer.Domain.MarketData;
 using TradeViewer.Infrastructure.Storage;
@@ -9,7 +10,7 @@ namespace TradeViewer.Infrastructure.MarketData.Import;
 /// {root}/{source}/{SYMBOL}/{timeframe}/{SYMBOL}-{timeframe}-{period}.csv. Only *.csv is read; a missing
 /// folder means "no data".
 /// </summary>
-public sealed class AssetFiles
+public sealed class AssetFiles : IAssetFolders
 {
     private readonly StorageLocations _locations;
 

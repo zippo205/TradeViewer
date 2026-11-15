@@ -17,6 +17,7 @@ app.UseStaticFiles();
 
 app.MapHealthEndpoints();
 app.MapWorkspaceEndpoints();
+app.MapAssetEndpoints();
 
 // An unknown API route is a 404 with problem details, never the page of the client.
 app.Map("/api/{**rest}", () => Results.NotFound());

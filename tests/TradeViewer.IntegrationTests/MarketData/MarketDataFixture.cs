@@ -51,7 +51,7 @@ public sealed class MarketDataFixture : IDisposable
     public static Asset Asset(string symbol, params Timeframe[] timeframes)
     {
         var starts = (timeframes.Length == 0 ? Timeframes.All : timeframes).ToDictionary(timeframe => timeframe, _ => (DateOnly?)null);
-        return new Asset(Symbol(symbol), new AssetHistory(starts), 1);
+        return new Asset(Symbol(symbol), new AssetHistory(starts), 1, true);
     }
 
     public ImportService NewImportService()
