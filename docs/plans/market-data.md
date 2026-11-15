@@ -117,7 +117,7 @@ Out of scope (later epics):
     unreachable logged once), sync_state                                                         done
  9  Realtime: hub /hubs/workspace, IWorkspaceNotifier in the Api; events from import and sync     done
 10  Candles: current candle (TimeframeAggregator), GetCandlesQuery, endpoint with to and limit,
-    column arrays, "partial"                                                                     open
+    column arrays, "partial"                                                                     done
 11  Web: assets page (add with symbol search, status and progress, history, reload, rebuild,
     remove with confirmation), default history on the settings page, hub client                  open
 12  Measurement on the frozen copy (13 symbols): import time, store size, page read time; Docker

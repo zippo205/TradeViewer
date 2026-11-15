@@ -4,10 +4,13 @@ using TradeViewer.Application.Features.Assets.Commands;
 using TradeViewer.Application.Features.Assets.Handlers;
 using TradeViewer.Application.Features.Assets.Queries;
 using TradeViewer.Application.Features.Assets.Services;
+using TradeViewer.Application.Features.MarketData.Handlers;
+using TradeViewer.Application.Features.MarketData.Queries;
 using TradeViewer.Application.Features.Workspace.Commands;
 using TradeViewer.Application.Features.Workspace.Handlers;
 using TradeViewer.Application.Features.Workspace.Queries;
 using TradeViewer.Contracts.Assets;
+using TradeViewer.Contracts.MarketData;
 using TradeViewer.Contracts.Workspace;
 
 namespace TradeViewer.Application;
@@ -27,6 +30,9 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<RemoveAssetCommand, Unit>, RemoveAssetCommandHandler>();
         services.AddScoped<ICommandHandler<RescanAssetCommand, Unit>, RescanAssetCommandHandler>();
         services.AddScoped<ICommandHandler<RebuildAssetCommand, Unit>, RebuildAssetCommandHandler>();
+
+        // MarketData
+        services.AddScoped<IQueryHandler<GetCandlesQuery, CandlesResponse>, GetCandlesQueryHandler>();
 
         // Workspace
         services.AddScoped<IQueryHandler<GetSettingsQuery, SettingsResponse>, GetSettingsQueryHandler>();
