@@ -207,3 +207,126 @@ input:disabled {
     color: var(--bad);
     border-color: var(--bad);
 }
+
+/* The chart page fills the window below the header. */
+.app-header {
+    height: 44px;
+}
+
+.chart-page {
+    position: fixed;
+    inset: 44px 0 0 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.chart-note {
+    padding: 0 16px;
+}
+
+.segments {
+    display: flex;
+}
+
+.segments button {
+    border-radius: 0;
+    margin-left: -1px;
+}
+
+.segments button:first-child {
+    margin-left: 0;
+    border-radius: 4px 0 0 4px;
+}
+
+.segments button:last-child {
+    border-radius: 0 4px 4px 0;
+}
+
+.segments button.selected {
+    color: #ffffff;
+    background: var(--link);
+    border-color: var(--link);
+}
+
+.chart-host {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Elements the chart module puts on top of its canvas. */
+.tv-chart-canvas {
+    position: absolute;
+    inset: 0;
+}
+
+.tv-chart-legend {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    z-index: 3;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    white-space: pre;
+    pointer-events: none;
+}
+
+.tv-legend-time,
+.tv-legend-volume {
+    color: var(--muted);
+}
+
+.tv-legend-up {
+    color: var(--ok);
+}
+
+.tv-legend-down {
+    color: var(--bad);
+}
+
+.tv-legend-partial {
+    color: var(--link);
+}
+
+.tv-chart-message {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    background: var(--bg);
+}
+
+.tv-chart-message[hidden] {
+    display: none;
+}
+
+.tv-chart-latest {
+    position: absolute;
+    right: 76px;
+    bottom: 40px;
+    z-index: 3;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 15px;
+}
+
+/* An element marked as hidden stays hidden, whatever its other rules say. */
+[hidden] {
+    display: none !important;
+}
