@@ -4,8 +4,8 @@
 
 ```text
 Epic:     Workspace Persistence (P0 - Foundation)
-Status:   All steps done 2026-11-15; waiting for the owner's check of the settings page and the
-          Docker build on the Pi (step 7 *), then approval and merge
+Status:   All steps done and deployed on the Pi 2026-11-15; waiting for the owner's check of the
+          settings page (step 7 *), then approval and merge
 Branch:   feature/workspace-persistence
 Next:     Epic Assets and Market Data
 Baseline: docs as of commit 15d8356 (main)
@@ -132,8 +132,9 @@ Proved     start, upgrade with backup, refusal of newer and damaged files, backu
            change nothing, restart; by hand with curl against the running application and against
            the Docker image (amd64, 30 MB of 512 MB)
 * Open     the settings page was not seen in a browser by the agent (no browser tests in V1): the
-           owner checks it by hand. The image for the Pi (arm64, with the native SQLite library)
-           is not built yet: that is a deployment and needs the owner's go-ahead.
+           owner checks it by hand (http://192.168.178.47:8080/settings).
+Pi         deployed 2026-11-15 at the owner's request (pi-setup.md, section 6): the arm64 image
+           builds, backup and both restores work there, 34 MB of 512 MB
 ```
 
 Found on the way:

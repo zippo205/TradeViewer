@@ -119,4 +119,12 @@ Rules for the agent:
              the Workspace Persistence epic). The agent passed the settings inline (its SSH sessions do
              not read ~/.bashrc); the owner added the two export lines to ~/.bashrc the same day
              (deploy.md C3). After the epic is merged: git checkout main on the Pi.
+
+2026-11-15   Epic Workspace Persistence deployed by the agent at the owner's request: commit a330cb0
+             of the branch feature/workspace-persistence. The arm64 image with the native SQLite
+             library built in 85 seconds; the container is healthy and uses about 34 MB.
+             /data/tradeviewer now holds workspace.db (schema version 1) and backups/; the daily
+             backup of the first start, "back up now", download, restore by name and restore of an
+             uploaded file were proved with curl on the Pi. After the epic is merged: git checkout
+             main on the Pi.
 ```
