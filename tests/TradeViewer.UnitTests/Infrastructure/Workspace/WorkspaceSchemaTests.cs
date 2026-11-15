@@ -1,3 +1,4 @@
+using TradeViewer.Infrastructure.Sqlite;
 using TradeViewer.Infrastructure.Workspace;
 
 namespace TradeViewer.UnitTests.Infrastructure.Workspace;

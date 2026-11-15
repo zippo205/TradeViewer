@@ -101,7 +101,7 @@ Out of scope (later epics):
     invalid data with file and line; fixtures cut from the frozen copy plus broken files          done
  3  Candle store: shared schema runner for both databases, MarketDataDatabase, tables series,
     candles, import_log, sync_state; ICandleStore (replace a period, read a page, delete an
-    asset, delete before a date); a damaged or unknown store is set aside and rebuilt            open
+    asset, delete before a date); a damaged or unknown store is set aside and rebuilt            done
  4  Workspace: script 0002 (assets with history per timeframe), IAssetRepository; default history
     in the settings; ISymbolCatalog on Symbols/binance.json                                       open
  5  Import: file list of an asset from its history start, first import (newest files first),
@@ -147,7 +147,9 @@ architecture when the step that needs them is done, and the owner may still chan
 - **The candle store is a cache and treated like one.** `synchronous=NORMAL` with WAL (a power
   loss can lose the last import, which the rescan repeats). A store that is damaged or has a
   newer schema than the build is renamed (`marketdata.db.broken-<time>`) and a new one is filled
-  from the files; the start is never stopped by it, unlike workspace.db.
+  from the files; the start is never stopped by it, unlike workspace.db. The store is not checked
+  with `quick_check` at the start: on 3 GB that would cost the 15 seconds of NF10. Damage shows as
+  an error when the store is used; "rebuild" or deleting the file repairs it.
 - **Storage format.** Times as Unix seconds (INTEGER), prices and volume as REAL (`double`, as in
   the Domain). One schema runner for both databases, so marketdata.db gets numbered scripts too.
 - **Import order.** Per asset 1w and 1d first, then 4h, 1h, 15m; within a timeframe the newest
@@ -194,3 +196,15 @@ architecture when the step that needs them is done, and the owner may still chan
    Knowledge Sources). Not answered yet: whether the measurement of step 12 imports the 13 symbols
    with complete history; it is asked again before that step (the WSL disk had 1.7 GB free on
    2026-11-15, the store of that measurement is estimated at 0.4 GB).
+
+---
+
+# Measurements on the Way
+
+```text
+2026-11-15  step 2  all 121,277 Binance files of the frozen copy read by the reader: 2,806,898
+                    candles, no invalid row, 20 s (WSL)
+2026-11-15  step 3  BTCUSDT, complete history in five timeframes: 12,117 files, 365,824 candles
+                    imported in 1.7 s (200 files per transaction, files in the page cache), store
+                    40 MB; first page of 2,000 15m candles 2 ms, an older page of 5,000 4 ms (WSL)
+```

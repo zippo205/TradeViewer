@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using TradeViewer.Infrastructure.Configuration;
+using TradeViewer.Infrastructure.Sqlite;
 using TradeViewer.Infrastructure.Storage;
 using TradeViewer.Infrastructure.Workspace;
 using TradeViewer.Infrastructure.Workspace.Backups;

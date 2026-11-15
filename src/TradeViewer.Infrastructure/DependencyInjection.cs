@@ -2,9 +2,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using TradeViewer.Application.Abstractions.MarketData;
 using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Infrastructure.Configuration;
+using TradeViewer.Infrastructure.MarketData.Files;
+using TradeViewer.Infrastructure.MarketData.Store;
 using TradeViewer.Infrastructure.Storage;
 using TradeViewer.Infrastructure.Workspace;
 using TradeViewer.Infrastructure.Workspace.Backups;
@@ -44,9 +48,19 @@ public static class DependencyInjection
         services.AddSingleton<ISettingsRepository, SettingsRepository>();
         services.AddSingleton<WorkspaceInitializer>();
 
+        services.AddSingleton(MarketDataSchema.FromEmbeddedScripts());
+        services.AddSingleton(provider => new MarketDataDatabase(
+            provider.GetRequiredService<StorageLocations>().MarketDataDatabasePath,
+            provider.GetRequiredService<MarketDataSchema>(),
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<ILogger<MarketDataDatabase>>()));
+        services.AddSingleton<ICandleStore, SqliteCandleStore>();
+        services.AddSingleton<ICandleFileReader, BinanceCandleFileReader>();
+
         // Hosted services start in registration order: the folders first, then the workspace, then what uses it.
         services.AddHostedService<StorageInitializer>();
         services.AddHostedService(provider => provider.GetRequiredService<WorkspaceInitializer>());
+        services.AddHostedService<MarketDataInitializer>();
         services.AddHostedService<DailyBackupService>();
 
         return services;
