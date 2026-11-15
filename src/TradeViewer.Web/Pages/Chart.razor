@@ -1,6 +1,8 @@
 @page "/chart/{Source}/{Symbol}/{Timeframe}"
 @implements IDisposable
 @inject AssetsApi Api
+@inject ChartsApi Charts
+@inject WorkspaceApi Workspace
 @inject WorkspaceEvents Events
 @inject NavigationManager Navigation
 
@@ -52,7 +54,7 @@
             @Source/@Symbol is not one of your assets. <a href="assets">Add it on the assets page</a>.
         </p>
     }
-    else if (_asset != null)
+    else if (_asset != null && _settingsOf == Key(Source, Symbol))
     {
         <ChartHost @ref="_chart"
                    Source="@Source"
@@ -69,6 +71,8 @@
     private ChartHost? _chart;
     private string? _error;
     private bool _logScale;
+    private string? _settingsOf;
+    private string? _rememberedChart;
     private bool _disposed;
 
     [Parameter]
@@ -94,12 +98,43 @@
         _ = Events.StartAsync();
 
         await LoadAssetsAsync();
+        await OpenChartAsync();
     }
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         // The address changed (selector, back and forward, a link): the same page shows another chart.
         _asset = _assets?.FirstOrDefault(asset => asset.Source == Source && asset.Symbol == Symbol);
+        await OpenChartAsync();
+    }
+
+    /// <summary>Reads the settings of the asset before its chart is shown (CP2) and remembers the chart as the last one (CP3).</summary>
+    private async Task OpenChartAsync()
+    {
+        if (_asset == null)
+        {
+            return;
+        }
+
+        var key = Key(Source, Symbol);
+        if (_settingsOf != key)
+        {
+            var settings = await Charts.GetSettingsAsync(Source, Symbol);
+            if (key != Key(Source, Symbol))
+            {
+                return; // the user has moved on meanwhile
+            }
+
+            _logScale = settings.Value?.PriceScale == ChartSettingsResponse.Log;
+            _settingsOf = key;
+        }
+
+        var chart = key + "/" + Timeframe;
+        if (_rememberedChart != chart && _asset.Timeframes.Any(timeframe => timeframe.Timeframe == Timeframe))
+        {
+            _rememberedChart = chart;
+            _ = Workspace.SaveLastChartAsync(Source, Symbol, Timeframe);
+        }
     }
 
     public void Dispose()
@@ -140,9 +175,12 @@
         Open(asset.Source, asset.Symbol, timeframe);
     }
 
+    /// <summary>A change of the settings shows at once and is saved in the background (CP2).</summary>
     private void OnLogScaleChanged(ChangeEventArgs e)
     {
         _logScale = e.Value is true;
+        var settings = new ChartSettingsResponse(_logScale ? ChartSettingsResponse.Log : ChartSettingsResponse.Linear);
+        _ = Charts.SaveSettingsAsync(Source, Symbol, settings);
     }
 
     private void Open(string source, string symbol, string timeframe)

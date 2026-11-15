@@ -27,6 +27,12 @@ public sealed class WorkspaceApi
         return ApiCalls.SendAsync<SettingsResponse>(() => _http.PutAsJsonAsync(Settings, settings));
     }
 
+    /// <summary>Remembers the chart as the one last used (CP3); the other settings stay as they are.</summary>
+    public Task<ApiResult<SettingsResponse>> SaveLastChartAsync(string source, string symbol, string timeframe)
+    {
+        return SaveSettingsAsync(new SettingsResponse(null, new LastChartResponse(source, symbol, timeframe)));
+    }
+
     public async Task<IReadOnlyList<BackupResponse>> GetBackupsAsync()
     {
         var backups = await _http.GetFromJsonAsync<List<BackupResponse>>(Backups);

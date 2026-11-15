@@ -1,37 +1,40 @@
 @page "/"
-@inject HttpClient Http
+@inject WorkspaceApi Workspace
+@inject AssetsApi AssetList
+@inject NavigationManager Navigation
 
 <PageTitle>TradeViewer</PageTitle>
 
-<h1>TradeViewer</h1>
-<p class="muted">The charts, the Downloader and EWTS in one place. This is the empty application.</p>
-
-@if (_status == null)
+@* Opening TradeViewer without an address opens the chart last used (CP3); without one, the assets page. *@
+@if (_error != null)
 {
-    <p class="muted">Checking the server...</p>
-}
-else if (_status == "ok")
-{
-    <p class="status-ok">Server: ok</p>
+    <p class="status-bad">@_error</p>
 }
 else
 {
-    <p class="status-bad">Server: not reachable</p>
+    <p class="muted">Opening the last chart...</p>
 }
 
 @code {
-    private string? _status;
+    private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
-        try
+        var settings = await Workspace.GetSettingsAsync();
+        var assets = await AssetList.GetAssetsAsync();
+        if (settings.Value == null || assets.Value == null)
         {
-            var health = await Http.GetFromJsonAsync<HealthResponse>("health");
-            _status = health?.Status ?? "unknown";
+            _error = settings.Error ?? assets.Error;
+            return;
         }
-        catch (HttpRequestException)
-        {
-            _status = "unreachable";
-        }
+
+        // The last chart only counts while its asset still exists with that timeframe.
+        var last = settings.Value.LastChart;
+        var asset = last == null ? null : assets.Value.FirstOrDefault(item => item.Source == last.Source && item.Symbol == last.Symbol);
+        var address = last != null && asset != null && asset.Timeframes.Any(timeframe => timeframe.Timeframe == last.Timeframe)
+            ? Chart.Address(last.Source, last.Symbol, last.Timeframe)
+            : "assets";
+
+        Navigation.NavigateTo(address, replace: true);
     }
 }
