@@ -58,7 +58,7 @@ public sealed class MarketDataFixture : IDisposable
 
     public ImportService NewImportService()
     {
-        return new ImportService(Workspace.Assets, Files, Importer, Store, Notifier, NullLogger<ImportService>.Instance);
+        return new ImportService(Workspace.Assets, Files, Importer, Store, Notifier, Workspace.Restored, NullLogger<ImportService>.Instance);
     }
 
     public string FilePath(string symbol, string name)

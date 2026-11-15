@@ -5,6 +5,7 @@ using TradeViewer.Application.Abstractions.MarketData;
 using TradeViewer.Application.Abstractions.Realtime;
 using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Domain.MarketData;
+using TradeViewer.Infrastructure.Workspace;
 
 namespace TradeViewer.Infrastructure.MarketData.Import;
 
@@ -38,8 +39,11 @@ public sealed class ImportService : BackgroundService, IImportQueue
         AssetImporter importer,
         ICandleStore store,
         IWorkspaceNotifier notifier,
+        WorkspaceRestoreSignal restored,
         ILogger<ImportService> logger)
     {
+        // After a restore the assets may be others: the candle store follows them (AS7).
+        restored.Restored += Reconcile;
         _notifier = notifier;
         _assets = assets;
         _files = files;
@@ -84,6 +88,15 @@ public sealed class ImportService : BackgroundService, IImportQueue
         Enqueue(new Work(WorkKind.Files, source, symbol, files));
     }
 
+    /// <summary>
+    /// Brings the candle store in line with the assets of the workspace (AS7): what it holds of symbols that
+    /// are no asset is deleted, and every asset is rescanned. Runs at the start and after a restore.
+    /// </summary>
+    public void Reconcile()
+    {
+        Enqueue(new Work(WorkKind.Reconcile, string.Empty, string.Empty, null));
+    }
+
     public void Delete(string source, string symbol)
     {
         Enqueue(new Work(WorkKind.Delete, source, symbol, null));
@@ -108,10 +121,7 @@ public sealed class ImportService : BackgroundService, IImportQueue
 
         try
         {
-            foreach (var asset in await _assets.GetAllAsync(stoppingToken))
-            {
-                Rescan(asset.Source, asset.Symbol);
-            }
+            Reconcile();
 
             await foreach (var work in _channel.Reader.ReadAllAsync(stoppingToken))
             {
@@ -186,13 +196,38 @@ public sealed class ImportService : BackgroundService, IImportQueue
                 }
             }
 
-            await _notifier.AssetStatusChangedAsync(work.Source, work.Symbol);
+            if (work.Kind != WorkKind.Reconcile)
+            {
+                await _notifier.AssetStatusChangedAsync(work.Source, work.Symbol);
+            }
         }
     }
 
     private async Task DoAsync(Work work, CancellationToken cancellationToken)
     {
         var key = (work.Source, work.Symbol);
+
+        if (work.Kind == WorkKind.Reconcile)
+        {
+            var all = await _assets.GetAllAsync(cancellationToken);
+            var wanted = all.Select(item => (item.Source, item.Symbol)).ToHashSet();
+
+            foreach (var (source, symbol) in _store.GetAssets())
+            {
+                if (!wanted.Contains((source, symbol)))
+                {
+                    _logger.LogWarning("{Source}/{Symbol} is no asset of the workspace: its candles are deleted.", source, symbol);
+                    Delete(source, symbol);
+                }
+            }
+
+            foreach (var item in all)
+            {
+                Rescan(item.Source, item.Symbol);
+            }
+
+            return;
+        }
 
         if (work.Kind == WorkKind.Delete || work.Kind == WorkKind.Rebuild)
         {
@@ -259,7 +294,8 @@ public sealed class ImportService : BackgroundService, IImportQueue
         Rescan,
         Rebuild,
         Files,
-        Delete
+        Delete,
+        Reconcile
     }
 
     private sealed record Work(WorkKind Kind, string Source, string Symbol, IReadOnlyList<string>? Files);

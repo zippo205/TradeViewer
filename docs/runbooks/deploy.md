@@ -279,6 +279,12 @@ and cannot be undone: make a backup first if the current state may be needed. A 
 damaged, not a workspace, or from a newer version of TradeViewer is refused and nothing changes.
 A backup of an older version is upgraded while it is restored.
 
+A restore also changes which assets exist. TradeViewer follows by itself (requirement AS7): assets
+that came back are subscribed at the Downloader and imported again, subscriptions of assets that
+are gone are ended and their candles deleted, and every subscription is sent again with the history
+of the backup. The same comparison runs at every start. It only ever touches subscriptions of
+TradeViewer's own client name (`MarketData:Downloader:Client`), never those of EWTS.
+
 Restore by hand, when TradeViewer does not start ("The workspace ... is damaged" in the log):
 
 ```bash

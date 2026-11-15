@@ -84,6 +84,26 @@ public sealed class DownloaderClient : IDownloaderClient
         return result.IsSuccess || result.Error.Type == ErrorType.NotFound ? Result.Success() : result.Error;
     }
 
+    public async Task<Result<IReadOnlyList<(string Source, string Symbol)>>> GetOwnSubscriptionsAsync(CancellationToken cancellationToken)
+    {
+        var path = "api/v1/clients/" + Escape(_options.Client) + "/subscriptions";
+        var result = await SendAsync<List<SubscriptionResponse>>(HttpMethod.Get, path, null, cancellationToken);
+
+        // 404: the Downloader has never heard of this client, so it has no subscriptions.
+        if (result.IsFailure && result.Error.Type == ErrorType.NotFound)
+        {
+            return Result.Success<IReadOnlyList<(string, string)>>(Array.Empty<(string, string)>());
+        }
+
+        if (result.IsFailure)
+        {
+            return result.Error;
+        }
+
+        IReadOnlyList<(string, string)> subscriptions = result.Value.Select(item => (item.Source, item.Symbol)).ToList();
+        return Result.Success(subscriptions);
+    }
+
     public async Task<Result<SymbolStatus>> GetSymbolStatusAsync(string source, string symbol, CancellationToken cancellationToken)
     {
         var result = await SendAsync<SymbolStatusResponse>(HttpMethod.Get, StatusPath(source, symbol), null, cancellationToken);

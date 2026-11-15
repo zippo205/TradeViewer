@@ -138,6 +138,22 @@ public class DownloaderClientTests
     }
 
     [Fact]
+    public async Task The_own_subscriptions_are_those_of_this_client_and_an_unknown_client_has_none()
+    {
+        _downloader.AnswerText(
+            "GET /api/v1/clients/tradeviewer-test/subscriptions",
+            HttpStatusCode.OK,
+            "[" + StubDownloader.Fixture("subscription-BTCUSDT.json") + "," + StubDownloader.Fixture("subscription-BTCUSDT.json").Replace("BTCUSDT", "ETHUSDT") + "]");
+        _downloader.Answer("GET /api/v1/clients/never-seen/subscriptions", HttpStatusCode.NotFound, null);
+
+        var own = await _downloader.NewClient().GetOwnSubscriptionsAsync(CancellationToken.None);
+        var unknown = await _downloader.NewClient(client: "never-seen").GetOwnSubscriptionsAsync(CancellationToken.None);
+
+        Assert.Equal(new[] { ("binance", "BTCUSDT"), ("binance", "ETHUSDT") }, own.Value);
+        Assert.Empty(unknown.Value);
+    }
+
+    [Fact]
     public async Task The_changes_name_every_changed_file_once()
     {
         _downloader.Answer("GET /api/v1/status/binance/BTCUSDT/changes?after=48100", HttpStatusCode.OK, "changes-BTCUSDT.json");

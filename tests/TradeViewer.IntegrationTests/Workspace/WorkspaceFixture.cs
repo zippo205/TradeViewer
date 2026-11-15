@@ -29,6 +29,9 @@ public sealed class WorkspaceFixture : IDisposable
 
     public TestClock Clock { get; } = new TestClock();
 
+    /// <summary>Raised by a restore; the same signal for every build of the fixture.</summary>
+    public WorkspaceRestoreSignal Restored { get; } = new WorkspaceRestoreSignal();
+
     public int KeepCount { get; set; } = 14;
 
     public WorkspaceDatabase Database { get; private set; } = null!;
@@ -63,7 +66,7 @@ public sealed class WorkspaceFixture : IDisposable
         Schema = new WorkspaceSchema(WorkspaceSchema.FromEmbeddedScripts().Scripts.Concat(extraScripts));
         Database = new WorkspaceDatabase(Locations.WorkspaceDatabasePath);
         Store = new BackupStore(Locations.BackupsPath, KeepCount, Clock);
-        Backups = new WorkspaceBackups(Database, Schema, Store, Locations, NullLogger<WorkspaceBackups>.Instance);
+        Backups = new WorkspaceBackups(Database, Schema, Store, Locations, Restored, NullLogger<WorkspaceBackups>.Instance);
         Settings = new SettingsRepository(Database, Clock);
         Assets = new AssetRepository(Database, Clock);
     }

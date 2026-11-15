@@ -147,6 +147,39 @@ public class ImportServiceTests : IDisposable
         Assert.Equal(candles.Concat(next), _data.Candles("BTCUSDT", Timeframe.M15));
     }
 
+    [Fact]
+    public async Task At_the_start_and_after_a_restore_the_store_is_brought_in_line_with_the_assets()
+    {
+        await AddAssetAsync("BTCUSDT");
+        await AddAssetAsync("ETHUSDT");
+        var btc = _data.WriteFile("BTCUSDT", "BTCUSDT-15m-2026-11-04.csv", 96);
+        _data.WriteFile("ETHUSDT", "ETHUSDT-15m-2026-11-04.csv", 96);
+        var sol = _data.WriteFile("SOLUSDT", "SOLUSDT-15m-2026-11-04.csv", 96);
+        await StartAsync();
+        Assert.Equal(new[] { ("binance", "BTCUSDT"), ("binance", "ETHUSDT") }, _data.Store.GetAssets());
+
+        // What a restore does to the workspace: ETHUSDT is no asset any more, SOLUSDT is one again.
+        await _data.Workspace.Assets.RemoveAsync("binance", "ETHUSDT", false, CancellationToken.None);
+        await AddAssetAsync("SOLUSDT");
+        _data.Store.SetSyncState("binance", "ETHUSDT", new SyncState(5, null, 1));
+        _data.Workspace.Restored.Raise();
+        await WaitUntilIdleAsync();
+
+        Assert.Equal(new[] { ("binance", "BTCUSDT"), ("binance", "SOLUSDT") }, _data.Store.GetAssets());
+        Assert.Empty(_data.Candles("ETHUSDT", Timeframe.M15));
+        Assert.Null(_data.Store.GetSyncState("binance", "ETHUSDT"));
+        Assert.Equal(sol, _data.Candles("SOLUSDT", Timeframe.M15));
+        Assert.Equal(btc, _data.Candles("BTCUSDT", Timeframe.M15));
+
+        // A new start finds the same: nothing more to delete, nothing lost.
+        await _service!.StopAsync(CancellationToken.None);
+        _service.Dispose();
+        _service = null;
+        await StartAsync();
+        Assert.Equal(new[] { ("binance", "BTCUSDT"), ("binance", "SOLUSDT") }, _data.Store.GetAssets());
+        Assert.Equal(btc, _data.Candles("BTCUSDT", Timeframe.M15));
+    }
+
     private void AssertNoProgress(string symbol)
     {
         var progress = _service!.GetProgress("binance", symbol);

@@ -21,6 +21,7 @@ public class MarketDataSyncTests
     private readonly FakeImportQueue _imports = new FakeImportQueue();
     private readonly FakeNotifier _notifier = new FakeNotifier();
     private readonly FixedClock _clock = new FixedClock { Now = At("15:15:40") };
+    private readonly TradeViewer.Infrastructure.Workspace.WorkspaceRestoreSignal _restored = new TradeViewer.Infrastructure.Workspace.WorkspaceRestoreSignal();
     private readonly MarketDataSync _sync;
 
     public MarketDataSyncTests()
@@ -30,8 +31,9 @@ public class MarketDataSyncTests
         options.Downloader.PollSeconds = 20;
         options.Downloader.PollWindowMinutes = 10;
 
-        _sync = new MarketDataSync(_assets, _downloader, _store, _imports, _notifier, Options.Create(options), _clock, NullLogger<MarketDataSync>.Instance);
+        _sync = new MarketDataSync(_assets, _downloader, _store, _imports, _notifier, Options.Create(options), _clock, _restored, NullLogger<MarketDataSync>.Instance);
         AddAsset("BTCUSDT");
+        _downloader.OwnSubscriptions.Add(("binance", "BTCUSDT"));
     }
 
     [Fact]
@@ -41,7 +43,7 @@ public class MarketDataSyncTests
 
         await _sync.RunOnceAsync(CancellationToken.None);
 
-        Assert.Equal(new[] { "status binance/BTCUSDT" }, _downloader.Calls);
+        Assert.Equal(new[] { "subscriptions", "status binance/BTCUSDT" }, _downloader.Calls);
         Assert.Equal(new[] { "rescan binance/BTCUSDT" }, _imports.Work);
         var state = _store.SyncStates[("binance", "BTCUSDT")];
         Assert.Equal(48213, state.LastChange);
@@ -235,8 +237,13 @@ public class MarketDataSyncTests
     {
         // Added while the Downloader was switched off; another client keeps the symbol up to date.
         _downloader.Status = Status(100, subscribed: false);
+        await RunAtAsync("15:15:40"); // the comparison at the start found nothing missing in its list
+        _assets.Assets[0] = _assets.Assets[0] with { SubscriptionSent = true };
+        _store.SyncStates.Clear();
+        _imports.Work.Clear();
+        _downloader.Calls.Clear();
 
-        await RunAtAsync("15:15:40");
+        await RunAtAsync("15:16:00");
 
         Assert.Equal(new[] { "status binance/BTCUSDT", "subscribe binance/BTCUSDT" }, _downloader.Calls);
         Assert.True(_assets.Assets[0].SubscriptionSent);
@@ -245,8 +252,75 @@ public class MarketDataSyncTests
         // Subscribed now: nothing is sent a second time.
         _downloader.Status = Status(100);
         _downloader.Calls.Clear();
-        await RunAtAsync("15:16:00");
+        await RunAtAsync("15:16:20");
         Assert.DoesNotContain("subscribe binance/BTCUSDT", _downloader.Calls);
+    }
+
+    [Fact]
+    public async Task At_the_start_missing_subscriptions_are_added_and_those_of_symbols_that_are_no_asset_are_ended()
+    {
+        AddAsset("ETHUSDT");                                    // an asset the Downloader has no subscription for
+        _downloader.OwnSubscriptions.Add(("binance", "SOLUSDT")); // a subscription without an asset
+
+        await _sync.RunOnceAsync(CancellationToken.None);
+
+        Assert.Equal("subscriptions", _downloader.Calls[0]);
+        Assert.Contains("unsubscribe binance/SOLUSDT", _downloader.Calls);
+        Assert.Contains("subscribe binance/ETHUSDT", _downloader.Calls);
+        Assert.DoesNotContain("subscribe binance/BTCUSDT", _downloader.Calls); // it has its subscription
+        Assert.Equal(new[] { ("binance", "BTCUSDT"), ("binance", "ETHUSDT") }, _downloader.OwnSubscriptions.OrderBy(item => item.Symbol));
+        Assert.All(_assets.Assets, asset => Assert.True(asset.SubscriptionSent));
+
+        // Done once: the next runs do not ask for the list again.
+        _downloader.Calls.Clear();
+        await RunAtAsync("15:16:00");
+        Assert.DoesNotContain("subscriptions", _downloader.Calls);
+    }
+
+    [Fact]
+    public async Task After_a_restore_every_subscription_is_sent_again_and_those_of_former_assets_are_ended()
+    {
+        AddAsset("ETHUSDT");
+        _downloader.OwnSubscriptions.Add(("binance", "ETHUSDT"));
+        await KnownAsync(100);
+
+        // The restored workspace: ETHUSDT is gone, SOLUSDT is back, BTCUSDT has another history.
+        _assets.Assets.RemoveAll(asset => asset.Symbol == "ETHUSDT");
+        AddAsset("SOLUSDT");
+        _assets.Assets[0] = _assets.Assets[0] with { History = _assets.Assets[0].History.With(Timeframe.M15, new DateOnly(2023, 1, 1)) };
+        _restored.Raise();
+
+        await RunAtAsync("15:26:00");
+
+        Assert.Equal("subscriptions", _downloader.Calls[0]);
+        Assert.Contains("unsubscribe binance/ETHUSDT", _downloader.Calls);
+        Assert.Contains("subscribe binance/BTCUSDT", _downloader.Calls); // sent again although it existed: its history changed
+        Assert.Contains("subscribe binance/SOLUSDT", _downloader.Calls);
+        Assert.Equal(new[] { "BTCUSDT", "SOLUSDT" }, _downloader.OwnSubscriptions.Select(item => item.Symbol).OrderBy(symbol => symbol));
+        Assert.Contains("status binance/SOLUSDT", _downloader.Calls); // and every asset is checked at once
+        Assert.Contains("status binance/BTCUSDT", _downloader.Calls);
+    }
+
+    [Fact]
+    public async Task The_comparison_is_repeated_until_the_Downloader_answered_and_every_unsubscription_worked()
+    {
+        _downloader.OwnSubscriptions.Add(("binance", "SOLUSDT"));
+        _downloader.SubscriptionsError = Unreachable;
+        await _sync.RunOnceAsync(CancellationToken.None);
+        Assert.DoesNotContain("unsubscribe binance/SOLUSDT", _downloader.Calls);
+
+        _downloader.SubscriptionsError = null;
+        _downloader.UnsubscribeError = Unreachable;
+        await RunAtAsync("15:16:00");
+        Assert.Contains(("binance", "SOLUSDT"), _downloader.OwnSubscriptions);
+
+        _downloader.UnsubscribeError = null;
+        await RunAtAsync("15:16:20");
+        Assert.DoesNotContain(("binance", "SOLUSDT"), _downloader.OwnSubscriptions);
+
+        _downloader.Calls.Clear();
+        await RunAtAsync("15:16:40");
+        Assert.DoesNotContain("subscriptions", _downloader.Calls);
     }
 
     [Fact]

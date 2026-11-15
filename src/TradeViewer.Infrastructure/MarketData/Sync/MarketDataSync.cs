@@ -6,6 +6,7 @@ using TradeViewer.Application.Abstractions.Realtime;
 using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Domain.Assets;
 using TradeViewer.Infrastructure.Configuration;
+using TradeViewer.Infrastructure.Workspace;
 
 namespace TradeViewer.Infrastructure.MarketData.Sync;
 
@@ -30,6 +31,9 @@ public sealed class MarketDataSync
     private readonly Dictionary<(string Source, string Symbol), Plan> _plans = new Dictionary<(string, string), Plan>();
     private bool? _reachable;
 
+    // 0: nothing to do; 1: compare the subscriptions with the assets (start); 2: and send every subscription again (restore).
+    private int _reconcile = 1;
+
     public MarketDataSync(
         IAssetRepository assets,
         IDownloaderClient downloader,
@@ -38,8 +42,10 @@ public sealed class MarketDataSync
         IWorkspaceNotifier notifier,
         IOptions<MarketDataOptions> options,
         TimeProvider time,
+        WorkspaceRestoreSignal restored,
         ILogger<MarketDataSync> logger)
     {
+        restored.Restored += () => Interlocked.Exchange(ref _reconcile, 2);
         _assets = assets;
         _downloader = downloader;
         _store = store;
@@ -59,6 +65,14 @@ public sealed class MarketDataSync
     public async Task<DateTimeOffset> RunOnceAsync(CancellationToken cancellationToken)
     {
         var now = _time.GetUtcNow();
+
+        var reconcile = Interlocked.Exchange(ref _reconcile, 0);
+        if (reconcile != 0 && !await ReconcileAsync(reconcile == 2, cancellationToken))
+        {
+            // Not done (the Downloader did not answer): again with the next run.
+            Interlocked.CompareExchange(ref _reconcile, reconcile, 0);
+        }
+
         var assets = await _assets.GetAllAsync(cancellationToken);
 
         // Plans of removed assets go; new assets are checked at once.
@@ -195,6 +209,62 @@ public sealed class MarketDataSync
         {
             plan.NextCheck = now + _poll;
         }
+    }
+
+    /// <summary>
+    /// Brings the subscriptions of TradeViewer at the Downloader in line with the assets (AS7): an asset
+    /// without a subscription gets one, a subscription without an asset is ended. After a restore every
+    /// subscription is sent again, because the history of an asset may have changed with it.
+    /// </summary>
+    /// <returns>False when the Downloader could not be asked or an unsubscription failed; it is tried again.</returns>
+    private async Task<bool> ReconcileAsync(bool sendAll, CancellationToken cancellationToken)
+    {
+        var subscriptions = await _downloader.GetOwnSubscriptionsAsync(cancellationToken);
+        if (subscriptions.IsFailure)
+        {
+            return false;
+        }
+
+        var assets = await _assets.GetAllAsync(cancellationToken);
+        var wanted = assets.Select(asset => (asset.Source, asset.Symbol)).ToHashSet();
+        var subscribed = subscriptions.Value.ToHashSet();
+        var done = true;
+
+        foreach (var (source, symbol) in subscriptions.Value)
+        {
+            if (wanted.Contains((source, symbol)))
+            {
+                continue;
+            }
+
+            var result = await _downloader.UnsubscribeAsync(source, symbol, cancellationToken);
+            if (result.IsSuccess)
+            {
+                await _assets.ClearPendingUnsubscriptionAsync(source, symbol, cancellationToken);
+                _logger.LogWarning("{Source}/{Symbol} is no asset of the workspace: its subscription at the Downloader was ended.", source, symbol);
+            }
+            else
+            {
+                done = false;
+            }
+        }
+
+        foreach (var asset in assets)
+        {
+            if (asset.SubscriptionSent && (sendAll || !subscribed.Contains((asset.Source, asset.Symbol))))
+            {
+                // Sent at the end of this run, with the subscriptions that failed earlier.
+                await _assets.SetHistoryAsync(asset.Source, asset.Symbol, asset.History, false, cancellationToken);
+            }
+        }
+
+        // A plan made before a restore belongs to the old assets.
+        if (sendAll)
+        {
+            _plans.Clear();
+        }
+
+        return done;
     }
 
     /// <summary>Marks the subscription of the asset as not sent; it is sent at the end of this run.</summary>

@@ -29,6 +29,9 @@ public interface ICandleStore
     /// <summary>The files of an asset that broke the format rules, with the message of the reader.</summary>
     IReadOnlyList<ImportLogEntry> GetImportErrors(string source, string symbol);
 
+    /// <summary>Every source and symbol the store holds anything of.</summary>
+    IReadOnlyList<(string Source, string Symbol)> GetAssets();
+
     /// <summary>Deletes everything of an asset: candles, import log and sync state.</summary>
     void DeleteAsset(string source, string symbol);
 

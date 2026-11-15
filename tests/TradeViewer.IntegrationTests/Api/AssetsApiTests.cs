@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using TradeViewer.Application.Abstractions.MarketData;
 using TradeViewer.Contracts.Assets;
 using TradeViewer.Contracts.Workspace;
 
@@ -171,6 +173,34 @@ public class AssetsApiTests : IDisposable
 
         Assert.Equal((2, 2), (asset.Timeframes[0].FilesImported, asset.Timeframes[0].FilesWanted));
         Assert.True(asset.Timeframes[4].Chartable);
+    }
+
+    [Fact]
+    public async Task After_a_restore_the_assets_are_those_of_the_backup_and_the_candle_store_follows()
+    {
+        await SetCompleteHistoryAsync();
+        var backup = await (await _client.PostAsync("/api/workspace/backups", null)).Content.ReadFromJsonAsync<BackupResponse>();
+        await _client.PostAsJsonAsync("/api/assets", new AddAssetRequest("binance", "BTCUSDT"));
+        await WaitUntilLoadedAsync("BTCUSDT", asset => asset.Timeframes[0].Chartable);
+        var withAsset = await (await _client.PostAsync("/api/workspace/backups", null)).Content.ReadFromJsonAsync<BackupResponse>();
+
+        // Back to the time before the asset existed: it is gone, and so are its candles.
+        (await _client.PostAsync("/api/workspace/backups/" + backup!.Name + "/restore", null)).EnsureSuccessStatusCode();
+        var store = _factory.Services.GetRequiredService<ICandleStore>();
+        for (var attempt = 0; attempt < 500 && store.GetAssets().Count > 0; attempt++)
+        {
+            await Task.Delay(20);
+        }
+
+        Assert.Empty((await _client.GetFromJsonAsync<List<AssetResponse>>("/api/assets"))!);
+        Assert.Empty(store.GetAssets());
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync("/api/candles/binance/BTCUSDT/15m")).StatusCode);
+
+        // And forward again: the asset is back and its candles are imported without anybody asking.
+        (await _client.PostAsync("/api/workspace/backups/" + withAsset!.Name + "/restore", null)).EnsureSuccessStatusCode();
+        var asset = await WaitUntilLoadedAsync("BTCUSDT", item => item.Timeframes[0].Chartable);
+
+        Assert.Equal((2, 2), (asset.Timeframes[0].FilesImported, asset.Timeframes[0].FilesWanted));
     }
 
     [Fact]

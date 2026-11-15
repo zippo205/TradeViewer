@@ -123,13 +123,36 @@ internal sealed class FakeDownloader : IDownloaderClient
         }
 
         SubscribedHistory = history;
+        if (!OwnSubscriptions.Contains((source, symbol)))
+        {
+            OwnSubscriptions.Add((source, symbol));
+        }
+
         return Task.FromResult(Result.Success(new SubscriptionResult(Array.Empty<TimeframeSubscription>())));
     }
 
     public Task<Result<Unit>> UnsubscribeAsync(string source, string symbol, CancellationToken cancellationToken)
     {
         Calls.Add("unsubscribe " + source + "/" + symbol);
+        if (UnsubscribeError == null)
+        {
+            OwnSubscriptions.Remove((source, symbol));
+        }
+
         return Task.FromResult(UnsubscribeError != null ? Result.Failure<Unit>(UnsubscribeError) : Result.Success());
+    }
+
+    /// <summary>What the Downloader holds as subscriptions of TradeViewer; subscribe and unsubscribe change it.</summary>
+    public List<(string Source, string Symbol)> OwnSubscriptions { get; } = new List<(string, string)>();
+
+    public Error? SubscriptionsError { get; set; }
+
+    public Task<Result<IReadOnlyList<(string Source, string Symbol)>>> GetOwnSubscriptionsAsync(CancellationToken cancellationToken)
+    {
+        Calls.Add("subscriptions");
+        return Task.FromResult(SubscriptionsError != null
+            ? Result.Failure<IReadOnlyList<(string, string)>>(SubscriptionsError)
+            : Result.Success<IReadOnlyList<(string, string)>>(OwnSubscriptions.ToList()));
     }
 
     public Task<Result<SymbolStatus>> GetSymbolStatusAsync(string source, string symbol, CancellationToken cancellationToken)
@@ -229,6 +252,11 @@ internal sealed class FakeCandleStore : ICandleStore
     public IReadOnlyList<ImportLogEntry> GetImportErrors(string source, string symbol)
     {
         return Errors;
+    }
+
+    public IReadOnlyList<(string Source, string Symbol)> GetAssets()
+    {
+        return Candles.Keys.Select(key => (key.Source, key.Symbol)).Distinct().ToList();
     }
 
     public void DeleteAsset(string source, string symbol)

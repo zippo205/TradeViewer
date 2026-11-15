@@ -47,6 +47,7 @@ public static class DependencyInjection
             provider.GetRequiredService<StorageLocations>().BackupsPath,
             provider.GetRequiredService<IOptions<StorageOptions>>().Value.Backup.KeepCount,
             provider.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<WorkspaceRestoreSignal>();
         services.AddSingleton<WorkspaceBackups>();
         services.AddSingleton<IWorkspaceBackups>(provider => provider.GetRequiredService<WorkspaceBackups>());
         services.AddSingleton<ISettingsRepository, SettingsRepository>();

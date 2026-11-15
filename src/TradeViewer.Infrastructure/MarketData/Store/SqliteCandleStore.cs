@@ -233,6 +233,21 @@ public sealed class SqliteCandleStore : ICandleStore
         return errors;
     }
 
+    public IReadOnlyList<(string Source, string Symbol)> GetAssets()
+    {
+        using var connection = _database.Open();
+        using var command = Command(connection, null, "SELECT source, symbol FROM series UNION SELECT source, symbol FROM sync_state ORDER BY 1, 2;");
+
+        var assets = new List<(string, string)>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            assets.Add((reader.GetString(0), reader.GetString(1)));
+        }
+
+        return assets;
+    }
+
     public void DeleteAsset(string source, string symbol)
     {
         using var connection = _database.Open();

@@ -84,6 +84,12 @@ Every requirement has an id. The backlog refers to these ids.
 - **AS6** A watchlist row shows the last close with its time, the change against the previous
   daily close in percent (the day in UTC for crypto), a warning mark when the asset has gaps
   or an import error, and a mark when EWTS analyses it.
+- **AS7** The assets of the workspace are the truth. At every start and after a restore of a
+  backup (WS3) TradeViewer brings the rest in line with them: at the Downloader it subscribes
+  the assets that have no subscription of TradeViewer and ends its subscriptions of symbols that
+  are no asset any more; in the candle store it deletes the candles of such symbols and imports
+  what is missing. After a restore every subscription is sent again, because the history of an
+  asset may have changed. Subscriptions of other clients are never touched.
 
 ### 4.2 Market Data
 

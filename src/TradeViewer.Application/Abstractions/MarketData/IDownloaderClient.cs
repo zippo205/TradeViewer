@@ -21,6 +21,9 @@ public interface IDownloaderClient
     /// <summary>Ends the subscription of TradeViewer. No subscription at the Downloader counts as done.</summary>
     Task<Result<Unit>> UnsubscribeAsync(string source, string symbol, CancellationToken cancellationToken);
 
+    /// <summary>The symbols TradeViewer itself subscribes at the Downloader, as (source, symbol). Other clients are not in it.</summary>
+    Task<Result<IReadOnlyList<(string Source, string Symbol)>>> GetOwnSubscriptionsAsync(CancellationToken cancellationToken);
+
     Task<Result<SymbolStatus>> GetSymbolStatusAsync(string source, string symbol, CancellationToken cancellationToken);
 
     Task<Result<SymbolChanges>> GetChangesAsync(string source, string symbol, long after, CancellationToken cancellationToken);

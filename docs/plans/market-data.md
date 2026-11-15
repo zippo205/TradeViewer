@@ -248,3 +248,8 @@ architecture when the step that needs them is done, and the owner may still chan
   `DOWNLOADER_URL`.
 - Still open: the sync against a real Downloader (all its tests run on stand-ins) and the arm64
   image with the new code, both on the Pi; the owner's look at `/assets` and `/settings`.
+- Added at the owner's request (2026-11-15), requirement AS7: a restore replaces the assets, but the
+  Downloader's subscriptions and the candle store stayed as they were. Now both are brought in line
+  with the assets at every start and after every restore (architecture, chapter 6). Before the
+  first deployment the Pi's Downloader was checked: its 13 subscriptions belong to the clients
+  `ewts` and `ewts-dev`; the client `tradeviewer` did not exist, so nothing could be ended by mistake.

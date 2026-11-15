@@ -297,6 +297,14 @@ remove asset  switch off its analysis at EWTS if on -> DELETE subscription -> de
   not all of its wanted files are imported, or while the Downloader has jobs for it or reports a
   part of it as `pending`. The progress per timeframe is imported files of wanted files. A
   timeframe can be charted once it has candles. Without the Downloader only the import counts.
+- The assets of the workspace are the truth (AS7). At every start and after a restore
+  (`WorkspaceRestoreSignal`, raised by the restore) two things are brought in line with them. The
+  import worker deletes from the candle store what belongs to no asset and rescans every asset.
+  The sync reads the subscriptions of its own client (`GET clients/{client}/subscriptions`), ends
+  those without an asset and marks assets without a subscription as not sent; after a restore it
+  marks all of them, because the history may have changed. The sync also subscribes an asset
+  whose symbol status does not name TradeViewer among the subscribers or is 404. Without the
+  Downloader only the candle store is reconciled. Subscriptions of other clients are never touched.
 - There is no file watcher. The Downloader's change numbers are the only change signal; the
   rescan is the fallback.
 - When the Downloader is unreachable the sync logs it once, keeps the last known status and
@@ -372,6 +380,7 @@ IDownloaderClient                                   Abstractions/MarketData
 LookupAsync(source, symbol)                         GET  sources/{source}/symbols/{symbol}
 SubscribeAsync(source, symbol, history)             PUT  clients/{client}/subscriptions/...
 UnsubscribeAsync(source, symbol)                    DELETE (404 counts as done)
+GetOwnSubscriptionsAsync()                          GET  clients/{client}/subscriptions (404: none)
 GetSubscriptionsAsync()                             GET  subscriptions (all clients)   with Downloader Monitoring
 GetServiceStatusAsync()                             GET  status                        with Downloader Monitoring
 GetSymbolStatusAsync(source, symbol)                GET  status/{source}/{symbol}
