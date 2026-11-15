@@ -9,6 +9,7 @@ using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Infrastructure.Configuration;
 using TradeViewer.Infrastructure.MarketData.Files;
 using TradeViewer.Infrastructure.MarketData.Store;
+using TradeViewer.Infrastructure.MarketData.Symbols;
 using TradeViewer.Infrastructure.Storage;
 using TradeViewer.Infrastructure.Workspace;
 using TradeViewer.Infrastructure.Workspace.Backups;
@@ -46,6 +47,8 @@ public static class DependencyInjection
         services.AddSingleton<WorkspaceBackups>();
         services.AddSingleton<IWorkspaceBackups>(provider => provider.GetRequiredService<WorkspaceBackups>());
         services.AddSingleton<ISettingsRepository, SettingsRepository>();
+        services.AddSingleton<IHistorySettingsRepository, HistorySettingsRepository>();
+        services.AddSingleton<IAssetRepository, AssetRepository>();
         services.AddSingleton<WorkspaceInitializer>();
 
         services.AddSingleton(MarketDataSchema.FromEmbeddedScripts());
@@ -56,6 +59,7 @@ public static class DependencyInjection
             provider.GetRequiredService<ILogger<MarketDataDatabase>>()));
         services.AddSingleton<ICandleStore, SqliteCandleStore>();
         services.AddSingleton<ICandleFileReader, BinanceCandleFileReader>();
+        services.AddSingleton<ISymbolCatalog, EmbeddedSymbolCatalog>();
 
         // Hosted services start in registration order: the folders first, then the workspace, then what uses it.
         services.AddHostedService<StorageInitializer>();

@@ -103,7 +103,7 @@ Out of scope (later epics):
     candles, import_log, sync_state; ICandleStore (replace a period, read a page, delete an
     asset, delete before a date); a damaged or unknown store is set aside and rebuilt            done
  4  Workspace: script 0002 (assets with history per timeframe), IAssetRepository; default history
-    in the settings; ISymbolCatalog on Symbols/binance.json                                       open
+    in the settings; ISymbolCatalog on Symbols/binance.json                                       done
  5  Import: file list of an asset from its history start, first import (newest files first),
     rescan against the import log, errors into the log; background queue with one worker and
     progress; rescan of all assets at startup in the background                                  open

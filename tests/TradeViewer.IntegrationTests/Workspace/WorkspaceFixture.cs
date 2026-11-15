@@ -41,6 +41,8 @@ public sealed class WorkspaceFixture : IDisposable
 
     public SettingsRepository Settings { get; private set; } = null!;
 
+    public AssetRepository Assets { get; private set; } = null!;
+
     public static SchemaScript ExtraScript(int version, string sql)
     {
         return new SchemaScript(version, version.ToString("0000") + "_test.sql", sql);
@@ -63,6 +65,7 @@ public sealed class WorkspaceFixture : IDisposable
         Store = new BackupStore(Locations.BackupsPath, KeepCount, Clock);
         Backups = new WorkspaceBackups(Database, Schema, Store, Locations, NullLogger<WorkspaceBackups>.Instance);
         Settings = new SettingsRepository(Database, Clock);
+        Assets = new AssetRepository(Database, Clock);
     }
 
     public DailyBackupService DailyService(string time = "03:00")

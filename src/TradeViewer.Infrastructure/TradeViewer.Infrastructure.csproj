@@ -9,6 +9,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Workspace\Scripts\*.sql" />
     <EmbeddedResource Include="MarketData\Store\Scripts\*.sql" />
+    <EmbeddedResource Include="MarketData\Symbols\*.json" />
   </ItemGroup>
 
   <ItemGroup>

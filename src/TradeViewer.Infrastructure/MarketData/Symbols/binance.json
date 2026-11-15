@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "symbols": {
+    "ADAUSDT": {
+      "assetClass": "crypto",
+      "displayName": "ADA/USDT",
+      "tickSize": 0.0001,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "AVAXUSDT": {
+      "assetClass": "crypto",
+      "displayName": "AVAX/USDT",
+      "tickSize": 0.001,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "BNBUSDT": {
+      "assetClass": "crypto",
+      "displayName": "BNB/USDT",
+      "tickSize": 0.01,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "BTCUSDT": {
+      "assetClass": "crypto",
+      "displayName": "BTC/USDT",
+      "tickSize": 0.01,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "DOGEUSDT": {
+      "assetClass": "crypto",
+      "displayName": "DOGE/USDT",
+      "tickSize": 0.00001,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "DOTUSDT": {
+      "assetClass": "crypto",
+      "displayName": "DOT/USDT",
+      "tickSize": 0.001,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "ETHUSDT": {
+      "assetClass": "crypto",
+      "displayName": "ETH/USDT",
+      "tickSize": 0.01,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "LINKUSDT": {
+      "assetClass": "crypto",
+      "displayName": "LINK/USDT",
+      "tickSize": 0.001,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "LTCUSDT": {
+      "assetClass": "crypto",
+      "displayName": "LTC/USDT",
+      "tickSize": 0.01,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "SOLUSDT": {
+      "assetClass": "crypto",
+      "displayName": "SOL/USDT",
+      "tickSize": 0.01,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "TRXUSDT": {
+      "assetClass": "crypto",
+      "displayName": "TRX/USDT",
+      "tickSize": 0.0001,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "VIRTUALUSDT": {
+      "assetClass": "crypto",
+      "displayName": "VIRTUAL/USDT",
+      "tickSize": 0.0001,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    },
+    "XRPUSDT": {
+      "assetClass": "crypto",
+      "displayName": "XRP/USDT",
+      "tickSize": 0.0001,
+      "source": "binance",
+      "session": {
+        "type": "continuous",
+        "timeZone": "UTC"
+      },
+      "sourceTimeframes": [
+        "15m",
+        "1h",
+        "4h",
+        "1d",
+        "1w"
+      ]
+    }
+  }
+}
