@@ -139,6 +139,8 @@ Rules for the agent:
              and the subscription (1d and 1w clipped to 2017), tradeviewer is now a subscriber of
              BTCUSDT, and the default history (4,677 files) was imported within seconds. The
              update cycle of 19:30:30 UTC was watched: the 15m candle of 19:15 was in TradeViewer
-             at 19:30:33 without any request. Memory 81 MB of 512 MB. After the epic is merged:
-             git checkout main on the Pi.
+             at 19:30:33 without any request. Memory 81 MB of 512 MB. After the owner's approval
+             the same day the Pi was switched to main (merge commit 6eba5cc) and rebuilt, again
+             with DOWNLOADER_ENABLED=true; the assets the owner had added on the page meanwhile
+             (ADAUSDT, VIRTUALUSDT) and their subscriptions were all there after the restart.
 ```
