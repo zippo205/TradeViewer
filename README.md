@@ -4,7 +4,7 @@ The website of a self-hosted setup for discretionary market analysis: charts wit
 drawings and with the analysis of [EWTS](../EWTS), and the user interface for operating EWTS
 and the [Downloader](../Downloader). Runs on a Raspberry Pi 5, in Docker or on Linux.
 
-Status: design phase. The solution does not exist yet; the commands below describe the target.
+Status: in development; docs/roadmap.md lists what is done.
 
 ## Documentation
 

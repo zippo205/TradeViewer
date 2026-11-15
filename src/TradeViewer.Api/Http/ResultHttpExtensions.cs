@@ -17,6 +17,18 @@ public static class ResultHttpExtensions
         return result.IsSuccess ? Results.NoContent() : ToProblem(result.Error);
     }
 
+    /// <summary>The file as a download, or the problem details of the error. The stream is disposed after it was sent.</summary>
+    public static IResult ToFileResult(this Result<FileContent> result)
+    {
+        if (result.IsFailure)
+        {
+            return ToProblem(result.Error);
+        }
+
+        var file = result.Value;
+        return Results.File(file.Content, file.MediaType, file.FileName);
+    }
+
     public static IResult ToProblem(Error error)
     {
         var extensions = new Dictionary<string, object?> { ["code"] = error.Code };

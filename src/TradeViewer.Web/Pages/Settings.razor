@@ -1,0 +1,199 @@
+@page "/settings"
+@inject WorkspaceApi Workspace
+
+<PageTitle>Settings - TradeViewer</PageTitle>
+
+<h1>Settings</h1>
+
+<section>
+    <h2>Backups</h2>
+    <p class="muted">
+        The workspace (everything you create) is backed up once a day; the newest backups are kept.
+        Times are UTC. A restore replaces the whole workspace and cannot be undone.
+    </p>
+
+    <div class="toolbar">
+        <button type="button" disabled="@_busy" @onclick="BackUpNowAsync">Back up now</button>
+        <label class="button @(_busy ? "disabled" : "")">
+            Restore from a file...
+            <InputFile @key="_fileInputKey" OnChange="SelectFile" accept=".db" disabled="@_busy" hidden />
+        </label>
+    </div>
+
+    @if (_file != null)
+    {
+        <p class="confirm">
+            Replace the workspace by the file @_file.Name?
+            <button type="button" class="danger" disabled="@_busy" @onclick="RestoreFileAsync">Restore</button>
+            <button type="button" disabled="@_busy" @onclick="ClearFile">Cancel</button>
+        </p>
+    }
+
+    @if (_message != null)
+    {
+        <p class="@(_failed ? "status-bad" : "status-ok")">@_message</p>
+    }
+
+    @if (_backups == null)
+    {
+        <p class="muted">Loading...</p>
+    }
+    else if (_backups.Count == 0)
+    {
+        <p class="muted">No backups yet.</p>
+    }
+    else
+    {
+        <table class="list">
+            <thead>
+                <tr>
+                    <th>Created (UTC)</th>
+                    <th>Kind</th>
+                    <th class="number">Size</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var backup in _backups)
+                {
+                    <tr @key="backup.Name">
+                        <td>@backup.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)</td>
+                        <td>@KindText(backup.Kind)</td>
+                        <td class="number">@SizeText(backup.SizeBytes)</td>
+                        <td class="actions">
+                            @if (_confirmName == backup.Name)
+                            {
+                                <span>Replace the workspace by this backup?</span>
+                                <button type="button" class="danger" disabled="@_busy" @onclick="() => RestoreAsync(backup.Name)">Restore</button>
+                                <button type="button" disabled="@_busy" @onclick="() => _confirmName = null">Cancel</button>
+                            }
+                            else
+                            {
+                                <a href="@WorkspaceApi.DownloadAddress(backup.Name)" download="@backup.Name">Download</a>
+                                <button type="button" disabled="@_busy" @onclick="() => _confirmName = backup.Name">Restore...</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<BackupResponse>? _backups;
+    private IBrowserFile? _file;
+    private Guid _fileInputKey = Guid.NewGuid();
+    private string? _confirmName;
+    private string? _message;
+    private bool _failed;
+    private bool _busy;
+
+    protected override Task OnInitializedAsync()
+    {
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _backups = await Workspace.GetBackupsAsync();
+        }
+        catch (HttpRequestException)
+        {
+            _backups = new List<BackupResponse>();
+            Show("The server is not reachable.", true);
+        }
+    }
+
+    private Task BackUpNowAsync()
+    {
+        return RunAsync(() => Workspace.CreateBackupAsync(), "Backup made.");
+    }
+
+    private Task RestoreAsync(string name)
+    {
+        _confirmName = null;
+        return RunAsync(() => Workspace.RestoreAsync(name), "The workspace was restored. Reload the other windows of TradeViewer.");
+    }
+
+    private async Task RestoreFileAsync()
+    {
+        var file = _file!;
+        if (file.Size > BackupLimits.MaxUploadBytes)
+        {
+            Show("The file is larger than " + SizeText(BackupLimits.MaxUploadBytes) + ".", true);
+            ClearFile();
+            return;
+        }
+
+        await RunAsync(
+            async () =>
+            {
+                await using var stream = file.OpenReadStream(BackupLimits.MaxUploadBytes);
+                return await Workspace.RestoreFileAsync(stream);
+            },
+            "The workspace was restored. Reload the other windows of TradeViewer.");
+        ClearFile();
+    }
+
+    private void SelectFile(InputFileChangeEventArgs e)
+    {
+        _file = e.File;
+        _message = null;
+    }
+
+    private void ClearFile()
+    {
+        _file = null;
+        _fileInputKey = Guid.NewGuid(); // a new input, so the same file can be chosen again
+    }
+
+    private async Task RunAsync(Func<Task<string?>> command, string done)
+    {
+        _busy = true;
+        _message = null;
+        try
+        {
+            var error = await command();
+            Show(error ?? done, error != null);
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Show(string message, bool failed)
+    {
+        _message = message;
+        _failed = failed;
+    }
+
+    private static string KindText(string kind)
+    {
+        switch (kind)
+        {
+            case "daily":
+                return "Daily";
+            case "manual":
+                return "Manual";
+            case "before-upgrade":
+                return "Before an update";
+            default:
+                return kind;
+        }
+    }
+
+    private static string SizeText(long bytes)
+    {
+        if (bytes < 1024 * 1024)
+        {
+            return (bytes / 1024.0).ToString("0.#", CultureInfo.InvariantCulture) + " KB";
+        }
+
+        return (bytes / (1024.0 * 1024.0)).ToString("0.#", CultureInfo.InvariantCulture) + " MB";
+    }
+}
