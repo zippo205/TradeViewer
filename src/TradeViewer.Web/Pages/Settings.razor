@@ -6,6 +6,51 @@
 <h1>Settings</h1>
 
 <section>
+    <h2>Default history</h2>
+    <p class="muted">
+        How much history a new asset gets per timeframe, counted back from the day it is added. The source may
+        provide less. Assets you have already keep their history; change it on the assets page.
+    </p>
+
+    @if (_history == null)
+    {
+        <p class="muted">Loading...</p>
+    }
+    else
+    {
+        <table class="list">
+            <thead>
+                <tr>
+                    <th>Timeframe</th>
+                    <th>History</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _history)
+                {
+                    <tr @key="row.Timeframe">
+                        <td>@row.Timeframe</td>
+                        <td>
+                            <label><input type="checkbox" @bind="row.Complete" /> complete</label>
+                            <input type="number" min="1" max="36500" @bind="row.Days" disabled="@row.Complete" /> days
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="toolbar">
+            <button type="button" disabled="@_busy" @onclick="SaveHistoryAsync">Save</button>
+        </div>
+
+        @if (_historyMessage != null)
+        {
+            <p class="@(_historyFailed ? "status-bad" : "status-ok")">@_historyMessage</p>
+        }
+    }
+</section>
+
+<section>
     <h2>Backups</h2>
     <p class="muted">
         The workspace (everything you create) is backed up once a day; the newest backups are kept.
@@ -81,7 +126,12 @@
 </section>
 
 @code {
+    private static readonly string[] TimeframeOrder = { "15m", "1h", "4h", "1d", "1w" };
+
     private IReadOnlyList<BackupResponse>? _backups;
+    private List<HistoryRow>? _history;
+    private string? _historyMessage;
+    private bool _historyFailed;
     private IBrowserFile? _file;
     private Guid _fileInputKey = Guid.NewGuid();
     private string? _confirmName;
@@ -89,9 +139,53 @@
     private bool _failed;
     private bool _busy;
 
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
-        return LoadAsync();
+        await LoadHistoryAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        var result = await Workspace.GetSettingsAsync();
+        if (result.Value == null)
+        {
+            _history = new List<HistoryRow>();
+            _historyMessage = result.Error;
+            _historyFailed = true;
+            return;
+        }
+
+        _history = ToRows(result.Value);
+    }
+
+    private async Task SaveHistoryAsync()
+    {
+        _busy = true;
+        try
+        {
+            var days = _history!.ToDictionary(row => row.Timeframe, row => row.Complete ? (int?)null : row.Days);
+            var result = await Workspace.SaveSettingsAsync(new SettingsResponse(days));
+
+            _historyFailed = result.Error != null;
+            _historyMessage = result.Error ?? "Saved. It counts for the assets you add from now on.";
+            if (result.Value != null)
+            {
+                _history = ToRows(result.Value);
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static List<HistoryRow> ToRows(SettingsResponse settings)
+    {
+        return settings.DefaultHistory
+            .OrderBy(pair => Array.IndexOf(TimeframeOrder, pair.Key))
+            .Select(pair => new HistoryRow { Timeframe = pair.Key, Complete = pair.Value == null, Days = pair.Value ?? 365 })
+            .ToList();
     }
 
     private async Task LoadAsync()
@@ -195,5 +289,14 @@
         }
 
         return (bytes / (1024.0 * 1024.0)).ToString("0.#", CultureInfo.InvariantCulture) + " MB";
+    }
+
+    private sealed class HistoryRow
+    {
+        public string Timeframe { get; set; } = string.Empty;
+
+        public bool Complete { get; set; }
+
+        public int Days { get; set; }
     }
 }

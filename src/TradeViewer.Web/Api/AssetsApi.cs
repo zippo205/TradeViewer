@@ -1,0 +1,61 @@
+using System.Net.Http.Json;
+using TradeViewer.Contracts.Assets;
+
+namespace TradeViewer.Web.Api;
+
+/// <summary>The client of /api/symbols and /api/assets.</summary>
+public sealed class AssetsApi
+{
+    private readonly HttpClient _http;
+
+    public AssetsApi(HttpClient http)
+    {
+        _http = http;
+    }
+
+    public Task<ApiResult<List<SymbolResponse>>> GetSymbolsAsync(string source, string? text)
+    {
+        var address = "api/symbols/" + Uri.EscapeDataString(source);
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            address += "?q=" + Uri.EscapeDataString(text);
+        }
+
+        return ApiCalls.SendAsync<List<SymbolResponse>>(() => _http.GetAsync(address));
+    }
+
+    public Task<ApiResult<List<AssetResponse>>> GetAssetsAsync()
+    {
+        return ApiCalls.SendAsync<List<AssetResponse>>(() => _http.GetAsync("api/assets"));
+    }
+
+    public Task<ApiResult<AssetResponse>> AddAsync(string source, string symbol)
+    {
+        return ApiCalls.SendAsync<AssetResponse>(() => _http.PostAsJsonAsync("api/assets", new AddAssetRequest(source, symbol)));
+    }
+
+    public Task<ApiResult<AssetResponse>> ChangeHistoryAsync(string source, string symbol, IReadOnlyDictionary<string, string?> historyFrom)
+    {
+        return ApiCalls.SendAsync<AssetResponse>(() => _http.PutAsJsonAsync(Address(source, symbol) + "/history", new ChangeHistoryRequest(historyFrom)));
+    }
+
+    public Task<string?> RemoveAsync(string source, string symbol)
+    {
+        return ApiCalls.SendAsync(() => _http.DeleteAsync(Address(source, symbol)));
+    }
+
+    public Task<string?> RescanAsync(string source, string symbol)
+    {
+        return ApiCalls.SendAsync(() => _http.PostAsync(Address(source, symbol) + "/rescan", null));
+    }
+
+    public Task<string?> RebuildAsync(string source, string symbol)
+    {
+        return ApiCalls.SendAsync(() => _http.PostAsync(Address(source, symbol) + "/rebuild", null));
+    }
+
+    private static string Address(string source, string symbol)
+    {
+        return "api/assets/" + Uri.EscapeDataString(source) + "/" + Uri.EscapeDataString(symbol);
+    }
+}

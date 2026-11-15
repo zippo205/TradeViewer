@@ -151,3 +151,59 @@ table.list .number {
 table.list .actions > * {
     margin-right: 8px;
 }
+
+input,
+select {
+    padding: 5px 8px;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+input[type="number"] {
+    width: 90px;
+}
+
+input:disabled {
+    opacity: 0.5;
+}
+
+.toolbar {
+    align-items: center;
+}
+
+.card {
+    margin: 12px 0;
+    padding: 12px 16px;
+    max-width: 900px;
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.card header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.badge {
+    padding: 1px 8px;
+    font-size: 13px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.badge.loading {
+    color: var(--link);
+    border-color: var(--link);
+}
+
+.badge.warning {
+    color: var(--bad);
+    border-color: var(--bad);
+}

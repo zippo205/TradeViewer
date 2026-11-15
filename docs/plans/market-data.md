@@ -119,7 +119,7 @@ Out of scope (later epics):
 10  Candles: current candle (TimeframeAggregator), GetCandlesQuery, endpoint with to and limit,
     column arrays, "partial"                                                                     done
 11  Web: assets page (add with symbol search, status and progress, history, reload, rebuild,
-    remove with confirmation), default history on the settings page, hub client                  open
+    remove with confirmation), default history on the settings page, hub client                  done *
 12  Measurement on the frozen copy (13 symbols): import time, store size, page read time; Docker
     build; architecture, README and runbooks updated; then, with the owner's go-ahead, the Pi
     with the Downloader switched on                                                              open
@@ -225,3 +225,9 @@ architecture when the step that needs them is done, and the owner may still chan
   unsubscriptions waiting to be sent again are not held up; it asks the Downloader only when due.
 - Step 9: the notifier port carries timeframe codes, not the Domain type: the architecture tests
   refused an Api that depends on the Domain.
+- Step 10: `limit` counts the closed candles; the current candle comes on top of it.
+- Step 11 (*): the assets page and the default history on the settings page build and are served,
+  and every call behind them was tried with curl against the running application (BTCUSDT from the
+  frozen copy: default history loaded in under 2 s, complete history in about 3 s, the 1h page
+  ends with the current candle of 09:00 built from three 15m candles). The agent has no browser:
+  the owner checks the pages by hand, also that the list follows the import without a reload.

@@ -1,0 +1,397 @@
+@page "/assets"
+@implements IDisposable
+@inject AssetsApi Api
+@inject WorkspaceEvents Events
+
+<PageTitle>Assets - TradeViewer</PageTitle>
+
+<h1>Assets</h1>
+
+@if (_message != null)
+{
+    <p class="@(_failed ? "status-bad" : "status-ok")">@_message</p>
+}
+
+<section>
+    <h2>Add an asset</h2>
+    <p class="muted">
+        Choose the source and type a part of the symbol or its name. The asset gets the default history of the
+        settings; the Downloader loads it and TradeViewer imports it in the background.
+    </p>
+
+    <div class="toolbar">
+        <select @bind="_source" @bind:after="SearchAsync" disabled="@_busy">
+            @foreach (var source in Sources)
+            {
+                <option value="@source">@source</option>
+            }
+        </select>
+        <input type="search" placeholder="Symbol or name" value="@_search" @oninput="OnSearchInput" />
+    </div>
+
+    @if (_symbols == null)
+    {
+        <p class="muted">Loading...</p>
+    }
+    else if (_symbols.Count == 0)
+    {
+        <p class="muted">No symbol of @_source matches.</p>
+    }
+    else
+    {
+        <table class="list">
+            <tbody>
+                @foreach (var symbol in _symbols)
+                {
+                    <tr @key="symbol.Symbol">
+                        <td>@symbol.Symbol</td>
+                        <td>@symbol.DisplayName</td>
+                        <td class="muted">@symbol.AssetClass</td>
+                        <td class="actions">
+                            @if (symbol.Added)
+                            {
+                                <span class="muted">added</span>
+                            }
+                            else
+                            {
+                                <button type="button" disabled="@_busy" @onclick="() => AddAsync(symbol)">Add</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+<section>
+    <h2>Your assets</h2>
+
+    @if (_assets == null)
+    {
+        <p class="muted">Loading...</p>
+    }
+    else if (_assets.Count == 0)
+    {
+        <p class="muted">No assets yet.</p>
+    }
+    else
+    {
+        @foreach (var asset in _assets)
+        {
+            <article class="card" @key="Key(asset)">
+                <header>
+                    <strong>@asset.DisplayName</strong>
+                    <span class="muted">@asset.Source / @asset.Symbol · @asset.AssetClass</span>
+                    @if (asset.Loading)
+                    {
+                        <span class="badge loading">loading</span>
+                    }
+                    @if (asset.SubscriptionPending)
+                    {
+                        <span class="badge warning" title="The Downloader could not be reached; the history is sent again.">history not sent yet</span>
+                    }
+                    @if (asset.Errors.Count > 0)
+                    {
+                        <span class="badge warning">@asset.Errors.Count file(s) not imported</span>
+                    }
+                </header>
+
+                <table class="list">
+                    <thead>
+                        <tr>
+                            <th>Timeframe</th>
+                            <th>History from</th>
+                            <th>First candle (UTC)</th>
+                            <th>Last candle (UTC)</th>
+                            <th class="number">Files</th>
+                            <th>State</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var timeframe in asset.Timeframes)
+                        {
+                            <tr @key="timeframe.Timeframe">
+                                <td>@timeframe.Timeframe</td>
+                                <td>
+                                    @if (_editKey == Key(asset))
+                                    {
+                                        var edit = _edit[timeframe.Timeframe];
+                                        <label><input type="checkbox" @bind="edit.Complete" /> complete</label>
+                                        <input type="date" @bind="edit.From" disabled="@edit.Complete" />
+                                    }
+                                    else
+                                    {
+                                        @(timeframe.HistoryFrom ?? "complete")
+                                    }
+                                </td>
+                                <td>@TimeText(timeframe.FirstCandle)</td>
+                                <td>@TimeText(timeframe.LastCandle)</td>
+                                <td class="number">@timeframe.FilesImported / @timeframe.FilesWanted</td>
+                                <td>
+                                    @if (timeframe.Loading)
+                                    {
+                                        <span>@(timeframe.Chartable ? "loading, can be charted" : "loading")</span>
+                                    }
+                                    else if (timeframe.Chartable)
+                                    {
+                                        <span class="status-ok">ready</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">no candles</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                @if (asset.Errors.Count > 0)
+                {
+                    <ul class="status-bad">
+                        @foreach (var error in asset.Errors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                }
+
+                <div class="toolbar">
+                    @if (_editKey == Key(asset))
+                    {
+                        <button type="button" disabled="@_busy" @onclick="() => SaveHistoryAsync(asset)">Save history</button>
+                        <button type="button" disabled="@_busy" @onclick="() => _editKey = null">Cancel</button>
+                    }
+                    else if (_removeKey == Key(asset))
+                    {
+                        <span>
+                            Remove @asset.DisplayName? Its candles, drawings and chart settings are deleted from TradeViewer
+                            and its subscription at the Downloader ends. The files of the Downloader stay.
+                        </span>
+                        <button type="button" class="danger" disabled="@_busy" @onclick="() => RemoveAsync(asset)">Remove</button>
+                        <button type="button" disabled="@_busy" @onclick="() => _removeKey = null">Cancel</button>
+                    }
+                    else if (_rebuildKey == Key(asset))
+                    {
+                        <span>Delete the stored candles of @asset.DisplayName and import them again from the Downloader's files?</span>
+                        <button type="button" disabled="@_busy" @onclick="() => RebuildAsync(asset)">Rebuild</button>
+                        <button type="button" disabled="@_busy" @onclick="() => _rebuildKey = null">Cancel</button>
+                    }
+                    else
+                    {
+                        <button type="button" disabled="@_busy" @onclick="() => EditHistory(asset)">History...</button>
+                        <button type="button" disabled="@_busy" @onclick="() => RescanAsync(asset)">Reload</button>
+                        <button type="button" disabled="@_busy" @onclick="() => _rebuildKey = Key(asset)">Rebuild...</button>
+                        <button type="button" disabled="@_busy" @onclick="() => _removeKey = Key(asset)">Remove...</button>
+                    }
+                </div>
+            </article>
+        }
+    }
+</section>
+
+@code {
+    // Until the Downloader provides its symbol catalog there is one source with a fixed list (AS2).
+    private static readonly string[] Sources = { "binance" };
+
+    private readonly Dictionary<string, HistoryEdit> _edit = new Dictionary<string, HistoryEdit>();
+    private List<SymbolResponse>? _symbols;
+    private List<AssetResponse>? _assets;
+    private string _source = Sources[0];
+    private string _search = string.Empty;
+    private string? _editKey;
+    private string? _removeKey;
+    private string? _rebuildKey;
+    private string? _message;
+    private bool _failed;
+    private bool _busy;
+    private bool _reloadPending;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Events.AssetStatusChanged += OnAssetStatusChanged;
+        Events.Reconnected += OnReconnected;
+        _ = Events.StartAsync();
+
+        await SearchAsync();
+        await LoadAssetsAsync();
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Events.AssetStatusChanged -= OnAssetStatusChanged;
+        Events.Reconnected -= OnReconnected;
+    }
+
+    private void OnAssetStatusChanged(string source, string symbol)
+    {
+        ScheduleReload();
+    }
+
+    private void OnReconnected()
+    {
+        ScheduleReload();
+    }
+
+    /// <summary>An import raises many events in a row; the list is read once for all of them.</summary>
+    private void ScheduleReload()
+    {
+        if (_reloadPending || _disposed)
+        {
+            return;
+        }
+
+        _reloadPending = true;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Delay(300);
+            _reloadPending = false;
+            if (_disposed)
+            {
+                return;
+            }
+
+            await LoadAssetsAsync();
+            await SearchAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        await SearchAsync();
+    }
+
+    private async Task SearchAsync()
+    {
+        var wanted = _search;
+        var result = await Api.GetSymbolsAsync(_source, wanted);
+        if (wanted != _search)
+        {
+            return; // the user typed on; a newer search is on its way
+        }
+
+        if (result.Error != null)
+        {
+            Show(result.Error, true);
+        }
+
+        _symbols = result.Value ?? new List<SymbolResponse>();
+    }
+
+    private async Task LoadAssetsAsync()
+    {
+        var result = await Api.GetAssetsAsync();
+        if (result.Error != null)
+        {
+            Show(result.Error, true);
+        }
+
+        // While the user edits, the rows keep their place; only the figures change.
+        _assets = result.Value ?? _assets ?? new List<AssetResponse>();
+    }
+
+    private Task AddAsync(SymbolResponse symbol)
+    {
+        return RunAsync(async () => (await Api.AddAsync(symbol.Source, symbol.Symbol)).Error, symbol.DisplayName + " added. Its history is loading.");
+    }
+
+    private Task RescanAsync(AssetResponse asset)
+    {
+        return RunAsync(() => Api.RescanAsync(asset.Source, asset.Symbol), "Reloading the files of " + asset.DisplayName + ".");
+    }
+
+    private Task RebuildAsync(AssetResponse asset)
+    {
+        _rebuildKey = null;
+        return RunAsync(() => Api.RebuildAsync(asset.Source, asset.Symbol), "Rebuilding the candles of " + asset.DisplayName + ".");
+    }
+
+    private Task RemoveAsync(AssetResponse asset)
+    {
+        _removeKey = null;
+        return RunAsync(() => Api.RemoveAsync(asset.Source, asset.Symbol), asset.DisplayName + " removed.");
+    }
+
+    private void EditHistory(AssetResponse asset)
+    {
+        _edit.Clear();
+        foreach (var timeframe in asset.Timeframes)
+        {
+            _edit[timeframe.Timeframe] = new HistoryEdit
+            {
+                Complete = timeframe.HistoryFrom == null,
+                From = timeframe.HistoryFrom == null
+                    ? DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-90)
+                    : DateOnly.ParseExact(timeframe.HistoryFrom, "yyyy-MM-dd", CultureInfo.InvariantCulture)
+            };
+        }
+
+        _editKey = Key(asset);
+        _removeKey = null;
+        _rebuildKey = null;
+    }
+
+    private async Task SaveHistoryAsync(AssetResponse asset)
+    {
+        var history = new Dictionary<string, string?>();
+        foreach (var pair in _edit)
+        {
+            history[pair.Key] = pair.Value.Complete ? null : pair.Value.From.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        }
+
+        var saved = await RunAsync(
+            async () => (await Api.ChangeHistoryAsync(asset.Source, asset.Symbol, history)).Error,
+            "History of " + asset.DisplayName + " changed.");
+        if (saved)
+        {
+            _editKey = null;
+        }
+    }
+
+    /// <returns>True when the command worked.</returns>
+    private async Task<bool> RunAsync(Func<Task<string?>> command, string done)
+    {
+        _busy = true;
+        _message = null;
+        try
+        {
+            var error = await command();
+            Show(error ?? done, error != null);
+            await LoadAssetsAsync();
+            await SearchAsync();
+            return error == null;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Show(string message, bool failed)
+    {
+        _message = message;
+        _failed = failed;
+    }
+
+    private static string Key(AssetResponse asset)
+    {
+        return asset.Source + "/" + asset.Symbol;
+    }
+
+    private static string TimeText(DateTimeOffset? time)
+    {
+        return time == null ? "-" : time.Value.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    private sealed class HistoryEdit
+    {
+        public bool Complete { get; set; }
+
+        public DateOnly From { get; set; }
+    }
+}
