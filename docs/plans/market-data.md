@@ -4,9 +4,7 @@
 
 ```text
 Epic:     Assets and Market Data (P0 - Foundation)
-Status:   All steps done and deployed on the Pi 2026-11-15 with the Downloader switched on; waiting
-          for the owner's look at the assets page and the settings page (step 11 *), then approval
-          and merge
+Status:   Completed and approved by the owner 2026-11-15; merged into main
 Branch:   feature/market-data
 Next:     Epic Price Chart
 Baseline: docs as of commit 42ecca5 (main)
