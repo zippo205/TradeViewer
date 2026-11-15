@@ -18,6 +18,12 @@ public sealed class StorageLocations
     /// <summary>marketdata.db, workspace.db and backups/.</summary>
     public string DataPath { get; }
 
+    /// <summary>Everything the user creates (decision 0002).</summary>
+    public string WorkspaceDatabasePath => Path.Combine(DataPath, "workspace.db");
+
+    /// <summary>The backups of workspace.db (WS3).</summary>
+    public string BackupsPath => Path.Combine(DataPath, "backups");
+
     /// <summary>The folder of EWTS's scenario files, or null when the feature is off.</summary>
     public string? ScenariosRoot { get; }
 

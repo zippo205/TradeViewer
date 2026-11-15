@@ -3,8 +3,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Infrastructure.Configuration;
 using TradeViewer.Infrastructure.Storage;
+using TradeViewer.Infrastructure.Workspace;
+using TradeViewer.Infrastructure.Workspace.Backups;
 
 namespace TradeViewer.Infrastructure;
 
@@ -28,8 +31,23 @@ public static class DependencyInjection
             provider.GetRequiredService<IOptions<ScenariosOptions>>().Value,
             contentRoot));
 
-        // Hosted services start in registration order: the folders first.
+        services.TryAddSingleton(TimeProvider.System);
+
+        services.AddSingleton(provider => new WorkspaceDatabase(provider.GetRequiredService<StorageLocations>().WorkspaceDatabasePath));
+        services.AddSingleton(WorkspaceSchema.FromEmbeddedScripts());
+        services.AddSingleton(provider => new BackupStore(
+            provider.GetRequiredService<StorageLocations>().BackupsPath,
+            provider.GetRequiredService<IOptions<StorageOptions>>().Value.Backup.KeepCount,
+            provider.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<WorkspaceBackups>();
+        services.AddSingleton<IWorkspaceBackups>(provider => provider.GetRequiredService<WorkspaceBackups>());
+        services.AddSingleton<ISettingsRepository, SettingsRepository>();
+        services.AddSingleton<WorkspaceInitializer>();
+
+        // Hosted services start in registration order: the folders first, then the workspace, then what uses it.
         services.AddHostedService<StorageInitializer>();
+        services.AddHostedService(provider => provider.GetRequiredService<WorkspaceInitializer>());
+        services.AddHostedService<DailyBackupService>();
 
         return services;
     }

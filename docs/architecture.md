@@ -191,10 +191,11 @@ answered with 500 without internal details.
 
 ```text
 Abstractions/
-├── Messaging     the CQRS interfaces
+├── Messaging     the CQRS interfaces, Result, Error, FileContent
 ├── MarketData    ICandleStore, ICandleFileReader, IDownloaderClient, ISymbolCatalog
 ├── Ewts          IEwtsClient, IScenarioFileReader, IExpertAnalysisStore
-├── Workspace     one repository interface per feature: IAssetRepository, IChartSettingsRepository, IDrawingRepository, IEwtsInstanceRepository, ...
+├── Workspace     one repository interface per feature: IAssetRepository, IChartSettingsRepository, IDrawingRepository, IEwtsInstanceRepository, ...;
+│                 ISettingsRepository, IWorkspaceBackups
 └── Realtime      IWorkspaceNotifier (implemented by the Api on top of the SignalR hub)
 ```
 
@@ -469,7 +470,8 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/scenarios                                list; post creates an expert scenario (SC13)
 /api/scenarios/{path}                         one scenario with its shapes
 /api/scenarios/{path}/expert                  get, put the analysis of the user (SC12)
-/api/workspace/backups                        list; /{name} download; /{name}/restore; post uploads a file to restore
+/api/workspace/backups                        list; post makes a backup now; /{name} download; /{name}/restore;
+                                              /restore restores the uploaded file (the body, at most 256 MB)
 /health
 ```
 
@@ -557,15 +559,27 @@ indicator templates, drawings, Fibonacci presets, EWTS instances (with the last 
 and alert numbers), settings (default history, last chart).
 
 - Microsoft.Data.Sqlite with plain SQL
-- Schema changes are numbered SQL scripts in Infrastructure, applied at startup in one
-  transaction each; the version is `PRAGMA user_version`. Before an upgrade the database is
-  backed up (WS4)
-- WAL mode; every command writes at once (WS1)
+- Schema changes are numbered SQL scripts in Infrastructure (`Workspace/Scripts/NNNN_name.sql`,
+  embedded), applied at startup in one transaction each; the version is `PRAGMA user_version`.
+  Before an upgrade the database is backed up (WS4). A workspace of a newer version than the build
+  knows, and a damaged one (`PRAGMA quick_check`), stop the start; nothing is changed
+- Script 0001 writes `PRAGMA application_id` ("TVWS"), which marks a file as a workspace
+- WAL mode with `synchronous=FULL`: every command writes at once (WS1) and a committed change
+  survives a power loss
+- Every use of workspace.db goes through `WorkspaceDatabase.OpenAsync`, which hands out a pooled
+  connection together with a shared lease. Code holding one must not ask for a second
 - Chart settings, indicator instances and drawings are stored as JSON with a type discriminator
   and a payload version, so a new drawing type needs no schema change
-- Daily backup with the SQLite online backup API into `backups/`, keeping `KeepCount` copies;
-  restoring closes workspace.db, replaces it by the chosen backup and opens it again, without a
-  restart (WS3)
+- Backups are made with the SQLite online backup API into `backups/`: once a day at
+  `Storage:Backup:Time`, at once after a start when the backup of the day is missing, before a
+  schema upgrade, and when the user asks for one. The name tells time (UTC) and kind:
+  `workspace-<yyyyMMdd-HHmmss>-daily.db`, `-manual.db`, `-before-v<n>.db`. The `KeepCount` newest
+  are kept, whatever their kind (WS3)
+- A restore, of a backup or an uploaded file, works on a temporary copy first: integrity check, is a
+  workspace, version not newer than the build, then the schema upgrade. Only a copy that passed
+  replaces workspace.db: the restore takes the exclusive lease (it waits for the shared ones,
+  later requests wait for it), closes the pooled connections and renames the copy over the file.
+  No restart; a refused restore changes nothing; there is no safety copy of the replaced workspace
 
 ---
 

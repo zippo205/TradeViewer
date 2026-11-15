@@ -6,6 +6,7 @@
     --border: #d1d5db;
     --ok: #089981;
     --bad: #f23645;
+    --link: #2962ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,6 +16,7 @@
         --text: #d1d4dc;
         --muted: #9598a1;
         --border: #363a45;
+        --link: #5b9cf6;
     }
 }
 
@@ -59,4 +61,93 @@ body {
 
 .status-bad {
     color: var(--bad);
+}
+
+.app-header nav {
+    display: flex;
+    gap: 12px;
+}
+
+.app-header nav a {
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.app-header nav a.active {
+    color: var(--text);
+}
+
+a {
+    color: var(--link);
+}
+
+h1 {
+    font-size: 22px;
+}
+
+h2 {
+    font-size: 17px;
+    margin-top: 24px;
+}
+
+button,
+.button {
+    display: inline-block;
+    padding: 5px 12px;
+    font: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:disabled,
+.button.disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+button.danger {
+    color: #ffffff;
+    background: var(--bad);
+    border-color: var(--bad);
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.confirm button {
+    margin-left: 8px;
+}
+
+table.list {
+    border-collapse: collapse;
+    margin-top: 12px;
+}
+
+table.list th,
+table.list td {
+    padding: 6px 14px 6px 0;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+table.list th {
+    color: var(--muted);
+    font-weight: 500;
+}
+
+table.list .number {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+table.list .actions > * {
+    margin-right: 8px;
 }

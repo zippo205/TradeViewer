@@ -340,11 +340,11 @@ it in TradingView.
 
 ### 4.13 Workspace
 
-- **WS1** Every change the user makes is saved immediately. There is no save button With several
+- **WS1** Every change the user makes is saved immediately. There is no save button. With several
   windows open, the last save of a record wins.
 - **WS2** The workspace survives restarts, updates, and deleting or rebuilding the candle store.
-- **WS3** The workspace is backed up once a day; the last 14 backups are kept. The user can
-  download a backup and restore one.
+- **WS3** The workspace is backed up once a day; the last 14 backups are kept. The user can make
+  a backup at any time, download a backup and restore one.
 - **WS4** An update of TradeViewer upgrades the workspace without losing data.
 - **WS5** A settings page holds what is not part of a chart: the default history (AS3), the
   EWTS instances (EW1) and the backups (WS3).

@@ -251,10 +251,41 @@ Stopping is always safe. The user data of TradeViewer (later: workspace.db) live
 
 ## D. Backups
 
-Not needed yet: until the Workspace Persistence epic TradeViewer stores nothing of its own. After
-it, the application backs up workspace.db once a day into `backups/` below `APPDATA_PATH`
-(requirement WS3, 14 copies); the weekly backup of /data to a second Pi is planned in the
-Downloader's pi-setup.md.
+Everything the user creates is in `workspace.db` below `APPDATA_PATH` (requirements WS2, WS3).
+
+```text
+$APPDATA_PATH/workspace.db                                 the workspace (with -wal and -shm while running)
+$APPDATA_PATH/backups/workspace-<date>-<time>-daily.db     once a day at Storage:Backup:Time (03:00 UTC), and at
+                                                           once after a start when the backup of the day is missing
+$APPDATA_PATH/backups/workspace-<date>-<time>-manual.db    "Back up now" on the settings page
+$APPDATA_PATH/backups/workspace-<date>-<time>-before-v<n>.db   before an update changed the schema to version n
+```
+
+The newest 14 (`Storage:Backup:KeepCount`) are kept, whatever their kind. A backup is a complete
+SQLite database. The backups lie on the same disk as the workspace: they protect against a
+mistake or a bad update, not against a broken disk. For that, download a backup now and then, or
+wait for the weekly backup of /data to a second Pi (planned in the Downloader's pi-setup.md).
+
+On the settings page (`/settings`): make a backup, download one, restore one, or restore from a
+downloaded file (at most 256 MB). A restore replaces the whole workspace while TradeViewer runs
+and cannot be undone: make a backup first if the current state may be needed. A file that is
+damaged, not a workspace, or from a newer version of TradeViewer is refused and nothing changes.
+A backup of an older version is upgraded while it is restored.
+
+Restore by hand, when TradeViewer does not start ("The workspace ... is damaged" in the log):
+
+```bash
+docker compose -f deploy/docker-compose.yml down
+cd "$APPDATA_PATH"
+mv workspace.db workspace.db.damaged                  # keep it until the restore is proved
+rm -f workspace.db-wal workspace.db-shm               # they belong to the damaged file
+cp backups/workspace-<date>-<time>-daily.db workspace.db
+cd - && docker compose -f deploy/docker-compose.yml up -d
+```
+
+"Run a newer version of TradeViewer" in the log means the workspace was already upgraded by a
+newer version: start that version again, or restore the `before-v<n>` backup by hand as above
+(what was created since the update is lost then).
 
 ## E. Problems
 
@@ -265,4 +296,6 @@ Permission denied          APPDATA_PATH is not writable for APP_UID:APP_GID (ls 
 Port already in use        another container or dotnet run on 8080: docker ps; TRADEVIEWER_PORT=8090
 Page shows "not reachable" does the server answer? curl -s localhost:8080/health
 Unhealthy                  docker inspect tradeviewer --format '{{json .State.Health}}'
+Workspace is damaged /
+Run a newer version        docker logs tradeviewer names the file; see section D
 ```
