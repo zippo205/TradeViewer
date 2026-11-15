@@ -1,0 +1,2 @@
+{ "type": "https://tools.ietf.org/html/rfc9110#section-15.6.4", "title": "Service Unavailable", "status": 503,
+  "detail": "Source 'binance' is unreachable." }

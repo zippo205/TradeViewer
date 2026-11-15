@@ -1,0 +1,5 @@
+{ "lastChange": 48213, "complete": true,
+  "changes": [
+    { "change": 48150, "timeframe": "1d",  "file": "1d/BTCUSDT-1d-2026-11-03.csv",   "kind": "replaced", "at": "2026-11-04T02:00:12Z" },
+    { "change": 48198, "timeframe": "15m", "file": "15m/BTCUSDT-15m-2026-11-04.csv", "kind": "updated",  "at": "2026-11-04T15:15:31Z" },
+    { "change": 48213, "timeframe": "15m", "file": "15m/BTCUSDT-15m-2026-11-04.csv", "kind": "updated",  "at": "2026-11-04T15:30:31Z" } ] }

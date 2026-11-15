@@ -1,4 +1,4 @@
-namespace TradeViewer.Infrastructure.Workspace;
+namespace TradeViewer.Infrastructure.Sqlite;
 
 /// <summary>One numbered schema script; its number is the schema version it leads to.</summary>
 public sealed class SchemaScript

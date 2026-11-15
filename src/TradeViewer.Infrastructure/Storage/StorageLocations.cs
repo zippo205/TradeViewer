@@ -21,6 +21,9 @@ public sealed class StorageLocations
     /// <summary>Everything the user creates (decision 0002).</summary>
     public string WorkspaceDatabasePath => Path.Combine(DataPath, "workspace.db");
 
+    /// <summary>The candle store, a cache that may be deleted (decision 0002).</summary>
+    public string MarketDataDatabasePath => Path.Combine(DataPath, "marketdata.db");
+
     /// <summary>The backups of workspace.db (WS3).</summary>
     public string BackupsPath => Path.Combine(DataPath, "backups");
 

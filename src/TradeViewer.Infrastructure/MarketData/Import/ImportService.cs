@@ -1,0 +1,302 @@
+using System.Threading.Channels;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using TradeViewer.Application.Abstractions.MarketData;
+using TradeViewer.Application.Abstractions.Realtime;
+using TradeViewer.Application.Abstractions.Workspace;
+using TradeViewer.Domain.MarketData;
+using TradeViewer.Infrastructure.Workspace;
+
+namespace TradeViewer.Infrastructure.MarketData.Import;
+
+/// <summary>
+/// The one worker that writes the candles of the candle store. It takes the tasks in the order they were
+/// asked for and tells the open windows what changed. At the start it rescans every asset in the background,
+/// so the application is usable at once (NF10).
+/// </summary>
+public sealed class ImportService : BackgroundService, IImportQueue
+{
+    private readonly Channel<Work> _channel = Channel.CreateUnbounded<Work>(new UnboundedChannelOptions { SingleReader = true });
+    private readonly object _sync = new object();
+    private readonly Dictionary<(string Source, string Symbol), int> _pending = new Dictionary<(string, string), int>();
+    private readonly HashSet<(string Source, string Symbol)> _queuedRescans = new HashSet<(string, string)>();
+    private readonly Dictionary<(string Source, string Symbol), Dictionary<Timeframe, TimeframeProgress>> _progress =
+        new Dictionary<(string, string), Dictionary<Timeframe, TimeframeProgress>>();
+
+    private readonly IAssetRepository _assets;
+    private readonly AssetFiles _files;
+    private readonly AssetImporter _importer;
+    private readonly ICandleStore _store;
+    private readonly IWorkspaceNotifier _notifier;
+    private readonly ILogger<ImportService> _logger;
+
+    private Work? _current;
+    private CancellationTokenSource? _currentCancel;
+
+    public ImportService(
+        IAssetRepository assets,
+        AssetFiles files,
+        AssetImporter importer,
+        ICandleStore store,
+        IWorkspaceNotifier notifier,
+        WorkspaceRestoreSignal restored,
+        ILogger<ImportService> logger)
+    {
+        // After a restore the assets may be others: the candle store follows them (AS7).
+        restored.Restored += Reconcile;
+        _notifier = notifier;
+        _assets = assets;
+        _files = files;
+        _importer = importer;
+        _store = store;
+        _logger = logger;
+    }
+
+    /// <summary>True when nothing is queued or running.</summary>
+    public bool IsIdle
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _pending.Count == 0;
+            }
+        }
+    }
+
+    public void Rescan(string source, string symbol)
+    {
+        lock (_sync)
+        {
+            // One waiting rescan is enough; it will see everything a second one would.
+            if (!_queuedRescans.Add((source, symbol)))
+            {
+                return;
+            }
+        }
+
+        Enqueue(new Work(WorkKind.Rescan, source, symbol, null));
+    }
+
+    public void Rebuild(string source, string symbol)
+    {
+        Enqueue(new Work(WorkKind.Rebuild, source, symbol, null));
+    }
+
+    public void ImportFiles(string source, string symbol, IReadOnlyList<string> files)
+    {
+        Enqueue(new Work(WorkKind.Files, source, symbol, files));
+    }
+
+    /// <summary>
+    /// Brings the candle store in line with the assets of the workspace (AS7): what it holds of symbols that
+    /// are no asset is deleted, and every asset is rescanned. Runs at the start and after a restore.
+    /// </summary>
+    public void Reconcile()
+    {
+        Enqueue(new Work(WorkKind.Reconcile, string.Empty, string.Empty, null));
+    }
+
+    public void Delete(string source, string symbol)
+    {
+        Enqueue(new Work(WorkKind.Delete, source, symbol, null));
+    }
+
+    public ImportProgress GetProgress(string source, string symbol)
+    {
+        lock (_sync)
+        {
+            var key = (source, symbol);
+            var timeframes = _progress.TryGetValue(key, out var progress)
+                ? progress.Values.OrderByDescending(item => Timeframes.Seconds(item.Timeframe)).ToList()
+                : new List<TimeframeProgress>();
+
+            return new ImportProgress(_pending.ContainsKey(key), timeframes);
+        }
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await Task.Yield(); // the start of the application does not wait for the first import
+
+        try
+        {
+            Reconcile();
+
+            await foreach (var work in _channel.Reader.ReadAllAsync(stoppingToken))
+            {
+                await RunAsync(work, stoppingToken);
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // the application stops
+        }
+    }
+
+    private void Enqueue(Work work)
+    {
+        lock (_sync)
+        {
+            var key = (work.Source, work.Symbol);
+            _pending[key] = _pending.TryGetValue(key, out var count) ? count + 1 : 1;
+
+            // A running import of the same asset is pointless once its candles are to be deleted.
+            if ((work.Kind == WorkKind.Delete || work.Kind == WorkKind.Rebuild)
+                && _current != null && _current.Source == work.Source && _current.Symbol == work.Symbol)
+            {
+                _currentCancel?.Cancel();
+            }
+        }
+
+        _channel.Writer.TryWrite(work);
+    }
+
+    private async Task RunAsync(Work work, CancellationToken stoppingToken)
+    {
+        var key = (work.Source, work.Symbol);
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+
+        lock (_sync)
+        {
+            _current = work;
+            _currentCancel = cancel;
+            if (work.Kind == WorkKind.Rescan)
+            {
+                _queuedRescans.Remove(key);
+            }
+        }
+
+        try
+        {
+            await DoAsync(work, cancel.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // stopped for a delete or a rebuild of the asset, or the application stops
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "The import of {Source}/{Symbol} failed ({Kind}).", work.Source, work.Symbol, work.Kind);
+        }
+        finally
+        {
+            lock (_sync)
+            {
+                _current = null;
+                _currentCancel = null;
+
+                if (_pending[key] == 1)
+                {
+                    _pending.Remove(key);
+                }
+                else
+                {
+                    _pending[key]--;
+                }
+            }
+
+            if (work.Kind != WorkKind.Reconcile)
+            {
+                await _notifier.AssetStatusChangedAsync(work.Source, work.Symbol);
+            }
+        }
+    }
+
+    private async Task DoAsync(Work work, CancellationToken cancellationToken)
+    {
+        var key = (work.Source, work.Symbol);
+
+        if (work.Kind == WorkKind.Reconcile)
+        {
+            var all = await _assets.GetAllAsync(cancellationToken);
+            var wanted = all.Select(item => (item.Source, item.Symbol)).ToHashSet();
+
+            foreach (var (source, symbol) in _store.GetAssets())
+            {
+                if (!wanted.Contains((source, symbol)))
+                {
+                    _logger.LogWarning("{Source}/{Symbol} is no asset of the workspace: its candles are deleted.", source, symbol);
+                    Delete(source, symbol);
+                }
+            }
+
+            foreach (var item in all)
+            {
+                Rescan(item.Source, item.Symbol);
+            }
+
+            return;
+        }
+
+        if (work.Kind == WorkKind.Delete || work.Kind == WorkKind.Rebuild)
+        {
+            _store.DeleteAsset(work.Source, work.Symbol);
+            lock (_sync)
+            {
+                _progress.Remove(key);
+            }
+
+            if (work.Kind == WorkKind.Delete)
+            {
+                return;
+            }
+        }
+
+        var asset = await _assets.GetAsync(work.Source, work.Symbol, cancellationToken);
+        if (asset == null)
+        {
+            return; // removed meanwhile
+        }
+
+        if (work.Kind == WorkKind.Files)
+        {
+            var updated = _importer.ImportFiles(asset, work.Files!);
+            if (updated.Count > 0)
+            {
+                await _notifier.CandlesUpdatedAsync(asset.Source, asset.Symbol, updated.Select(Timeframes.Code).ToList());
+            }
+
+            return;
+        }
+
+        if (!_files.HasFolder(asset.Source, asset.Symbol))
+        {
+            _logger.LogWarning("{Source}/{Symbol} has no folder in the Downloader's output root: no data.", asset.Source, asset.Symbol);
+        }
+
+        var changed = _importer.Rescan(asset, progress => SetProgress(key, progress), cancellationToken);
+        if (changed.Count > 0)
+        {
+            await _notifier.CandlesUpdatedAsync(asset.Source, asset.Symbol, changed.Select(Timeframes.Code).ToList());
+        }
+    }
+
+    private void SetProgress((string Source, string Symbol) key, TimeframeProgress progress)
+    {
+        lock (_sync)
+        {
+            if (!_progress.TryGetValue(key, out var timeframes))
+            {
+                timeframes = new Dictionary<Timeframe, TimeframeProgress>();
+                _progress[key] = timeframes;
+            }
+
+            timeframes[progress.Timeframe] = progress;
+        }
+
+        // The loading progress on the open pages (AS4); the notifier never fails the caller.
+        _ = _notifier.AssetStatusChangedAsync(key.Source, key.Symbol);
+    }
+
+    private enum WorkKind
+    {
+        Rescan,
+        Rebuild,
+        Files,
+        Delete,
+        Reconcile
+    }
+
+    private sealed record Work(WorkKind Kind, string Source, string Symbol, IReadOnlyList<string>? Files);
+}

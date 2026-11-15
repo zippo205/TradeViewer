@@ -206,15 +206,18 @@ The clock is the built-in `TimeProvider`.
 ## 5. Domain Model
 
 ```text
-Asset               source, symbol, display name, asset class, tick size, session,
-                    source timeframes, position in its watchlist
-HistorySettings     default history per timeframe, history start per asset (AS3)
+SymbolInfo          source, symbol, display name, asset class, tick size, session,
+                    source timeframes: what a source says about a symbol
+Asset               SymbolInfo, AssetHistory, position in its watchlist, subscription sent
+AssetHistory        first day per timeframe, or none for the complete history (AS3)
+HistorySettings     default history per timeframe: complete or a number of days (AS3)
 AssetClass          Crypto, Stock, Etf, Forex, Commodity; also the watchlist of the asset
 Session             Continuous, Exchange (time zone, open, close), NewYorkClose
 Timeframe           15m, 1h, 4h, 1d, 1w (later 1m, 5m, 12h, 1M); the same codes everywhere
-Candle              open time (UTC), open, high, low, close, volume
-CandleSeries        ordered candles of one asset and timeframe
-TimeframeAggregator builds a timeframe, or only its current candle, from a lower one along the session (MD3, MD8)
+Candle              open time (Unix seconds, UTC), open, high, low, close, volume
+SeriesKey           source, symbol, timeframe: the candles of one asset in one timeframe
+TimeframeAggregator builds a timeframe, or only its current candle, from a lower one along the session (MD3, MD8);
+                    built so far: the current candle for a continuous session
 CandleFileRules     file name -> period, row validation (see downloader-interface.md)
 
 Indicator           Sma, Ema, BollingerBands, Rsi, Macd, Atr: candles + parameters -> series
@@ -247,11 +250,16 @@ Decision 0003. Interface of the Downloader: docs/knowledge/downloader-interface.
 
 ```text
 add asset     symbol from ISymbolCatalog -> lookup -> PUT subscription (client "tradeviewer") -> store asset -> first import
+              nothing is stored unless the Downloader accepted the subscription (AS2)
 sync          MarketDataSyncService, per asset, aligned to the clock (MD2):
                 due at every close of the asset's smallest timeframe + 30 s (the Downloader's
                 cycle starts at :00:30, :15:30 ... UTC); then every PollSeconds until the symbol
-                status shows a greater lastChange, at most PollWindowMinutes; one check at
-                startup and after the Downloader was unreachable
+                status shows a greater lastChange and the next poll shows no further one (a
+                cycle writes several timeframes one after the other), at most
+                PollWindowMinutes; all the time while the Downloader still downloads history
+                for the asset; one check at startup and with every poll while the Downloader
+                is unreachable
+                no sync state yet (new asset, new candle store)? rescan, store lastChange
                 lastChange greater than stored?
                   yes: changes?after=n -> import the named files -> store lastChange
                        complete == false -> rescan the asset
@@ -261,23 +269,42 @@ rescan        compare every *.csv of the asset (size, modified time) with the im
               startup for every asset
 rebuild       delete the rows of the asset from the candle store, then the first import as when
               adding; the asset shows as loading meanwhile (MD5)
-change history PUT the subscription with the new start -> import from it; candles before a
-              later start are deleted from the store
+change history PUT the subscription with the new start -> rescan: it imports what is wanted now
+              and removes the candles of files before a later start. When the Downloader is
+              unreachable the change is kept and the sync sends the subscription again
 remove asset  switch off its analysis at EWTS if on -> DELETE subscription -> delete its
-              drawings, chart settings and rows from the candle store and its sync state
+              drawings, chart settings and rows from the candle store and its sync state.
+              It works without the Downloader: an unsubscription that fails is remembered in
+              workspace.db and sent again by the sync
 ```
 
 - Only files from the asset's history start per timeframe are imported, although the folder
   can hold more (another client, e.g. EWTS, may have subscribed a longer history). Opening a
   scenario whose time span is not stored moves the history start back to it (SC8).
 - The symbols offered when adding an asset come from `ISymbolCatalog`: today a file per
-  source shipped with the application (`Symbols/<source>.json`, the format of the Downloader's
-  `symbols.json`, first `binance.json` with the 13 symbols of `~/marketdata/binance/symbols.json`),
-  later the Downloader's symbol catalog. The default history is a user setting in the workspace (AS3).
-- Loading (AS4): an asset counts as loading while its symbol status shows pending jobs or
-  `coveredFrom` later than `wantedFrom` for a timeframe; the progress per timeframe is that
-  coverage, and a timeframe can be charted once its newest candles are imported. Without the
-  Downloader nothing is loading.
+  source shipped with the application (embedded in Infrastructure,
+  `MarketData/Symbols/<source>.json`, the format of the Downloader's `symbols.json`, first
+  `binance.json` with the 13 symbols of `~/marketdata/binance/symbols.json`), later the
+  Downloader's symbol catalog. The default history is a user setting in the workspace (AS3): days
+  per timeframe or complete. The start days of an asset are fixed when it is added. A complete
+  history is sent to the Downloader as the start 1970-01-01, which it clips to the first day the
+  source has (without a date its own defaults would apply).
+- All writes of candles are done by one background worker (`ImportService`) in the order they
+  were asked for: rescan, rebuild, import of named files, delete. Per asset the large timeframes
+  come first and within a timeframe the newest files, 200 files per transaction, so a timeframe
+  can be charted after seconds while the long history follows.
+- Loading (AS4): a timeframe counts as loading while work for the asset is queued or running and
+  not all of its wanted files are imported, or while the Downloader has jobs for it or reports a
+  part of it as `pending`. The progress per timeframe is imported files of wanted files. A
+  timeframe can be charted once it has candles. Without the Downloader only the import counts.
+- The assets of the workspace are the truth (AS7). At every start and after a restore
+  (`WorkspaceRestoreSignal`, raised by the restore) two things are brought in line with them. The
+  import worker deletes from the candle store what belongs to no asset and rescans every asset.
+  The sync reads the subscriptions of its own client (`GET clients/{client}/subscriptions`), ends
+  those without an asset and marks assets without a subscription as not sent; after a restore it
+  marks all of them, because the history may have changed. The sync also subscribes an asset
+  whose symbol status does not name TradeViewer among the subscribers or is 404. Without the
+  Downloader only the candle store is reconciled. Subscriptions of other clients are never touched.
 - There is no file watcher. The Downloader's change numbers are the only change signal; the
   rescan is the fallback.
 - When the Downloader is unreachable the sync logs it once, keeps the last known status and
@@ -301,7 +328,8 @@ This is the mode of the tests and of development on a frozen copy of the output 
 series        id, source, symbol, timeframe                  unique (source, symbol, timeframe)
 candles       series_id, open_time, open, high, low,         primary key (series_id, open_time)
               close, volume                                   WITHOUT ROWID
-import_log    series_id, file, size, modified, imported_at   primary key (series_id, file)
+import_log    series_id, file, size, modified, candles,        primary key (series_id, file)
+              error, imported_at
 sync_state    source, symbol, last_change, last_status_json, checked_at
 ```
 
@@ -310,7 +338,13 @@ sync_state    source, symbol, last_change, last_status_json, checked_at
 - A file that breaks the format rules is not imported; the error is stored in the import log,
   shown in the asset's status (MD6, DL2) and tried again when the file changes.
 - The store holds only the assets of TradeViewer and can be deleted at any time (MD5).
-- Expected size for 100 assets, 10 years, five timeframes: about 45 million rows, 3 GB.
+- It is treated as the cache it is: WAL with `synchronous=NORMAL`; times as Unix seconds, prices
+  and volume as REAL. A store that cannot be opened or has a newer schema than the build is
+  renamed to `marketdata.db.broken-<time>` and a new one is filled from the files; it never stops
+  the start and is not checked with `quick_check` (NF10).
+- Measured on WSL with the 13 symbols of the frozen copy, complete history (2.8 million candles
+  in 121,277 files): import 11 s, store 277 MB, a page of 2,000 candles 2 to 17 ms, startup rescan
+  0.9 s. Expected for 100 assets, 10 years, five timeframes: about 45 million rows, 3 to 4 GB.
 
 ### Serving Candles
 
@@ -320,7 +354,9 @@ GET /api/candles/{source}/{symbol}/{timeframe}?to={time}&limit={n}
 ```
 
 - Column arrays, times as Unix seconds. The chart module calls this endpoint directly.
-- First page 2,000 candles, older pages 5,000 (CH4).
+- First page 2,000 candles, older pages 5,000 (CH4): `limit` defaults to 2,000 and is at most
+  5,000; `to` is exclusive, so an older page asks with the time of the oldest candle it has.
+  An unknown asset is 404, a timeframe the asset does not have 422.
 - A timeframe the source lacks is aggregated on read from the largest stored timeframe that
   divides it (MD3); aggregated candles are not stored.
 - The current candle (MD8) is built on read from the closed candles of the smallest stored
@@ -330,8 +366,9 @@ GET /api/candles/{source}/{symbol}/{timeframe}?to={time}&limit={n}
   candle. Indicators use the same series including the current candle.
 - Indicators are calculated on request from the stored candles with the warm-up they need and
   returned in the same column format: `GET /api/indicators/{source}/{symbol}/{timeframe}`.
-- The Api keeps a small in-memory cache of the most recently used series and indicator
-  results; a `CandlesUpdated` for the asset removes its entries.
+- A cache of the most recently used series is not built: a page comes from SQLite in 2 to 17 ms
+  (see the measurement above). It is added in the Price Chart epic only if NF1 is missed on the Pi.
+  `limit` counts closed candles; the current candle comes on top.
 
 ---
 
@@ -341,10 +378,11 @@ GET /api/candles/{source}/{symbol}/{timeframe}?to={time}&limit={n}
 IDownloaderClient                                   Abstractions/MarketData
 
 LookupAsync(source, symbol)                         GET  sources/{source}/symbols/{symbol}
-SubscribeAsync(source, symbol, request)             PUT  clients/{client}/subscriptions/...
+SubscribeAsync(source, symbol, history)             PUT  clients/{client}/subscriptions/...
 UnsubscribeAsync(source, symbol)                    DELETE (404 counts as done)
-GetSubscriptionsAsync()                             GET  subscriptions (all clients)
-GetServiceStatusAsync()                             GET  status
+GetOwnSubscriptionsAsync()                          GET  clients/{client}/subscriptions (404: none)
+GetSubscriptionsAsync()                             GET  subscriptions (all clients)   with Downloader Monitoring
+GetServiceStatusAsync()                             GET  status                        with Downloader Monitoring
 GetSymbolStatusAsync(source, symbol)                GET  status/{source}/{symbol}
 GetChangesAsync(source, symbol, after)              GET  status/{source}/{symbol}/changes
 ```
@@ -444,7 +482,7 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 ```text
 /api/symbols/{source}?q=                      symbols that can be added
 /api/assets                                   list, add
-/api/assets/{source}/{symbol}                 get (loading progress, available timeframes), change history, remove
+/api/assets/{source}/{symbol}                 get (loading progress, available timeframes), remove; /history put changes the history
 /api/assets/{source}/{symbol}/rescan          reload the files; /rebuild deletes the candles and imports again (MD5)
 /api/candles/{source}/{symbol}/{timeframe}    column arrays; 422 when the timeframe can be neither read nor built (MD3)
 /api/indicators/{source}/{symbol}/{timeframe}
@@ -488,7 +526,7 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 Server to client only; user actions go through REST.
 
 ```text
-CandlesUpdated(source, symbol, timeframes)
+CandlesUpdated(source, symbol, timeframes)    timeframes as codes
 AssetStatusChanged(source, symbol)
 DownloaderStatusChanged(reachable)
 EwtsInstanceStatusChanged(instanceId, reachable)
@@ -554,7 +592,8 @@ marketdata.db    candle store (see 6)      cache, may be deleted
 workspace.db     what the user creates     backed up, upgraded, never deleted
 ```
 
-Workspace tables: assets (with their position in the watchlist), chart settings per asset,
+Workspace tables: assets (with their position in the watchlist, their history per timeframe and
+the unsubscriptions still to be sent), chart settings per asset,
 indicator templates, drawings, Fibonacci presets, EWTS instances (with the last seen change
 and alert numbers), settings (default history, last chart).
 

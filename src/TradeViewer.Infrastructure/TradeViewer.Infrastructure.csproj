@@ -3,11 +3,14 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Workspace\Scripts\*.sql" />
+    <EmbeddedResource Include="MarketData\Store\Scripts\*.sql" />
+    <EmbeddedResource Include="MarketData\Symbols\*.json" />
   </ItemGroup>
 
   <ItemGroup>

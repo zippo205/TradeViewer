@@ -21,6 +21,7 @@ public sealed class WorkspaceBackups : IWorkspaceBackups
     private readonly WorkspaceSchema _schema;
     private readonly BackupStore _store;
     private readonly StorageLocations _locations;
+    private readonly WorkspaceRestoreSignal _restored;
     private readonly ILogger<WorkspaceBackups> _logger;
 
     public WorkspaceBackups(
@@ -28,8 +29,10 @@ public sealed class WorkspaceBackups : IWorkspaceBackups
         WorkspaceSchema schema,
         BackupStore store,
         StorageLocations locations,
+        WorkspaceRestoreSignal restored,
         ILogger<WorkspaceBackups> logger)
     {
+        _restored = restored;
         _database = database;
         _schema = schema;
         _store = store;
@@ -171,6 +174,9 @@ public sealed class WorkspaceBackups : IWorkspaceBackups
                 WorkspaceDatabase.DeleteSideFiles(_database.FilePath);
                 File.Move(candidate, _database.FilePath, true);
             }
+
+            // The assets may be others now: subscriptions and candle store are brought in line (AS7).
+            _restored.Raise();
 
             return new RestoreResult(RestoreStatus.Restored, "The workspace was restored.");
         }

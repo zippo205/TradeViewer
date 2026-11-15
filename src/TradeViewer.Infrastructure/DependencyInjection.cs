@@ -2,9 +2,17 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using TradeViewer.Application.Abstractions.MarketData;
 using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Infrastructure.Configuration;
+using TradeViewer.Infrastructure.MarketData.Downloader;
+using TradeViewer.Infrastructure.MarketData.Files;
+using TradeViewer.Infrastructure.MarketData.Import;
+using TradeViewer.Infrastructure.MarketData.Store;
+using TradeViewer.Infrastructure.MarketData.Symbols;
+using TradeViewer.Infrastructure.MarketData.Sync;
 using TradeViewer.Infrastructure.Storage;
 using TradeViewer.Infrastructure.Workspace;
 using TradeViewer.Infrastructure.Workspace.Backups;
@@ -39,14 +47,42 @@ public static class DependencyInjection
             provider.GetRequiredService<StorageLocations>().BackupsPath,
             provider.GetRequiredService<IOptions<StorageOptions>>().Value.Backup.KeepCount,
             provider.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<WorkspaceRestoreSignal>();
         services.AddSingleton<WorkspaceBackups>();
         services.AddSingleton<IWorkspaceBackups>(provider => provider.GetRequiredService<WorkspaceBackups>());
         services.AddSingleton<ISettingsRepository, SettingsRepository>();
+        services.AddSingleton<IHistorySettingsRepository, HistorySettingsRepository>();
+        services.AddSingleton<IAssetRepository, AssetRepository>();
         services.AddSingleton<WorkspaceInitializer>();
+
+        services.AddSingleton(MarketDataSchema.FromEmbeddedScripts());
+        services.AddSingleton(provider => new MarketDataDatabase(
+            provider.GetRequiredService<StorageLocations>().MarketDataDatabasePath,
+            provider.GetRequiredService<MarketDataSchema>(),
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<ILogger<MarketDataDatabase>>()));
+        services.AddSingleton<ICandleStore, SqliteCandleStore>();
+        services.AddSingleton<ICandleFileReader, BinanceCandleFileReader>();
+        services.AddSingleton<ISymbolCatalog, EmbeddedSymbolCatalog>();
+        services.AddHttpClient<IDownloaderClient, DownloaderClient>((provider, http) =>
+        {
+            var downloader = provider.GetRequiredService<IOptions<MarketDataOptions>>().Value.Downloader;
+            http.BaseAddress = new Uri(downloader.BaseUrl.TrimEnd('/') + "/");
+            http.Timeout = TimeSpan.FromSeconds(downloader.RequestTimeoutSeconds);
+        });
+        services.AddSingleton<AssetFiles>();
+        services.AddSingleton<IAssetFolders>(provider => provider.GetRequiredService<AssetFiles>());
+        services.AddSingleton<AssetImporter>();
+        services.AddSingleton<ImportService>();
+        services.AddSingleton<IImportQueue>(provider => provider.GetRequiredService<ImportService>());
+        services.AddSingleton<MarketDataSync>();
 
         // Hosted services start in registration order: the folders first, then the workspace, then what uses it.
         services.AddHostedService<StorageInitializer>();
         services.AddHostedService(provider => provider.GetRequiredService<WorkspaceInitializer>());
+        services.AddHostedService<MarketDataInitializer>();
+        services.AddHostedService(provider => provider.GetRequiredService<ImportService>());
+        services.AddHostedService<MarketDataSyncService>();
         services.AddHostedService<DailyBackupService>();
 
         return services;

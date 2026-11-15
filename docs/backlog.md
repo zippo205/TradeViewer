@@ -45,7 +45,7 @@ Branch: `feature/market-data`
 - Candle store, import, rescan, sync service on the Downloader's change numbers
 - Candle endpoint in column format, with the current candle built from the smallest timeframe
 
-Requirements: AS2, AS3, AS4, AS5, MD1, MD2, MD5, MD6, MD8, NF4, NF5, NF10
+Requirements: AS2, AS3, AS4, AS5, AS7, MD1, MD2, MD5, MD6, MD8, NF4, NF5, NF10
 Depends on: Workspace Persistence
 Knowledge: docs/knowledge/downloader-interface.md
 Outcome: the candles of every added asset are in the store and stay up to date.

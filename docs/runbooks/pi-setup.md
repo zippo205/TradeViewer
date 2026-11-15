@@ -128,4 +128,17 @@ Rules for the agent:
              uploaded file were proved with curl on the Pi. After the owner's approval the same day
              the Pi was switched to main (merge commit 872fe98); the image was unchanged, so the
              container kept running.
+
+2026-11-15   Epic Assets and Market Data deployed by the agent at the owner's request: commit 055ed07
+             of the branch feature/market-data, started with DOWNLOADER_ENABLED=true (passed
+             inline; for a start by hand add `export DOWNLOADER_ENABLED=true` to ~/.bashrc, see
+             deploy.md). The arm64 image built in 91 seconds. workspace.db was upgraded from schema
+             version 1 to 2 with the backup workspace-20261115-192642-before-v2.db. Before the
+             start the Downloader held 13 symbols for the clients ewts and ewts-dev and none for
+             tradeviewer. BTCUSDT was added through the API: the Downloader accepted the lookup
+             and the subscription (1d and 1w clipped to 2017), tradeviewer is now a subscriber of
+             BTCUSDT, and the default history (4,677 files) was imported within seconds. The
+             update cycle of 19:30:30 UTC was watched: the 15m candle of 19:15 was in TradeViewer
+             at 19:30:33 without any request. Memory 81 MB of 512 MB. After the epic is merged:
+             git checkout main on the Pi.
 ```
