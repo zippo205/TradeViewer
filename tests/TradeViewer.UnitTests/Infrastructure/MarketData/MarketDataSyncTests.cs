@@ -231,6 +231,46 @@ public class MarketDataSyncTests
     }
 
     [Fact]
+    public async Task An_asset_the_Downloader_has_no_subscription_of_TradeViewer_for_is_subscribed_by_the_sync()
+    {
+        // Added while the Downloader was switched off; another client keeps the symbol up to date.
+        _downloader.Status = Status(100, subscribed: false);
+
+        await RunAtAsync("15:15:40");
+
+        Assert.Equal(new[] { "status binance/BTCUSDT", "subscribe binance/BTCUSDT" }, _downloader.Calls);
+        Assert.True(_assets.Assets[0].SubscriptionSent);
+        Assert.Equal(new[] { "rescan binance/BTCUSDT" }, _imports.Work); // the candles are followed all the same
+
+        // Subscribed now: nothing is sent a second time.
+        _downloader.Status = Status(100);
+        _downloader.Calls.Clear();
+        await RunAtAsync("15:16:00");
+        Assert.DoesNotContain("subscribe binance/BTCUSDT", _downloader.Calls);
+    }
+
+    [Fact]
+    public async Task A_symbol_the_Downloader_does_not_know_is_subscribed_again_and_the_Downloader_counts_as_reachable()
+    {
+        await KnownAsync(100);
+        _downloader.StatusError = Error.NotFound("downloader.notFound", "Symbol 'binance/BTCUSDT' is not subscribed.");
+
+        await RunAtAsync("15:30:30");
+
+        Assert.True(_sync.DownloaderReachable);
+        Assert.DoesNotContain("DownloaderStatusChanged False", _notifier.Events);
+        Assert.Equal(new[] { "status binance/BTCUSDT", "subscribe binance/BTCUSDT" }, _downloader.Calls);
+        Assert.True(_assets.Assets[0].SubscriptionSent);
+
+        // With the subscription the status is back; the asset is followed as before.
+        _downloader.StatusError = null;
+        _downloader.Status = Status(130);
+        _downloader.Changes = new SymbolChanges(130, true, new[] { "15m/BTCUSDT-15m-2026-11-04.csv" });
+        await RunAtAsync("15:30:50");
+        Assert.Equal(new[] { "files binance/BTCUSDT" }, _imports.Work);
+    }
+
+    [Fact]
     public async Task Nothing_is_sent_again_while_the_Downloader_is_unreachable()
     {
         await KnownAsync(100);
@@ -284,9 +324,9 @@ public class MarketDataSyncTests
         return _sync.RunOnceAsync(CancellationToken.None);
     }
 
-    private static SymbolStatus Status(long lastChange, int pendingJobs = 0)
+    private static SymbolStatus Status(long lastChange, int pendingJobs = 0, bool subscribed = true)
     {
-        return new SymbolStatus(lastChange, new[]
+        return new SymbolStatus(lastChange, subscribed, new[]
         {
             new TimeframeStatus(Timeframe.M15, null, null, null, pendingJobs, Array.Empty<CoverageGap>(), null)
         });

@@ -91,7 +91,7 @@ internal sealed class FakeDownloader : IDownloaderClient
 
     public SymbolInfo? LookupInfo { get; set; }
 
-    public SymbolStatus Status { get; set; } = new SymbolStatus(0, Array.Empty<TimeframeStatus>());
+    public SymbolStatus Status { get; set; } = new SymbolStatus(0, true, Array.Empty<TimeframeStatus>());
 
     public SymbolChanges Changes { get; set; } = new SymbolChanges(0, true, Array.Empty<string>());
 

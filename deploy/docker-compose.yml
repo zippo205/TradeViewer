@@ -16,6 +16,10 @@
 #                     The files in the scenario folder then belong to that user, so EWTS can read
 #                     them. Check yours with: id -u; id -g
 #   TRADEVIEWER_PORT  host port of the website (default 8080; the Downloader uses 8081)
+#   DOWNLOADER_ENABLED  true: TradeViewer subscribes its assets at the Downloader and follows its
+#                     changes. Default false: it works with the files and the candles it has.
+#   DOWNLOADER_URL    address of the Downloader as the container sees it
+#                     (default http://host.docker.internal:8081)
 #
 # Logs: docker logs tradeviewer (console, UTC). JSON logs instead:
 #   environment: Logging__Console__FormatterName=json
@@ -43,6 +47,9 @@ services:
         max-file: "3"
     ports:
       - "${TRADEVIEWER_PORT:-8080}:8080"
+    environment:
+      MarketData__Downloader__Enabled: "${DOWNLOADER_ENABLED:-false}"
+      MarketData__Downloader__BaseUrl: "${DOWNLOADER_URL:-http://host.docker.internal:8081}"
     # The Downloader (8081) and the EWTS instances (8082-8089) are reached through the host and their
     # published ports: http://host.docker.internal:<port>. Docker Desktop defines the name itself;
     # the Docker engine on the Pi does not, so it is mapped here.

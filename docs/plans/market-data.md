@@ -4,7 +4,8 @@
 
 ```text
 Epic:     Assets and Market Data (P0 - Foundation)
-Status:   Plan approved by the owner 2026-11-15 (answers at the end); in work
+Status:   Steps 1 to 11 done 2026-11-15, step 12 done except the Pi (needs the owner's go-ahead)
+          and the owner's look at the assets page and the settings page
 Branch:   feature/market-data
 Next:     Epic Price Chart
 Baseline: docs as of commit 42ecca5 (main)
@@ -122,7 +123,7 @@ Out of scope (later epics):
     remove with confirmation), default history on the settings page, hub client                  done *
 12  Measurement on the frozen copy (13 symbols): import time, store size, page read time; Docker
     build; architecture, README and runbooks updated; then, with the owner's go-ahead, the Pi
-    with the Downloader switched on                                                              open
+    with the Downloader switched on                                                              done, Pi open
 ```
 
 Each step has its tests: unit tests for the Domain and the pure rules (file names, row rules, due
@@ -209,6 +210,15 @@ architecture when the step that needs them is done, and the owner may still chan
 2026-11-15  step 3  BTCUSDT, complete history in five timeframes: 12,117 files, 365,824 candles
                     imported in 1.7 s (200 files per transaction, files in the page cache), store
                     40 MB; first page of 2,000 15m candles 2 ms, an older page of 5,000 4 ms (WSL)
+2026-11-15  step 12 the running application (WSL, Downloader off), all 13 symbols with complete
+                    history: 121,277 files imported 10.9 s after adding, no file refused; store
+                    277 MB; first page 15m 14 ms, 1h 5 ms, 4h 4 ms, 1d 3 ms, 1w 2 ms; an older
+                    page of 5,000 15m candles 8 ms; list of the 13 assets with state 9 ms;
+                    restart: healthy after 0.4 s, first chart page 17 ms, startup rescan of all
+                    files finished 0.9 s after the start (NF10: 15 s); memory 148 MB (NF9: 512)
+2026-11-15  step 12 Docker image (amd64) on the frozen copy mounted read only: BTCUSDT with the
+                    default history loaded 0.6 s after adding, 1h page with the current candle,
+                    50 MB of 512 MB
 ```
 
 # Notes on the Way
@@ -231,3 +241,10 @@ architecture when the step that needs them is done, and the owner may still chan
   frozen copy: default history loaded in under 2 s, complete history in about 3 s, the 1h page
   ends with the current candle of 09:00 built from three 15m candles). The agent has no browser:
   the owner checks the pages by hand, also that the list follows the import without a reload.
+- Step 12: writing the runbook showed a gap: an asset added while the Downloader was off was never
+  subscribed, and a "not found" for one symbol counted as "Downloader unreachable". The symbol
+  status now tells whether TradeViewer is among the subscribers; the sync sends a missing
+  subscription by itself. The compose file got `DOWNLOADER_ENABLED` (default false) and
+  `DOWNLOADER_URL`.
+- Still open: the sync against a real Downloader (all its tests run on stand-ins) and the arm64
+  image with the new code, both on the Pi; the owner's look at `/assets` and `/settings`.

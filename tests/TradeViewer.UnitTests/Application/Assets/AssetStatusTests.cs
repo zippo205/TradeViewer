@@ -123,7 +123,7 @@ public class AssetStatusTests
             ? Array.Empty<CoverageGap>()
             : new[] { new CoverageGap(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddDays(1), gapReason) };
 
-        return new SymbolStatus(100, new[]
+        return new SymbolStatus(100, true, new[]
         {
             new TimeframeStatus(Timeframe.M15, new DateOnly(2026, 8, 17), null, null, pendingJobs15m, gaps, null),
             new TimeframeStatus(Timeframe.D1, null, null, null, pendingJobs1d, Array.Empty<CoverageGap>(), null)

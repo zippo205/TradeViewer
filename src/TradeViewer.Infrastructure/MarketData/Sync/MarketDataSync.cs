@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TradeViewer.Application.Abstractions.MarketData;
+using TradeViewer.Application.Abstractions.Messaging;
 using TradeViewer.Application.Abstractions.Realtime;
 using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Domain.Assets;
@@ -89,7 +90,8 @@ public sealed class MarketDataSync
 
         if (_reachable != false)
         {
-            await SendAgainAsync(assets, cancellationToken);
+            // Read again: a check above may have found a subscription missing.
+            await SendAgainAsync(await _assets.GetAllAsync(cancellationToken), cancellationToken);
         }
 
         var next = now + _poll;
@@ -110,6 +112,15 @@ public sealed class MarketDataSync
         var smallest = asset.History.Timeframes[0];
 
         var status = await _downloader.GetSymbolStatusAsync(asset.Source, asset.Symbol, cancellationToken);
+        if (status.IsFailure && status.Error.Type == ErrorType.NotFound)
+        {
+            // The Downloader answers but does not know the symbol: it lost the subscription, or never got one.
+            await SetReachableAsync(true, null);
+            await SubscribeAgainAsync(asset, cancellationToken);
+            plan.NextCheck = now + _poll;
+            return;
+        }
+
         if (status.IsFailure)
         {
             // The last known status stays; charts are not affected (NF5). Try again with the next poll.
@@ -119,6 +130,12 @@ public sealed class MarketDataSync
         }
 
         await SetReachableAsync(true, null);
+
+        if (!status.Value.Subscribed)
+        {
+            // Added while the Downloader was switched off, or the Downloader lost its subscriptions.
+            await SubscribeAgainAsync(asset, cancellationToken);
+        }
 
         var stored = _store.GetSyncState(asset.Source, asset.Symbol);
         var lastChange = stored?.LastChange ?? 0;
@@ -177,6 +194,16 @@ public sealed class MarketDataSync
         else
         {
             plan.NextCheck = now + _poll;
+        }
+    }
+
+    /// <summary>Marks the subscription of the asset as not sent; it is sent at the end of this run.</summary>
+    private async Task SubscribeAgainAsync(Asset asset, CancellationToken cancellationToken)
+    {
+        if (asset.SubscriptionSent)
+        {
+            _logger.LogWarning("The Downloader has no subscription of TradeViewer for {Source}/{Symbol}; it is sent again.", asset.Source, asset.Symbol);
+            await _assets.SetHistoryAsync(asset.Source, asset.Symbol, asset.History, false, cancellationToken);
         }
     }
 

@@ -15,8 +15,11 @@ public sealed record SubscriptionResult(IReadOnlyList<TimeframeSubscription> Tim
 /// </summary>
 public sealed record TimeframeSubscription(Timeframe Timeframe, bool Accepted, DateOnly? HistoryFrom, bool Clipped);
 
-/// <summary>The Downloader's state of a symbol. LastChange is what the sync polls.</summary>
-public sealed record SymbolStatus(long LastChange, IReadOnlyList<TimeframeStatus> Timeframes);
+/// <summary>
+/// The Downloader's state of a symbol. LastChange is what the sync polls. Subscribed: TradeViewer is among
+/// the clients that subscribe the symbol (another client, e.g. EWTS, can keep it up to date as well).
+/// </summary>
+public sealed record SymbolStatus(long LastChange, bool Subscribed, IReadOnlyList<TimeframeStatus> Timeframes);
 
 /// <summary>Coverage of one timeframe. CoveredTo and the end of a gap are exclusive.</summary>
 public sealed record TimeframeStatus(

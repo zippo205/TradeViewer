@@ -110,7 +110,8 @@ public sealed class DownloaderClient : IDownloaderClient
                 item.LastError));
         }
 
-        return Result.Success(new SymbolStatus(result.Value.LastChange, timeframes));
+        var subscribed = result.Value.SubscribedBy.Contains(_options.Client, StringComparer.Ordinal);
+        return Result.Success(new SymbolStatus(result.Value.LastChange, subscribed, timeframes));
     }
 
     public async Task<Result<SymbolChanges>> GetChangesAsync(string source, string symbol, long after, CancellationToken cancellationToken)

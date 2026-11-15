@@ -116,6 +116,10 @@ public class DownloaderClientTests
         var status = (await _downloader.NewClient().GetSymbolStatusAsync("binance", "BTCUSDT", CancellationToken.None)).Value;
 
         Assert.Equal(48213, status.LastChange);
+        Assert.False(status.Subscribed); // subscribedBy names "tradeviewer" and "ewts"; this client is "tradeviewer-test"
+
+        var own = (await _downloader.NewClient(client: "tradeviewer").GetSymbolStatusAsync("binance", "BTCUSDT", CancellationToken.None)).Value;
+        Assert.True(own.Subscribed);
         Assert.Equal(new[] { Timeframe.M15, Timeframe.H1 }, status.Timeframes.Select(item => item.Timeframe)); // 1M is unknown here
 
         var m15 = status.Timeframes[0];

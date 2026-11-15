@@ -184,7 +184,7 @@ public class CandleStoreTests : IDisposable
     {
         Assert.Null(_store.GetSyncState("binance", "BTCUSDT"));
 
-        var status = new SymbolStatus(48100, new[]
+        var status = new SymbolStatus(48100, true, new[]
         {
             new TimeframeStatus(
                 Timeframe.M15,

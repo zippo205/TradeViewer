@@ -48,10 +48,17 @@ EWTS instance  http://host.docker.internal:<8081 + n> for instance n = 1..8
                (:8082 for instance 1, :8083 for instance 2, ... :8089 for instance 8)
 ```
 
-- The Downloader's address is a setting: `MarketData:Downloader:BaseUrl`, in the container
-  `MarketData__Downloader__BaseUrl=http://host.docker.internal:8081` (its default
-  `http://localhost:8081` is for `dotnet run`). The Downloader client is off until the epic Assets
-  and Market Data (`MarketData:Downloader:Enabled`).
+- The Downloader is switched on with `export DOWNLOADER_ENABLED=true` before `docker compose up`
+  (setting `MarketData:Downloader:Enabled`; default false). TradeViewer then subscribes the assets
+  the user adds under the client name `tradeviewer` and imports what the Downloader writes. Switched
+  off, it works with the files in the output root and the candles it has: assets can be added when
+  their folder exists, "Reload" on the assets page imports new files.
+- The Downloader's address is `DOWNLOADER_URL` (setting `MarketData:Downloader:BaseUrl`); the
+  compose file sets `http://host.docker.internal:8081`. With `dotnet run` the default is
+  `http://localhost:8081`.
+- Switching the Downloader on later is safe: at the first contact every asset is rescanned, and an
+  asset the Downloader has no subscription of TradeViewer for (added while it was off, or after the
+  Downloader lost its database) is subscribed by the sync with its history.
 - EWTS instances are not configured: the user registers each one by name and address in the website
   (requirement EW1), for example `http://host.docker.internal:8082` and
   `http://host.docker.internal:8083`. Several instances are normal.
