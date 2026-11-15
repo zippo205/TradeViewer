@@ -125,6 +125,7 @@ Rules for the agent:
              library built in 85 seconds; the container is healthy and uses about 34 MB.
              /data/tradeviewer now holds workspace.db (schema version 1) and backups/; the daily
              backup of the first start, "back up now", download, restore by name and restore of an
-             uploaded file were proved with curl on the Pi. After the epic is merged: git checkout
-             main on the Pi.
+             uploaded file were proved with curl on the Pi. After the owner's approval the same day
+             the Pi was switched to main (merge commit 872fe98); the image was unchanged, so the
+             container kept running.
 ```
