@@ -106,7 +106,7 @@ Out of scope (later epics):
     in the settings; ISymbolCatalog on Symbols/binance.json                                       done
  5  Import: file list of an asset from its history start, first import (newest files first),
     rescan against the import log, errors into the log; background queue with one worker and
-    progress; rescan of all assets at startup in the background                                  open
+    progress; rescan of all assets at startup in the background                                  done
  6  Downloader: copied contracts, IDownloaderClient / DownloaderClient (typed HttpClient, results
     for problem details, timeouts and network errors), tests on recorded responses               open
  7  Assets feature: add (catalog -> lookup -> subscribe -> store -> import), change history,

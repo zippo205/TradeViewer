@@ -53,16 +53,15 @@ public sealed class SqliteCandleStore : ICandleStore
         using var log = Command(
             connection,
             transaction,
-            "INSERT INTO import_log (series_id, file, size, modified, period_end, candles, error, imported_at) "
-            + "VALUES ($series, $file, $size, $modified, $periodEnd, $candles, $error, $importedAt) "
+            "INSERT INTO import_log (series_id, file, size, modified, candles, error, imported_at) "
+            + "VALUES ($series, $file, $size, $modified, $candles, $error, $importedAt) "
             + "ON CONFLICT (series_id, file) DO UPDATE SET size = excluded.size, modified = excluded.modified, "
-            + "period_end = excluded.period_end, candles = excluded.candles, error = excluded.error, imported_at = excluded.imported_at;");
+            + "candles = excluded.candles, error = excluded.error, imported_at = excluded.imported_at;");
         log.Parameters.AddWithValue("$series", seriesId);
         log.Parameters.AddWithValue("$importedAt", now);
         var logFile = log.Parameters.Add("$file", SqliteType.Text);
         var logSize = log.Parameters.Add("$size", SqliteType.Integer);
         var logModified = log.Parameters.Add("$modified", SqliteType.Integer);
-        var logPeriodEnd = log.Parameters.Add("$periodEnd", SqliteType.Integer);
         var logCandles = log.Parameters.Add("$candles", SqliteType.Integer);
         var logError = log.Parameters.Add("$error", SqliteType.Text);
 
@@ -88,7 +87,6 @@ public sealed class SqliteCandleStore : ICandleStore
             logFile.Value = file.File.Name;
             logSize.Value = file.SizeBytes;
             logModified.Value = file.Modified;
-            logPeriodEnd.Value = file.File.PeriodEnd;
             logCandles.Value = candles.Count;
             logError.Value = (object?)file.Error ?? DBNull.Value;
             log.ExecuteNonQuery();
@@ -232,29 +230,6 @@ public sealed class SqliteCandleStore : ICandleStore
         }
 
         return errors;
-    }
-
-    public void DeleteBefore(SeriesKey series, long time)
-    {
-        using var connection = _database.Open();
-        using var transaction = connection.BeginTransaction();
-
-        using (var candles = Command(connection, transaction, "DELETE FROM candles WHERE series_id = " + SeriesIdSql + " AND open_time < $time;"))
-        {
-            AddSeries(candles, series);
-            candles.Parameters.AddWithValue("$time", time);
-            candles.ExecuteNonQuery();
-        }
-
-        // A file that reaches over the time keeps its entry; its early candles come back when it changes, which is harmless.
-        using (var log = Command(connection, transaction, "DELETE FROM import_log WHERE series_id = " + SeriesIdSql + " AND period_end <= $time;"))
-        {
-            AddSeries(log, series);
-            log.Parameters.AddWithValue("$time", time);
-            log.ExecuteNonQuery();
-        }
-
-        transaction.Commit();
     }
 
     public void DeleteAsset(string source, string symbol)

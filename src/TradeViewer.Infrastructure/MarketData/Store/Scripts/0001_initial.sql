@@ -19,13 +19,12 @@ CREATE TABLE candles (
     PRIMARY KEY (series_id, open_time)
 ) WITHOUT ROWID;
 
--- One row per file that was imported or refused. period_end lets a later history start drop old entries.
+-- One row per file that was imported or refused.
 CREATE TABLE import_log (
     series_id   INTEGER NOT NULL REFERENCES series (id) ON DELETE CASCADE,
     file        TEXT NOT NULL,
     size        INTEGER NOT NULL,
     modified    INTEGER NOT NULL,   -- Unix milliseconds
-    period_end  INTEGER NOT NULL,
     candles     INTEGER NOT NULL,
     error       TEXT,               -- the message of the reader when the file broke the format rules (MD6)
     imported_at INTEGER NOT NULL,

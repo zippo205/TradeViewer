@@ -160,21 +160,6 @@ public class CandleStoreTests : IDisposable
     }
 
     [Fact]
-    public void A_later_history_start_deletes_the_candles_and_log_entries_before_it()
-    {
-        var first = Day("BTCUSDT-15m-2026-11-03.csv", 96);
-        var second = Day("BTCUSDT-15m-2026-11-04.csv", 96);
-        _store.Import(Btc15m, new[] { first, second });
-        _store.Import(Btc1h, new[] { Day("BTCUSDT-1h-2026-11-03.csv", 24) });
-
-        _store.DeleteBefore(Btc15m, second.File.PeriodStart);
-
-        Assert.Equal(second.Candles, _store.GetCandles(Btc15m, null, 5000));
-        Assert.Equal(new[] { second.File.Name }, _store.GetImportLog(Btc15m).Keys);
-        Assert.Equal(24, _store.GetCandles(Btc1h, null, 5000).Count);
-    }
-
-    [Fact]
     public void Removing_an_asset_deletes_all_of_it_and_nothing_of_another()
     {
         _store.Import(Btc15m, new[] { Day("BTCUSDT-15m-2026-11-04.csv", 96) });

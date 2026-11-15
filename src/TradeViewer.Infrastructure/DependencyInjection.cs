@@ -8,6 +8,7 @@ using TradeViewer.Application.Abstractions.MarketData;
 using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Infrastructure.Configuration;
 using TradeViewer.Infrastructure.MarketData.Files;
+using TradeViewer.Infrastructure.MarketData.Import;
 using TradeViewer.Infrastructure.MarketData.Store;
 using TradeViewer.Infrastructure.MarketData.Symbols;
 using TradeViewer.Infrastructure.Storage;
@@ -60,11 +61,16 @@ public static class DependencyInjection
         services.AddSingleton<ICandleStore, SqliteCandleStore>();
         services.AddSingleton<ICandleFileReader, BinanceCandleFileReader>();
         services.AddSingleton<ISymbolCatalog, EmbeddedSymbolCatalog>();
+        services.AddSingleton<AssetFiles>();
+        services.AddSingleton<AssetImporter>();
+        services.AddSingleton<ImportService>();
+        services.AddSingleton<IImportQueue>(provider => provider.GetRequiredService<ImportService>());
 
         // Hosted services start in registration order: the folders first, then the workspace, then what uses it.
         services.AddHostedService<StorageInitializer>();
         services.AddHostedService(provider => provider.GetRequiredService<WorkspaceInitializer>());
         services.AddHostedService<MarketDataInitializer>();
+        services.AddHostedService(provider => provider.GetRequiredService<ImportService>());
         services.AddHostedService<DailyBackupService>();
 
         return services;

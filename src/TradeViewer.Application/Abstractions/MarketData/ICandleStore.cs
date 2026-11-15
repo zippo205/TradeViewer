@@ -29,9 +29,6 @@ public interface ICandleStore
     /// <summary>The files of an asset that broke the format rules, with the message of the reader.</summary>
     IReadOnlyList<ImportLogEntry> GetImportErrors(string source, string symbol);
 
-    /// <summary>Deletes the candles before the time and the log entries of the files that end at or before it.</summary>
-    void DeleteBefore(SeriesKey series, long time);
-
     /// <summary>Deletes everything of an asset: candles, import log and sync state.</summary>
     void DeleteAsset(string source, string symbol);
 
