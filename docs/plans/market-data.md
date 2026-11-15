@@ -4,8 +4,9 @@
 
 ```text
 Epic:     Assets and Market Data (P0 - Foundation)
-Status:   Steps 1 to 11 done 2026-11-15, step 12 done except the Pi (needs the owner's go-ahead)
-          and the owner's look at the assets page and the settings page
+Status:   All steps done and deployed on the Pi 2026-11-15 with the Downloader switched on; waiting
+          for the owner's look at the assets page and the settings page (step 11 *), then approval
+          and merge
 Branch:   feature/market-data
 Next:     Epic Price Chart
 Baseline: docs as of commit 42ecca5 (main)
@@ -123,7 +124,7 @@ Out of scope (later epics):
     remove with confirmation), default history on the settings page, hub client                  done *
 12  Measurement on the frozen copy (13 symbols): import time, store size, page read time; Docker
     build; architecture, README and runbooks updated; then, with the owner's go-ahead, the Pi
-    with the Downloader switched on                                                              done, Pi open
+    with the Downloader switched on                                                              done
 ```
 
 Each step has its tests: unit tests for the Domain and the pure rules (file names, row rules, due
@@ -253,3 +254,8 @@ architecture when the step that needs them is done, and the owner may still chan
   with the assets at every start and after every restore (architecture, chapter 6). Before the
   first deployment the Pi's Downloader was checked: its 13 subscriptions belong to the clients
   `ewts` and `ewts-dev`; the client `tradeviewer` did not exist, so nothing could be ended by mistake.
+- Pi, 2026-11-15 (pi-setup.md, section 6): the first run against the real Downloader. Lookup,
+  subscription, status and changes work as the interface document says; the candle of 19:15 UTC
+  arrived 3 seconds after the due time of 19:30:30. Seen there: every request to the Downloader
+  wrote four log lines; the log level of the HTTP client is now Warning (in the repository, on the
+  Pi with the next deployment).
