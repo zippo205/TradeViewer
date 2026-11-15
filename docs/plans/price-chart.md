@@ -90,9 +90,10 @@ Out of scope (later epics):
 
 ```text
 1  Lightweight Charts pinned (exact version), bundled; a first pane with candles from the Api;
-   proof of a series primitive and a pane primitive; licence notice kept                        open
+   proof of a series primitive and a pane primitive; licence notice kept                        pinned; the rest
+                                                                                                needs the browser
 2  Data layer (TypeScript): candle client, columns -> bars, page cache, merging pages, the
-   decision when to load older candles; Vitest                                                  open
+   decision when to load older candles; Vitest                                                  done
 3  ChartPaneController: candle and volume series, UTC time scale, price scale (linear, log,
    precision from the tick size, auto fit and reset), crosshair legend, current candle style    open
 4  Behaviour: visible range kept on timeframe and asset change (CH3), paging without a visible
