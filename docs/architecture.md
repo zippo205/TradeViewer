@@ -597,9 +597,17 @@ chart  -> Blazor   drawingCreated, drawingChanged, drawingDeleted, selectionChan
   candles or a changed state, once for many events.
 - Row figures: the last close is the close of the newest closed candle of the smallest timeframe
   (never the candle in progress); the change compares it with the last daily candle that ended
-  before its day, the day cut at 00:00 UTC (`RowFigures` in the Domain). The warning names files
-  that were not imported and gaps the source confirmed as missing. The rules about the
-  Downloader's status that several features share are in `DownloaderStatusRules`.
+  before its day, the day cut at 00:00 UTC (`RowFigures` in the Domain). The warning of a row names
+  files that were not imported, and nothing else: a gap of the source never goes away, so a mark
+  for it would always be on. The rules about the Downloader's status that several features share
+  are in `DownloaderStatusRules`.
+- Gaps (MD4) are shown in the chart: a series primitive (`GapMarkers`) draws a small icon at the
+  bottom of the pane between the last candle before a gap and the first one after it; pointing at
+  it shows from when to when candles are missing and why. The module reads them from `/api/gaps`
+  after the candles of a series, without waiting for them. The Api takes them from the last status
+  the Downloader reported (sync state), only those with the reason `missingUpstream` and only
+  within the history of the asset: the Downloader also reports gaps of history that another client
+  wanted. Without the Downloader no gaps are known.
 - The module draws what belongs to the canvas itself: the legend with the values under the
   crosshair, the jump-to-latest button and the message in place of a chart without data. Volume is
   a histogram in the lower fifth of the candle pane on its own hidden scale, as in TradingView;
