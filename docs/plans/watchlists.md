@@ -4,8 +4,8 @@
 
 ```text
 Epic:     Watchlists (P1 - Workstation)
-Status:   All steps done 2026-11-16; waiting for the owner's look at the panel and the assets page
-          (Docker on WSL), then approval and merge. The Pi follows when the owner is at home
+Status:   Completed and approved by the owner 2026-11-16 (he checked it in Docker on WSL with the
+          frozen data); merged into main. Not on the Pi yet: the owner was not at home
 Branch:   feature/watchlists
 Next:     decided after this epic (Scenario Viewer needs the drawing files of EWTS)
 Baseline: docs as of commit af424e3 (main)
