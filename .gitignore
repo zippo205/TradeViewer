@@ -11,7 +11,7 @@ node_modules/
 src/TradeViewer.Web/wwwroot/chart/
 
 # Local data (databases, backups)
-data/
+/data/
 
 # IDE / tools
 .idea/
