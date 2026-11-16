@@ -1,7 +1,7 @@
 @page "/chart/{Source}/{Symbol}/{Timeframe}"
 @implements IDisposable
 @inject AssetsApi Api
-@inject ChartsApi Charts
+
 @inject WorkspaceApi Workspace
 @inject WorkspaceEvents Events
 @inject NavigationManager Navigation
@@ -83,7 +83,7 @@
 
     private bool _panelOpen = true;
     private bool _logScale;
-    private string? _settingsOf;
+    private bool _settingsRead;
     private ShownSeries? _shown;
     private string? _rememberedChart;
     private bool _disposed;
@@ -110,41 +110,34 @@
         Events.Reconnected += OnReconnected;
         _ = Events.StartAsync();
 
+        // The price scale mode is one setting for all charts (CP2): read once, before the first chart is drawn.
+        var settings = await Workspace.GetSettingsAsync();
+        _logScale = settings.Value?.PriceScale == PriceScales.Log;
+
         await LoadAssetsAsync();
-        await OpenChartAsync();
+        _settingsRead = true;
+        OpenChart();
     }
 
-    protected override async Task OnParametersSetAsync()
+    protected override Task OnParametersSetAsync()
     {
         // The address changed (selector, back and forward, a link): the same page shows another chart.
         _asset = _assets?.FirstOrDefault(asset => asset.Source == Source && asset.Symbol == Symbol);
-        await OpenChartAsync();
+        OpenChart();
+        return Task.CompletedTask;
     }
 
-    /// <summary>Reads the settings of the asset before its chart is shown (CP2) and remembers the chart as the last one (CP3).</summary>
-    private async Task OpenChartAsync()
+    /// <summary>Shows the chart of the address and remembers it as the last one (CP3).</summary>
+    private void OpenChart()
     {
-        if (_asset == null)
+        if (_asset == null || !_settingsRead)
         {
             return;
         }
 
-        var key = Key(Source, Symbol);
-        if (_settingsOf != key)
-        {
-            var settings = await Charts.GetSettingsAsync(Source, Symbol);
-            if (key != Key(Source, Symbol))
-            {
-                return; // the user has moved on meanwhile
-            }
-
-            _logScale = settings.Value?.PriceScale == ChartSettingsResponse.Log;
-            _settingsOf = key;
-        }
-
         _shown = new ShownSeries(Source, Symbol, Timeframe, _asset.TickSize);
 
-        var chart = key + "/" + Timeframe;
+        var chart = Key(Source, Symbol) + "/" + Timeframe;
         if (_rememberedChart != chart && _asset.Timeframes.Any(timeframe => timeframe.Timeframe == Timeframe))
         {
             _rememberedChart = chart;
@@ -227,12 +220,11 @@
         }
     }
 
-    /// <summary>A change of the settings shows at once and is saved in the background (CP2).</summary>
+    /// <summary>The price scale mode shows at once and is saved in the background; it stays for every asset and timeframe (CP2).</summary>
     private void OnLogScaleChanged(ChangeEventArgs e)
     {
         _logScale = e.Value is true;
-        var settings = new ChartSettingsResponse(_logScale ? ChartSettingsResponse.Log : ChartSettingsResponse.Linear);
-        _ = Charts.SaveSettingsAsync(Source, Symbol, settings);
+        _ = Workspace.SavePriceScaleAsync(_logScale ? PriceScales.Log : PriceScales.Linear);
     }
 
     private void Open(string source, string symbol, string timeframe)

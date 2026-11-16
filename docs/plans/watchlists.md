@@ -164,3 +164,16 @@ Found on the way:
   had arrived. It is applied as soon as both are there.
 - A hand-written daily candle in a test had its close below its low; the reader refused the file,
   as it should, and the row had no change. The test data was wrong, not the code.
+
+# Change Asked for During the Owner's Check (2026-11-16)
+
+- The price scale mode (the "log" box) was saved per asset, as CP2 said; switching the asset in
+  the watchlist therefore changed it. The owner wants it to stay, as it does on a timeframe change
+  and as in TradingView. CP2 now says so: the mode is one setting for all charts. It is kept in the
+  workspace settings (`/api/settings`, part `priceScale`), survives a restart and holds in every
+  window from its next load on.
+- The per-asset chart settings built in the Price Chart epic held nothing else, so their code
+  (feature ChartSettings, repository, endpoint, client) was removed again instead of keeping an
+  empty record. The table of workspace script 0003 stays and is used again by the first epic with
+  a setting per asset (Indicators). Checked in the headless browser: the mode stays across assets,
+  timeframes, a reload and a second window.

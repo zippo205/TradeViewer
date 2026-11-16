@@ -162,9 +162,10 @@ Every requirement has an id. The backlog refers to these ids.
 - **CP1** The chart page shows one chart. Its asset and timeframe are part of the address, so
   a window can be reloaded, bookmarked and duplicated. Several browser windows show several
   charts independently. Selecting an asset in a watchlist shows it in the current window.
-- **CP2** The settings of a chart (indicators, price scale mode, drawings hidden, selected analysis instance, hidden analysis groups) are
-  saved per asset and restored when the asset is opened, in any window. Changes are saved
-  automatically.
+- **CP2** The settings of a chart (indicators, drawings hidden, selected analysis instance, hidden
+  analysis groups) are saved per asset and restored when the asset is opened, in any window. The
+  price scale mode (linear or logarithmic) is one setting for all charts: it stays when the asset
+  or the timeframe changes, as in TradingView. Changes are saved automatically.
 - **CP3** Opening TradeViewer without an address opens the chart last used.
 
 ### 4.6 Drawings

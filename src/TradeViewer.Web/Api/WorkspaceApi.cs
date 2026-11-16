@@ -33,6 +33,12 @@ public sealed class WorkspaceApi
         return SaveSettingsAsync(new SettingsResponse(null, new LastChartResponse(source, symbol, timeframe)));
     }
 
+    /// <summary>Saves the price scale mode of all charts (CP2); the other settings stay as they are.</summary>
+    public Task<ApiResult<SettingsResponse>> SavePriceScaleAsync(string priceScale)
+    {
+        return SaveSettingsAsync(new SettingsResponse(null, null, priceScale));
+    }
+
     public async Task<IReadOnlyList<BackupResponse>> GetBackupsAsync()
     {
         var backups = await _http.GetFromJsonAsync<List<BackupResponse>>(Backups);

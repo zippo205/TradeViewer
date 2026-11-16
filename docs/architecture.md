@@ -124,7 +124,7 @@ Features/
 ├── Assets            symbol list, add, history, remove (AS2-AS5)
 ├── MarketData        candles, current candle, import, sync status, gaps (MD1-MD8)
 ├── Watchlists        the five fixed lists, order, row figures (AS1, AS6)
-├── ChartSettings     settings per asset, last chart (CP2, CP3)
+├── ChartSettings     settings per asset (CP2); built with the first epic that has one (Indicators)
 ├── Indicators        calculation requests, indicator templates (IN1, IN2)
 ├── Drawings          drawings, Fibonacci presets (DR1-DR6)
 ├── Downloader        status and subscriptions for the monitoring page (DL1-DL4)
@@ -224,7 +224,8 @@ Indicator           Sma, Ema, BollingerBands, Rsi, Macd, Atr: candles + paramete
 IndicatorInstance   indicator type, parameters, style
 IndicatorTemplate   name, indicator instances
 
-ChartSettings       asset, price scale mode, indicator instances, drawings hidden, selected EWTS instance, hidden groups
+ChartSettings       asset, indicator instances, drawings hidden, selected EWTS instance, hidden groups
+                    (the price scale mode is one setting for all charts, see chapter 9)
 
 Drawing             id, asset, tool type, locked, anchors, style, text, payload version
 Anchor              time (UTC) + price, never a bar index
@@ -490,8 +491,11 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/watchlists                               the five lists with their rows and figures (AS6)
 /api/watchlists/{assetClass}/order            put: all assets of one list in their new order; 409 when
                                               the list has other assets than the order names
-/api/chart-settings/{source}/{symbol}         get (the defaults when nothing is saved), put replaces them
-/api/settings                                 default history, last chart (AS3, CP3); get, put (a part that is null stays)
+/api/chart-settings/{source}/{symbol}         get, put: the settings per asset (CP2). Not built yet: no setting
+                                              per asset exists before the Indicators epic. The table
+                                              chart_settings (workspace script 0003) waits for it
+/api/settings                                 default history, last chart, price scale mode of all charts
+                                              (AS3, CP3, CP2); get, put (a part that is null stays)
 /api/drawings                                 by asset
 /api/fibonacci-presets
 /api/downloader/status
