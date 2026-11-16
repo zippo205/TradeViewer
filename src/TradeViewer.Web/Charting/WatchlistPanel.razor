@@ -1,0 +1,217 @@
+@implements IDisposable
+@inject WatchlistsApi Api
+@inject WorkspaceEvents Events
+@inject IJSRuntime JS
+
+@* The five watchlists next to the chart (AS1, AS6). Choosing a row shows the asset in this window (CP1).
+   The panel is for choosing only; the order is changed on the assets page. *@
+<aside class="watchlist">
+    <div class="watchlist-tabs" role="tablist">
+        @foreach (var list in _lists)
+        {
+            <button type="button"
+                    role="tab"
+                    class="@(list.AssetClass == _selectedList ? "selected" : "")"
+                    @onclick="() => SelectListAsync(list.AssetClass)">
+                @list.Title<span class="count">@list.Rows.Count</span>
+            </button>
+        }
+    </div>
+
+    @if (_error != null)
+    {
+        <p class="status-bad watchlist-note">@_error</p>
+    }
+
+    @{
+        var current = _lists.FirstOrDefault(list => list.AssetClass == _selectedList);
+    }
+    @if (current == null)
+    {
+        <p class="muted watchlist-note">Loading...</p>
+    }
+    else if (current.Rows.Count == 0)
+    {
+        <p class="muted watchlist-note">No assets in @current.Title. <a href="assets">Add one</a>.</p>
+    }
+    else
+    {
+        <ul class="watchlist-rows">
+            @foreach (var row in current.Rows)
+            {
+                var selected = row.Source == Source && row.Symbol == Symbol;
+                <li @key="row.Source + '/' + row.Symbol">
+                    <button type="button"
+                            class="watchlist-row @(selected ? "selected" : "")"
+                            disabled="@(row.Timeframes.Count == 0)"
+                            title="@(row.Timeframes.Count == 0 ? "No candles yet" : null)"
+                            @onclick="() => OnSelected.InvokeAsync(row)">
+                        <span class="name">
+                            @row.DisplayName
+                            <small>@row.Source</small>
+                        </span>
+                        <span class="marks">
+                            @if (row.Loading)
+                            {
+                                <span class="mark loading" title="Its history is still loading">&#8635;</span>
+                            }
+                            @if (row.Warning != null)
+                            {
+                                <span class="mark warning" title="@row.Warning">!</span>
+                            }
+                        </span>
+                        <span class="close" title="@(row.LastCloseTime == null ? null : "Last close " + Figures.TimeUtc(row.LastCloseTime.Value))">
+                            @(row.LastClose == null ? "-" : Figures.Price(row.LastClose.Value, row.TickSize))
+                        </span>
+                        <span class="change @(row.ChangePercent >= 0 ? "up" : "down")">
+                            @(row.ChangePercent == null ? string.Empty : Figures.Percent(row.ChangePercent.Value))
+                        </span>
+                    </button>
+                </li>
+            }
+        </ul>
+        <p class="watchlist-note"><a href="assets">Manage assets</a></p>
+    }
+</aside>
+
+@code {
+    private const string ListKey = "tradeviewer.watchlist.list";
+
+    private List<WatchlistResponse> _lists = new List<WatchlistResponse>();
+    private string? _selectedList;
+    private string? _error;
+    private bool _listChosenByUser;
+    private bool _reloadPending;
+    private bool _disposed;
+
+    /// <summary>The asset the chart shows; its row is highlighted.</summary>
+    [Parameter]
+    public string Source { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Symbol { get; set; } = string.Empty;
+
+    /// <summary>The user chose a row.</summary>
+    [Parameter]
+    public EventCallback<WatchlistRowResponse> OnSelected { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Events.CandlesUpdated += OnCandlesUpdated;
+        Events.AssetStatusChanged += OnAssetStatusChanged;
+        Events.Reconnected += ScheduleReload;
+        _ = Events.StartAsync();
+
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // The list the user looked at last, kept per browser: how a window looks is no part of the workspace.
+            var saved = await ReadAsync(ListKey);
+            if (saved != null && _lists.Any(list => list.AssetClass == saved))
+            {
+                _selectedList = saved;
+                _listChosenByUser = true;
+                StateHasChanged();
+            }
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        ChooseList();
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Events.CandlesUpdated -= OnCandlesUpdated;
+        Events.AssetStatusChanged -= OnAssetStatusChanged;
+        Events.Reconnected -= ScheduleReload;
+    }
+
+    private async Task LoadAsync()
+    {
+        var result = await Api.GetAsync();
+        _error = result.Error;
+        if (result.Value != null)
+        {
+            _lists = result.Value;
+            ChooseList();
+        }
+    }
+
+    /// <summary>Without a choice of the user the list of the shown asset is open, else the first list with assets.</summary>
+    private void ChooseList()
+    {
+        if (_listChosenByUser || _lists.Count == 0)
+        {
+            return;
+        }
+
+        var ofAsset = _lists.FirstOrDefault(list => list.Rows.Any(row => row.Source == Source && row.Symbol == Symbol));
+        _selectedList = (ofAsset ?? _lists.FirstOrDefault(list => list.Rows.Count > 0) ?? _lists[0]).AssetClass;
+    }
+
+    private async Task SelectListAsync(string assetClass)
+    {
+        _selectedList = assetClass;
+        _listChosenByUser = true;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", ListKey, assetClass);
+        }
+        catch (JSException)
+        {
+            // the browser keeps no storage (private mode): the choice lasts as long as the window
+        }
+    }
+
+    private async Task<string?> ReadAsync(string key)
+    {
+        try
+        {
+            return await JS.InvokeAsync<string?>("localStorage.getItem", key);
+        }
+        catch (JSException)
+        {
+            return null;
+        }
+    }
+
+    private void OnCandlesUpdated(string source, string symbol, string[] timeframes)
+    {
+        ScheduleReload();
+    }
+
+    private void OnAssetStatusChanged(string source, string symbol)
+    {
+        ScheduleReload();
+    }
+
+    /// <summary>An import raises many events in a row; the lists are read once for all of them.</summary>
+    private void ScheduleReload()
+    {
+        if (_reloadPending || _disposed)
+        {
+            return;
+        }
+
+        _reloadPending = true;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Delay(400);
+            _reloadPending = false;
+            if (_disposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+    }
+}

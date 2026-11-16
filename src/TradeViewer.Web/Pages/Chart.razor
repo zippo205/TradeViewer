@@ -5,19 +5,15 @@
 @inject WorkspaceApi Workspace
 @inject WorkspaceEvents Events
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>@Symbol @Timeframe - TradeViewer</PageTitle>
 
 <div class="chart-page">
     <div class="chart-toolbar">
-        @if (_assets != null && _assets.Count > 0)
+        @if (_asset != null)
         {
-            <select value="@Key(Source, Symbol)" @onchange="OnAssetChanged" title="Asset">
-                @foreach (var asset in _assets)
-                {
-                    <option value="@Key(asset.Source, asset.Symbol)">@asset.DisplayName (@asset.Source)</option>
-                }
-            </select>
+            <strong class="chart-title">@_asset.DisplayName <small>@_asset.Source</small></strong>
         }
 
         @if (_asset != null)
@@ -42,8 +38,14 @@
                 <span class="badge loading">loading</span>
             }
         }
+
+        <button type="button" class="panel-toggle" title="@(_panelOpen ? "Fold the watchlists away" : "Show the watchlists")" @onclick="TogglePanelAsync">
+            @(_panelOpen ? "Watchlists »" : "« Watchlists")
+        </button>
     </div>
 
+    <div class="chart-body">
+    <div class="chart-area">
     @if (_error != null)
     {
         <p class="status-bad chart-note">@_error</p>
@@ -64,6 +66,12 @@
                    TickSize="@_shown.TickSize"
                    LogScale="@_logScale" />
     }
+    </div>
+    @if (_panelOpen)
+    {
+        <WatchlistPanel Source="@Source" Symbol="@Symbol" OnSelected="OnRowSelected" />
+    }
+    </div>
 </div>
 
 @code {
@@ -71,6 +79,9 @@
     private AssetResponse? _asset;
     private ChartHost? _chart;
     private string? _error;
+    private const string PanelKey = "tradeviewer.watchlist.panel";
+
+    private bool _panelOpen = true;
     private bool _logScale;
     private string? _settingsOf;
     private ShownSeries? _shown;
@@ -163,20 +174,57 @@
         _asset = _assets.FirstOrDefault(asset => asset.Source == Source && asset.Symbol == Symbol);
     }
 
-    private void OnAssetChanged(ChangeEventArgs e)
+    /// <summary>Selecting an asset in a watchlist shows it in this window (CP1).</summary>
+    private async Task OnRowSelected(WatchlistRowResponse row)
     {
-        var asset = _assets?.FirstOrDefault(item => Key(item.Source, item.Symbol) == e.Value?.ToString());
-        if (asset == null)
+        if (row.Timeframes.Count == 0)
         {
             return;
         }
 
-        // The timeframe stays when the other asset has it, otherwise its largest one with candles.
-        var timeframe = asset.Timeframes.Any(item => item.Timeframe == Timeframe && item.Chartable)
-            ? Timeframe
-            : asset.Timeframes.LastOrDefault(item => item.Chartable)?.Timeframe ?? Timeframe;
+        // An asset added in another window is not known here yet.
+        if (_assets == null || !_assets.Any(asset => asset.Source == row.Source && asset.Symbol == row.Symbol))
+        {
+            await LoadAssetsAsync();
+        }
 
-        Open(asset.Source, asset.Symbol, timeframe);
+        // The timeframe stays when the other asset has it with candles, otherwise its largest one with candles.
+        var timeframe = row.Timeframes.Contains(Timeframe) ? Timeframe : row.Timeframes[row.Timeframes.Count - 1];
+        Open(row.Source, row.Symbol, timeframe);
+    }
+
+    private async Task TogglePanelAsync()
+    {
+        _panelOpen = !_panelOpen;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", PanelKey, _panelOpen ? "open" : "folded");
+        }
+        catch (JSException)
+        {
+            // no storage in this browser: the choice lasts as long as the window
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            if (await JS.InvokeAsync<string?>("localStorage.getItem", PanelKey) == "folded")
+            {
+                _panelOpen = false;
+                StateHasChanged();
+            }
+        }
+        catch (JSException)
+        {
+            // the panel stays open
+        }
     }
 
     /// <summary>A change of the settings shows at once and is saved in the background (CP2).</summary>

@@ -14,6 +14,7 @@ builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.H
 builder.Services.AddScoped<WorkspaceApi>();
 builder.Services.AddScoped<AssetsApi>();
 builder.Services.AddScoped<ChartsApi>();
+builder.Services.AddScoped<WatchlistsApi>();
 builder.Services.AddScoped<WorkspaceEvents>();
 
 await builder.Build().RunAsync();
