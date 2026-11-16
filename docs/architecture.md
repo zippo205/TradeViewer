@@ -486,6 +486,7 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/assets/{source}/{symbol}                 get (loading progress, available timeframes), remove; /history put changes the history
 /api/assets/{source}/{symbol}/rescan          reload the files; /rebuild deletes the candles and imports again (MD5)
 /api/candles/{source}/{symbol}/{timeframe}    column arrays; 422 when the timeframe can be neither read nor built (MD3)
+/api/gaps/{source}/{symbol}/{timeframe}       the gaps the source confirmed, within the history of the asset (MD4)
 /api/indicators/{source}/{symbol}/{timeframe}
 /api/indicator-templates
 /api/watchlists                               the five lists with their rows and figures (AS6)
