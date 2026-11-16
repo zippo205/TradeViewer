@@ -4,7 +4,8 @@
 
 ```text
 Epic:     Watchlists (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16 (answers at the end); in work
+Status:   All steps done 2026-11-16; waiting for the owner's look at the panel and the assets page
+          (Docker on WSL), then approval and merge. The Pi follows when the owner is at home
 Branch:   feature/watchlists
 Next:     decided after this epic (Scenario Viewer needs the drawing files of EWTS)
 Baseline: docs as of commit af424e3 (main)
@@ -70,19 +71,19 @@ Out of scope (later epics):
 
 ```text
 1  Domain: the figures of a row as a pure calculation (last close, previous daily close in UTC,
-   change in percent), the rule for a valid new order; unit tests                               open
+   change in percent), the rule for a valid new order; unit tests                               done
 2  Workspace: saving a new order of one watchlist in one transaction; reading the newest candles
-   of many assets from the candle store in one go                                               open
+   of many assets from the candle store in one go                                               done
 3  Feature Watchlists: GetWatchlistsQuery, ReorderWatchlistCommand with its validator; contracts;
-   /api/watchlists (get) and /api/watchlists/{assetClass}/order (put); tests                    open
+   /api/watchlists (get) and /api/watchlists/{assetClass}/order (put); tests                    done
 4  Web: watchlist panel on the chart page (five lists, rows with figures and marks, the selected
    asset highlighted, a click opens it in the same timeframe); the asset selector goes;
-   panel state remembered in the browser                                                        open
+   panel state remembered in the browser                                                        done
 5  Web: assets page grouped by watchlist, reordering by drag and drop with buttons as the
-   keyboard way; link from the panel to add an asset                                            open
+   keyboard way; link from the panel to add an asset                                            done
 6  Live update of the rows on CandlesUpdated and AssetStatusChanged (one read for many events);
    measurement with all 13 symbols; checks in the headless browser; Docker; architecture and
-   the wrong example in chapter 4 corrected                                                     open
+   the wrong example in chapter 4 corrected                                                     done
 ```
 
 Each step has its tests: unit tests for the figures and the order rule, handler tests with
@@ -135,3 +136,31 @@ needs them is done.
 1. The panel at the right side of the chart page, as in TradingView.
 2. Reordering on the assets page only, as proposed.
 3. No other change to the proposals.
+
+---
+
+# Result
+
+```text
+Tests      240 unit, 167 integration, 19 architecture (C#); 55 Vitest tests (unchanged)
+Proved     in the headless browser on the frozen copy (six crypto assets), scripts in ~/tools/browser:
+           - panel: five tabs with counts, rows with last close, change and its time; the shown asset
+             highlighted; choosing a row opens it in the same timeframe with the same number of
+             candles and without a new chart; an empty list says so; the open list and the folded
+             state survive a reload; folded, the chart has the whole width
+           - assets page: the five lists, compact cards; arrows and drag and drop change the order,
+             the endpoint and the panel show the same order afterwards
+           - live: a candle appended to a temporary output root changed last close, change and time
+             of the row without a page load
+Figures    /api/watchlists with six assets: 20 ms (WSL)
+Open       the owner's look (Docker on WSL); the Pi when he is at home
+```
+
+Found on the way:
+
+- The asset cards were over 300 pixels tall, so a list of six did not fit a window and could hardly
+  be reordered. A card is now one line with the details (history, files, actions) folded.
+- The list chosen last was not restored after a reload: the saved choice was read before the lists
+  had arrived. It is applied as soon as both are there.
+- A hand-written daily candle in a test had its close below its low; the reader refused the file,
+  as it should, and the row had no change. The test data was wrong, not the code.

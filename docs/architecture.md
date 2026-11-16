@@ -140,10 +140,10 @@ A feature folder contains only the subfolders it needs:
 
 ```text
 Watchlists/
-├── Commands        RenameWatchlistCommand
+├── Commands        ReorderWatchlistCommand
 ├── Queries         GetWatchlistsQuery
-├── Handlers        RenameWatchlistCommandHandler, GetWatchlistsQueryHandler
-├── Validators      RenameWatchlistCommandValidator
+├── Handlers        ReorderWatchlistCommandHandler, GetWatchlistsQueryHandler
+├── Validators      ReorderWatchlistCommandValidator
 └── Services        helpers used by several handlers of the feature
 ```
 
@@ -487,7 +487,9 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/candles/{source}/{symbol}/{timeframe}    column arrays; 422 when the timeframe can be neither read nor built (MD3)
 /api/indicators/{source}/{symbol}/{timeframe}
 /api/indicator-templates
-/api/watchlists                               the five lists with their rows; reorder
+/api/watchlists                               the five lists with their rows and figures (AS6)
+/api/watchlists/{assetClass}/order            put: all assets of one list in their new order; 409 when
+                                              the list has other assets than the order names
 /api/chart-settings/{source}/{symbol}         get (the defaults when nothing is saved), put replaces them
 /api/settings                                 default history, last chart (AS3, CP3); get, put (a part that is null stays)
 /api/drawings                                 by asset
@@ -581,6 +583,18 @@ chart  -> Blazor   drawingCreated, drawingChanged, drawingDeleted, selectionChan
 - The chart page is `/chart/{source}/{symbol}/{timeframe}` (CP1); changing asset or timeframe
   changes the address without a page load. `/` opens the last chart (CP3), or the assets page when
   there is none. The chart stays alive across such changes: only the series is replaced.
+- The watchlists (AS1, AS6) are a panel at the right of the chart page, as in TradingView: the five
+  lists as tabs, a row per asset with last close, change and marks; choosing a row shows the asset
+  in this window in the same timeframe (CP1). The panel can be folded away; that and the open list
+  are kept in the browser (`localStorage`), not in the workspace. The order is changed on the
+  assets page only (drag and drop, or arrow buttons), which shows the same five lists with the
+  management actions folded behind each asset. Rows are read again when the hub reports new
+  candles or a changed state, once for many events.
+- Row figures: the last close is the close of the newest closed candle of the smallest timeframe
+  (never the candle in progress); the change compares it with the last daily candle that ended
+  before its day, the day cut at 00:00 UTC (`RowFigures` in the Domain). The warning names files
+  that were not imported and gaps the source confirmed as missing. The rules about the
+  Downloader's status that several features share are in `DownloaderStatusRules`.
 - The module draws what belongs to the canvas itself: the legend with the values under the
   crosshair, the jump-to-latest button and the message in place of a chart without data. Volume is
   a histogram in the lower fifth of the candle pane on its own hidden scale, as in TradingView;

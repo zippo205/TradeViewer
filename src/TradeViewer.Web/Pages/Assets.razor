@@ -1,6 +1,7 @@
 @page "/assets"
 @implements IDisposable
 @inject AssetsApi Api
+@inject WatchlistsApi Watchlists
 @inject WorkspaceEvents Events
 
 <PageTitle>Assets - TradeViewer</PageTitle>
@@ -65,22 +66,44 @@
 </section>
 
 <section>
-    <h2>Your assets</h2>
+    <h2>Your watchlists</h2>
+    <p class="muted">
+        An asset is in the watchlist of its asset class. Drag an asset to another place in its list, or use the
+        arrows, to change the order; the watchlists next to the chart follow.
+    </p>
 
     @if (_assets == null)
     {
         <p class="muted">Loading...</p>
     }
-    else if (_assets.Count == 0)
-    {
-        <p class="muted">No assets yet.</p>
-    }
     else
     {
-        @foreach (var asset in _assets)
+        @foreach (var list in Lists)
         {
-            <article class="card" @key="Key(asset)">
+            var inList = _assets.Where(item => item.AssetClass == list.Code).ToList();
+            <h3 class="watchlist-heading">@list.Title <span class="count">@inList.Count</span></h3>
+            @if (inList.Count == 0)
+            {
+                <p class="muted">No assets.</p>
+            }
+
+        @foreach (var asset in inList)
+        {
+            var index = inList.IndexOf(asset);
+            <article class="card @(_dragKey == Key(asset) ? "dragging" : "") @(_dropKey == Key(asset) && _dragKey != Key(asset) ? "drop-target" : "")"
+                     @key="Key(asset)"
+                     draggable="true"
+                     @ondragstart="() => StartDrag(asset)"
+                     @ondragenter="() => EnterDrop(asset)"
+                     @ondragover:preventDefault="true"
+                     @ondragover="() => { }"
+                     @ondrop="() => DropOnAsync(asset)"
+                     @ondragend="EndDrag">
                 <header>
+                    <span class="order-buttons">
+                        <button type="button" title="Move up" disabled="@(_busy || index == 0)" @onclick="() => MoveAsync(asset, index - 1)">&#8593;</button>
+                        <button type="button" title="Move down" disabled="@(_busy || index == inList.Count - 1)" @onclick="() => MoveAsync(asset, index + 1)">&#8595;</button>
+                    </span>
                     <strong>@asset.DisplayName</strong>
                     @if (asset.Timeframes.Any(timeframe => timeframe.Chartable))
                     {
@@ -100,6 +123,11 @@
                         <span class="badge warning">@asset.Errors.Count file(s) not imported</span>
                     }
                 </header>
+
+                @* Folded by default, so a watchlist is a short list that can be reordered. The browser keeps
+                   whether it is open; Blazor does not touch that. *@
+                <details class="card-details">
+                <summary>Details: history, files, actions</summary>
 
                 <table class="list">
                     <thead>
@@ -190,7 +218,9 @@
                         <button type="button" disabled="@_busy" @onclick="() => _removeKey = Key(asset)">Remove...</button>
                     }
                 </div>
+                </details>
             </article>
+        }
         }
     }
 </section>
@@ -201,6 +231,14 @@
 
     private readonly Dictionary<string, HistoryEdit> _edit = new Dictionary<string, HistoryEdit>();
     private List<SymbolResponse>? _symbols;
+    // The five fixed watchlists, one per asset class (AS1).
+    private static readonly (string Code, string Title)[] Lists =
+    {
+        ("crypto", "Crypto"), ("stock", "Stocks"), ("etf", "ETFs"), ("forex", "Forex"), ("commodity", "Commodities")
+    };
+
+    private string? _dragKey;
+    private string? _dropKey;
     private List<AssetResponse>? _assets;
     private string _source = Sources[0];
     private string _search = string.Empty;
@@ -388,6 +426,68 @@
         var chartable = asset.Timeframes.Where(timeframe => timeframe.Chartable).ToList();
         var timeframe = chartable.LastOrDefault(item => item.Timeframe != "1w") ?? chartable[chartable.Count - 1];
         return Chart.Address(asset.Source, asset.Symbol, timeframe.Timeframe);
+    }
+
+    private void StartDrag(AssetResponse asset)
+    {
+        _dragKey = Key(asset);
+    }
+
+    private void EnterDrop(AssetResponse asset)
+    {
+        // Only a place in the same watchlist can take the asset.
+        var dragged = _assets?.FirstOrDefault(item => Key(item) == _dragKey);
+        _dropKey = dragged != null && dragged.AssetClass == asset.AssetClass ? Key(asset) : null;
+    }
+
+    private void EndDrag()
+    {
+        _dragKey = null;
+        _dropKey = null;
+    }
+
+    /// <summary>The dragged asset takes the place of the one it is dropped on.</summary>
+    private async Task DropOnAsync(AssetResponse target)
+    {
+        var dragged = _assets?.FirstOrDefault(item => Key(item) == _dragKey);
+        EndDrag();
+        if (dragged == null || dragged.AssetClass != target.AssetClass || Key(dragged) == Key(target))
+        {
+            return;
+        }
+
+        var inList = _assets!.Where(item => item.AssetClass == target.AssetClass).ToList();
+        await MoveAsync(dragged, inList.IndexOf(target));
+    }
+
+    /// <summary>Puts the asset at another place of its watchlist and saves the new order as a whole (AS1).</summary>
+    private async Task MoveAsync(AssetResponse asset, int newIndex)
+    {
+        var inList = _assets!.Where(item => item.AssetClass == asset.AssetClass).ToList();
+        if (newIndex < 0 || newIndex >= inList.Count)
+        {
+            return;
+        }
+
+        inList.Remove(asset);
+        inList.Insert(newIndex, asset);
+        var order = inList.Select(item => new WatchlistEntry(item.Source, item.Symbol)).ToList();
+
+        _busy = true;
+        try
+        {
+            var error = await Watchlists.ReorderAsync(asset.AssetClass, order);
+            if (error != null)
+            {
+                Show(error, true);
+            }
+
+            await LoadAssetsAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private static string Key(AssetResponse asset)

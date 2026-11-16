@@ -79,6 +79,7 @@
 
     private List<WatchlistResponse> _lists = new List<WatchlistResponse>();
     private string? _selectedList;
+    private string? _savedList;
     private string? _error;
     private bool _listChosenByUser;
     private bool _reloadPending;
@@ -110,13 +111,9 @@
         if (firstRender)
         {
             // The list the user looked at last, kept per browser: how a window looks is no part of the workspace.
-            var saved = await ReadAsync(ListKey);
-            if (saved != null && _lists.Any(list => list.AssetClass == saved))
-            {
-                _selectedList = saved;
-                _listChosenByUser = true;
-                StateHasChanged();
-            }
+            _savedList = await ReadAsync(ListKey);
+            ChooseList();
+            StateHasChanged();
         }
     }
 
@@ -149,6 +146,14 @@
     {
         if (_listChosenByUser || _lists.Count == 0)
         {
+            return;
+        }
+
+        // The saved choice may arrive before or after the lists; it counts as soon as both are there.
+        if (_savedList != null && _lists.Any(list => list.AssetClass == _savedList))
+        {
+            _selectedList = _savedList;
+            _listChosenByUser = true;
             return;
         }
 

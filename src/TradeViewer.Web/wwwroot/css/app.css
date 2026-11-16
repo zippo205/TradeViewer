@@ -468,3 +468,48 @@ input:disabled {
     padding: 10px 12px;
     font-size: 13px;
 }
+
+/* Assets page: the five watchlists with their assets in the order of the user. */
+.watchlist-heading {
+    margin: 20px 0 6px;
+    font-size: 15px;
+}
+
+.watchlist-heading .count {
+    margin-left: 6px;
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 13px;
+}
+
+.card[draggable="true"] {
+    cursor: grab;
+}
+
+.card.dragging {
+    opacity: 0.4;
+}
+
+.card.drop-target {
+    border-color: var(--link);
+    box-shadow: 0 -3px 0 var(--link);
+}
+
+.order-buttons button {
+    padding: 0 6px;
+    line-height: 20px;
+}
+
+.card-details {
+    margin-top: 6px;
+}
+
+.card-details summary {
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.card-details[open] summary {
+    margin-bottom: 6px;
+}
