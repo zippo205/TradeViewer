@@ -82,8 +82,9 @@ Every requirement has an id. The backlog refers to these ids.
   candles, drawings and chart settings are deleted. TradeViewer asks for confirmation first and says
   what will be deleted.
 - **AS6** A watchlist row shows the last close with its time, the change against the previous
-  daily close in percent (the day in UTC for crypto), a warning mark when the asset has gaps
-  or an import error, and a mark when EWTS analyses it.
+  daily close in percent (the day in UTC for crypto), a warning mark when a file of the asset
+  was not imported (MD6), and a mark when EWTS analyses it. Gaps are not shown in the row but in
+  the chart (MD4).
 - **AS7** The assets of the workspace are the truth. At every start and after a restore of a
   backup (WS3) TradeViewer brings the rest in line with them: at the Downloader it subscribes
   the assets that have no subscription of TradeViewer and ends its subscriptions of symbols that
@@ -106,8 +107,10 @@ Every requirement has an id. The backlog refers to these ids.
   asset. When a timeframe can be neither read nor built, the chart shows an error instead of
   candles.
 - **MD4** Gaps the Downloader reports as `missingUpstream` are visible as a marker on the
-  chart and in the asset's status. Candles still being downloaded show as loading (AS4), not
-  as a gap. Periods before the source's history limit and closed market hours are no gaps.
+  chart and in the asset's status. The marker is a small icon at the bottom of the chart, where
+  the gap is; pointing at it shows from when to when candles are missing and why. Candles still
+  being downloaded show as loading (AS4), not as a gap. Periods before the source's history
+  limit and closed market hours are no gaps.
 - **MD5** The candle store can be deleted and rebuilt from the Downloader's files at any time
   without losing anything the user created. Rebuilding an asset is the same procedure as
   adding it: the asset shows as loading until its candles are back.

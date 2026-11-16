@@ -84,23 +84,20 @@ public class WatchlistHandlersTests
     }
 
     [Fact]
-    public async Task The_warning_names_files_that_were_not_imported_and_gaps_of_the_source()
+    public async Task The_warning_names_files_that_were_not_imported_and_never_a_gap_of_the_source()
     {
         Add("binance", "BTCUSDT", AssetClass.Crypto);
+
+        // An old outage of the source never goes away: a mark that is always on would mean nothing. It is shown in the chart.
         _store.SyncStates[("binance", "BTCUSDT")] = new SyncState(1, Status(0, "missingUpstream"), 1);
         var gap = (await GetAsync()).Value[0].Rows[0];
 
         _store.Errors.Add(new ImportLogEntry("BTCUSDT-15m-2026-11-04.csv", 1, 1, 0, "line 7: high is below open or close"));
-        var both = (await GetAsync()).Value[0].Rows[0];
+        var file = (await GetAsync()).Value[0].Rows[0];
 
-        _store.SyncStates[("binance", "BTCUSDT")] = new SyncState(1, Status(0, "unavailable"), 1);
-        _store.Errors.Clear();
-        var none = (await GetAsync()).Value[0].Rows[0];
-
-        Assert.Equal("1 gap the source does not have candles for", gap.Warning);
-        Assert.Equal("1 file was not imported; 1 gap the source does not have candles for", both.Warning);
-        Assert.Null(none.Warning); // before the history limit of the source is nothing to look at
-        Assert.Equal("3 files were not imported", GetWatchlistsQueryHandler.Warning(3, 0));
+        Assert.Null(gap.Warning);
+        Assert.Equal("1 file was not imported", file.Warning);
+        Assert.Equal("3 files were not imported", GetWatchlistsQueryHandler.Warning(3));
     }
 
     [Fact]

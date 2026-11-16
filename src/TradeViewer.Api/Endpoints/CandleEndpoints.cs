@@ -23,6 +23,18 @@ public static class CandleEndpoints
             return result.ToHttpResult();
         });
 
+        // The gaps the source confirmed, for the markers of the chart (MD4).
+        routes.MapGet("/api/gaps/{source}/{symbol}/{timeframe}", async (
+            string source,
+            string symbol,
+            string timeframe,
+            IQueryHandler<GetGapsQuery, IReadOnlyList<GapResponse>> handler,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await handler.HandleAsync(new GetGapsQuery(source, symbol, timeframe), cancellationToken);
+            return result.ToHttpResult();
+        });
+
         return routes;
     }
 }

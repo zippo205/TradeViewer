@@ -177,3 +177,15 @@ Found on the way:
   empty record. The table of workspace script 0003 stays and is used again by the first epic with
   a setting per asset (Indicators). Checked in the headless browser: the mode stays across assets,
   timeframes, a reload and a second window.
+- Gaps moved from the row to the chart (owner, 2026-11-16). A row had its warning mark also for a
+  gap the source confirmed as missing. Such a gap never goes away (Binance has one for BTC on
+  2021-08-13), and the Downloader reports gaps for everything it holds, so the mark would have been
+  on all the time for most older coins. AS6 and MD4 now say: the row warns about files that were
+  not imported; a gap is an icon at the bottom of the chart, where it is, with its details on
+  pointing, as TradingView shows events. This brings the chart marker of MD4 forward from the
+  Downloader Monitoring epic; the gaps in the asset's status stay there.
+  New: `/api/gaps/{source}/{symbol}/{timeframe}` (only confirmed gaps within the history of the
+  asset), `GapMarkers` in the chart module, 9 more Vitest tests and 5 handler tests. Checked in
+  the headless browser with a supplied answer, because the Downloader is off in development: two
+  icons drawn, the text shown on pointing and hidden elsewhere, none on a timeframe without gaps.
+  Not yet seen with real data: that needs the Downloader's status, so the Pi.

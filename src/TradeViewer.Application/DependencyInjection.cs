@@ -37,6 +37,7 @@ public static class DependencyInjection
 
         // MarketData
         services.AddScoped<IQueryHandler<GetCandlesQuery, CandlesResponse>, GetCandlesQueryHandler>();
+        services.AddScoped<IQueryHandler<GetGapsQuery, IReadOnlyList<GapResponse>>, GetGapsQueryHandler>();
 
         // Watchlists
         services.AddScoped<IQueryHandler<GetWatchlistsQuery, IReadOnlyList<WatchlistResponse>>, GetWatchlistsQueryHandler>();

@@ -78,25 +78,22 @@ public sealed class GetWatchlistsQueryHandler : IQueryHandler<GetWatchlistsQuery
             figures == null ? null : DateTimeOffset.FromUnixTimeSeconds(figures.LastCloseTime),
             figures?.ChangePercent,
             _imports.GetProgress(asset.Source, asset.Symbol).Pending || DownloaderStatusRules.IsDownloading(status),
-            Warning(_store.GetImportErrors(asset.Source, asset.Symbol).Count, DownloaderStatusRules.MissingUpstreamGaps(status)),
+            Warning(_store.GetImportErrors(asset.Source, asset.Symbol).Count),
             chartable,
             Array.Empty<string>()); // filled by the epic EWTS Instances (EW3)
     }
 
-    /// <summary>Why the asset needs a look, or null (AS6, MD4, MD6).</summary>
-    public static string? Warning(int filesNotImported, int missingGaps)
+    /// <summary>
+    /// Why the asset needs a look, or null (AS6, MD6). Gaps of the source are no reason: they never go away
+    /// and are shown where they are, in the chart (MD4).
+    /// </summary>
+    public static string? Warning(int filesNotImported)
     {
-        var reasons = new List<string>();
-        if (filesNotImported > 0)
+        if (filesNotImported == 0)
         {
-            reasons.Add(filesNotImported == 1 ? "1 file was not imported" : filesNotImported + " files were not imported");
+            return null;
         }
 
-        if (missingGaps > 0)
-        {
-            reasons.Add(missingGaps == 1 ? "1 gap the source does not have candles for" : missingGaps + " gaps the source does not have candles for");
-        }
-
-        return reasons.Count == 0 ? null : string.Join("; ", reasons);
+        return filesNotImported == 1 ? "1 file was not imported" : filesNotImported + " files were not imported";
     }
 }

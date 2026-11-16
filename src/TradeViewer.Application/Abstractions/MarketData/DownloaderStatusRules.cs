@@ -17,9 +17,6 @@ public static class DownloaderStatusRules
         return status != null && status.Timeframes.Any(timeframe => IsDownloading(timeframe));
     }
 
-    /// <summary>The gaps the source confirmed as missing, over all timeframes (MD4).</summary>
-    public static int MissingUpstreamGaps(SymbolStatus? status)
-    {
-        return status == null ? 0 : status.Timeframes.Sum(timeframe => timeframe.Gaps.Count(gap => gap.Reason == "missingUpstream"));
-    }
+    /// <summary>The reason of a gap the source confirmed: it has no candles there and never will (MD4).</summary>
+    public const string MissingUpstream = "missingUpstream";
 }
