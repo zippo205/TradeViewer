@@ -14,7 +14,7 @@ of EWTS.
 | Solution Foundation | done (2026-11-14) |
 | Workspace Persistence | done (2026-11-15) |
 | Assets and Market Data | done (2026-11-15) |
-| Price Chart | in progress |
+| Price Chart | done (2026-11-16) |
 | Scenario Viewer | open |
 | Watchlists | open |
 | Drawing Tools | open |

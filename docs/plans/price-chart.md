@@ -4,8 +4,8 @@
 
 ```text
 Epic:     Price Chart (P0 - Foundation)
-Status:   Steps 1 to 8 done 2026-11-16 except the Pi (needs the owner's go-ahead); waiting for the
-          owner's look at the chart
+Status:   Completed and approved by the owner 2026-11-16 (he checked the chart in Docker on WSL
+          with the frozen data); merged into main. Not on the Pi yet: the owner was not at home
 Branch:   feature/price-chart
 Next:     Epic Scenario Viewer
 Baseline: docs as of commit dee1fab (main)
