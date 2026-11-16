@@ -1,0 +1,97 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@* The C# wrapper of the chart module (architecture, chapter 10). Candles never pass through here:
+   the module gets asset and timeframe and fetches the candles itself. *@
+<div class="chart-host" @ref="_element"></div>
+
+@code {
+    private ElementReference _element;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _pane;
+    private string? _shownSeries;
+    private bool _shownLogScale;
+
+    /// <summary>The asset: source and symbol.</summary>
+    [Parameter, EditorRequired]
+    public string Source { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Symbol { get; set; } = string.Empty;
+
+    /// <summary>The timeframe code, e.g. 1h.</summary>
+    [Parameter, EditorRequired]
+    public string Timeframe { get; set; } = string.Empty;
+
+    /// <summary>The tick size of the asset; prices are shown with its precision (CH1).</summary>
+    [Parameter]
+    public double TickSize { get; set; } = 0.01;
+
+    /// <summary>Logarithmic price scale instead of the linear one (CH1).</summary>
+    [Parameter]
+    public bool LogScale { get; set; }
+
+    /// <summary>New candles may exist: the chart reads its newest candles again and keeps its view (MD2).</summary>
+    public async Task RefreshAsync()
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("refresh");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./chart/index.js");
+            _pane = await _module.InvokeAsync<IJSObjectReference>("createPane", _element, new { logScale = LogScale });
+            _shownLogScale = LogScale;
+        }
+
+        await ApplyAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_pane != null)
+            {
+                await _pane.InvokeVoidAsync("dispose");
+                await _pane.DisposeAsync();
+            }
+
+            if (_module != null)
+            {
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // the page is closing; there is nothing left to tidy up
+        }
+    }
+
+    /// <summary>Tells the module what changed since the last render, and nothing when nothing did.</summary>
+    private async Task ApplyAsync()
+    {
+        if (_pane == null)
+        {
+            return;
+        }
+
+        if (_shownLogScale != LogScale)
+        {
+            _shownLogScale = LogScale;
+            await _pane.InvokeVoidAsync("setOptions", new { logScale = LogScale });
+        }
+
+        var series = Source + "/" + Symbol + "/" + Timeframe;
+        if (_shownSeries != series && Source.Length > 0 && Symbol.Length > 0 && Timeframe.Length > 0)
+        {
+            _shownSeries = series;
+            await _pane.InvokeVoidAsync("setSeries", new { source = Source, symbol = Symbol, timeframe = Timeframe, tickSize = TickSize });
+        }
+    }
+}

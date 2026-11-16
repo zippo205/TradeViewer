@@ -182,7 +182,7 @@
 
     private static List<HistoryRow> ToRows(SettingsResponse settings)
     {
-        return settings.DefaultHistory
+        return (settings.DefaultHistory ?? new Dictionary<string, int?>())
             .OrderBy(pair => Array.IndexOf(TimeframeOrder, pair.Key))
             .Select(pair => new HistoryRow { Timeframe = pair.Key, Complete = pair.Value == null, Days = pair.Value ?? 365 })
             .ToList();

@@ -82,6 +82,10 @@
             <article class="card" @key="Key(asset)">
                 <header>
                     <strong>@asset.DisplayName</strong>
+                    @if (asset.Timeframes.Any(timeframe => timeframe.Chartable))
+                    {
+                        <a href="@ChartAddress(asset)">Chart</a>
+                    }
                     <span class="muted">@asset.Source / @asset.Symbol · @asset.AssetClass</span>
                     @if (asset.Loading)
                     {
@@ -376,6 +380,14 @@
     {
         _message = message;
         _failed = failed;
+    }
+
+    /// <summary>The chart of the asset in its largest timeframe below a week that has candles.</summary>
+    private static string ChartAddress(AssetResponse asset)
+    {
+        var chartable = asset.Timeframes.Where(timeframe => timeframe.Chartable).ToList();
+        var timeframe = chartable.LastOrDefault(item => item.Timeframe != "1w") ?? chartable[chartable.Count - 1];
+        return Chart.Address(asset.Source, asset.Symbol, timeframe.Timeframe);
     }
 
     private static string Key(AssetResponse asset)

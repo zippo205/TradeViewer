@@ -212,14 +212,14 @@ public class AssetsApiTests : IDisposable
         var changed = await _client.GetFromJsonAsync<SettingsResponse>("/api/settings");
         var wrong = await _client.PutAsJsonAsync("/api/settings", new SettingsResponse(new Dictionary<string, int?> { ["15m"] = -1 }));
 
-        Assert.Equal(90, initial!.DefaultHistory["15m"]);
-        Assert.Null(initial.DefaultHistory["1d"]);
+        Assert.Equal(90, initial!.DefaultHistory!["15m"]);
+        Assert.Null(initial.DefaultHistory!["1d"]);
         Assert.Equal(HttpStatusCode.OK, put.StatusCode);
-        Assert.Equal(30, changed!.DefaultHistory["15m"]);
-        Assert.Null(changed.DefaultHistory["1h"]);
-        Assert.Null(changed.DefaultHistory["4h"]); // not named: complete
+        Assert.Equal(30, changed!.DefaultHistory!["15m"]);
+        Assert.Null(changed.DefaultHistory!["1h"]);
+        Assert.Null(changed.DefaultHistory!["4h"]); // not named: complete
         Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
-        Assert.Equal(30, (await _client.GetFromJsonAsync<SettingsResponse>("/api/settings"))!.DefaultHistory["15m"]);
+        Assert.Equal(30, (await _client.GetFromJsonAsync<SettingsResponse>("/api/settings"))!.DefaultHistory!["15m"]);
     }
 
     private async Task SetCompleteHistoryAsync()

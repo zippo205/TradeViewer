@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddSingleton<ISettingsRepository, SettingsRepository>();
         services.AddSingleton<IHistorySettingsRepository, HistorySettingsRepository>();
         services.AddSingleton<IAssetRepository, AssetRepository>();
+        services.AddSingleton<IChartSettingsRepository, ChartSettingsRepository>();
         services.AddSingleton<WorkspaceInitializer>();
 
         services.AddSingleton(MarketDataSchema.FromEmbeddedScripts());

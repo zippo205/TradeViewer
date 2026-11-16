@@ -1,0 +1,252 @@
+@page "/chart/{Source}/{Symbol}/{Timeframe}"
+@implements IDisposable
+@inject AssetsApi Api
+@inject ChartsApi Charts
+@inject WorkspaceApi Workspace
+@inject WorkspaceEvents Events
+@inject NavigationManager Navigation
+
+<PageTitle>@Symbol @Timeframe - TradeViewer</PageTitle>
+
+<div class="chart-page">
+    <div class="chart-toolbar">
+        @if (_assets != null && _assets.Count > 0)
+        {
+            <select value="@Key(Source, Symbol)" @onchange="OnAssetChanged" title="Asset">
+                @foreach (var asset in _assets)
+                {
+                    <option value="@Key(asset.Source, asset.Symbol)">@asset.DisplayName (@asset.Source)</option>
+                }
+            </select>
+        }
+
+        @if (_asset != null)
+        {
+            <div class="segments" role="group" aria-label="Timeframe">
+                @foreach (var timeframe in _asset.Timeframes)
+                {
+                    <button type="button"
+                            class="@(timeframe.Timeframe == Timeframe ? "selected" : "")"
+                            disabled="@(!timeframe.Chartable)"
+                            title="@(timeframe.Chartable ? null : "No candles yet")"
+                            @onclick="() => Open(Source, Symbol, timeframe.Timeframe)">
+                        @timeframe.Timeframe
+                    </button>
+                }
+            </div>
+
+            <label title="Logarithmic price scale"><input type="checkbox" checked="@_logScale" @onchange="OnLogScaleChanged" /> log</label>
+
+            @if (_asset.Loading)
+            {
+                <span class="badge loading">loading</span>
+            }
+        }
+    </div>
+
+    @if (_error != null)
+    {
+        <p class="status-bad chart-note">@_error</p>
+    }
+    else if (_assets != null && _asset == null)
+    {
+        <p class="chart-note">
+            @Source/@Symbol is not one of your assets. <a href="assets">Add it on the assets page</a>.
+        </p>
+    }
+    else if (_asset != null && _shown != null)
+    {
+        @* The chart stays while another asset's settings are read: it keeps its view and switches in one step (CH3). *@
+        <ChartHost @ref="_chart"
+                   Source="@_shown.Source"
+                   Symbol="@_shown.Symbol"
+                   Timeframe="@_shown.Timeframe"
+                   TickSize="@_shown.TickSize"
+                   LogScale="@_logScale" />
+    }
+</div>
+
+@code {
+    private List<AssetResponse>? _assets;
+    private AssetResponse? _asset;
+    private ChartHost? _chart;
+    private string? _error;
+    private bool _logScale;
+    private string? _settingsOf;
+    private ShownSeries? _shown;
+    private string? _rememberedChart;
+    private bool _disposed;
+
+    [Parameter]
+    public string Source { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Symbol { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Timeframe { get; set; } = string.Empty;
+
+    /// <summary>The address of a chart: asset and timeframe are part of it (CP1).</summary>
+    public static string Address(string source, string symbol, string timeframe)
+    {
+        return "chart/" + Uri.EscapeDataString(source) + "/" + Uri.EscapeDataString(symbol) + "/" + Uri.EscapeDataString(timeframe);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Events.CandlesUpdated += OnCandlesUpdated;
+        Events.AssetStatusChanged += OnAssetStatusChanged;
+        Events.Reconnected += OnReconnected;
+        _ = Events.StartAsync();
+
+        await LoadAssetsAsync();
+        await OpenChartAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // The address changed (selector, back and forward, a link): the same page shows another chart.
+        _asset = _assets?.FirstOrDefault(asset => asset.Source == Source && asset.Symbol == Symbol);
+        await OpenChartAsync();
+    }
+
+    /// <summary>Reads the settings of the asset before its chart is shown (CP2) and remembers the chart as the last one (CP3).</summary>
+    private async Task OpenChartAsync()
+    {
+        if (_asset == null)
+        {
+            return;
+        }
+
+        var key = Key(Source, Symbol);
+        if (_settingsOf != key)
+        {
+            var settings = await Charts.GetSettingsAsync(Source, Symbol);
+            if (key != Key(Source, Symbol))
+            {
+                return; // the user has moved on meanwhile
+            }
+
+            _logScale = settings.Value?.PriceScale == ChartSettingsResponse.Log;
+            _settingsOf = key;
+        }
+
+        _shown = new ShownSeries(Source, Symbol, Timeframe, _asset.TickSize);
+
+        var chart = key + "/" + Timeframe;
+        if (_rememberedChart != chart && _asset.Timeframes.Any(timeframe => timeframe.Timeframe == Timeframe))
+        {
+            _rememberedChart = chart;
+            _ = Workspace.SaveLastChartAsync(Source, Symbol, Timeframe);
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Events.CandlesUpdated -= OnCandlesUpdated;
+        Events.AssetStatusChanged -= OnAssetStatusChanged;
+        Events.Reconnected -= OnReconnected;
+    }
+
+    private async Task LoadAssetsAsync()
+    {
+        var result = await Api.GetAssetsAsync();
+        if (result.Value == null)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        _error = null;
+        _assets = result.Value;
+        _asset = _assets.FirstOrDefault(asset => asset.Source == Source && asset.Symbol == Symbol);
+    }
+
+    private void OnAssetChanged(ChangeEventArgs e)
+    {
+        var asset = _assets?.FirstOrDefault(item => Key(item.Source, item.Symbol) == e.Value?.ToString());
+        if (asset == null)
+        {
+            return;
+        }
+
+        // The timeframe stays when the other asset has it, otherwise its largest one with candles.
+        var timeframe = asset.Timeframes.Any(item => item.Timeframe == Timeframe && item.Chartable)
+            ? Timeframe
+            : asset.Timeframes.LastOrDefault(item => item.Chartable)?.Timeframe ?? Timeframe;
+
+        Open(asset.Source, asset.Symbol, timeframe);
+    }
+
+    /// <summary>A change of the settings shows at once and is saved in the background (CP2).</summary>
+    private void OnLogScaleChanged(ChangeEventArgs e)
+    {
+        _logScale = e.Value is true;
+        var settings = new ChartSettingsResponse(_logScale ? ChartSettingsResponse.Log : ChartSettingsResponse.Linear);
+        _ = Charts.SaveSettingsAsync(Source, Symbol, settings);
+    }
+
+    private void Open(string source, string symbol, string timeframe)
+    {
+        Navigation.NavigateTo(Address(source, symbol, timeframe));
+    }
+
+    /// <summary>New candles of the shown asset: the chart reads them without a reload (MD2).</summary>
+    private void OnCandlesUpdated(string source, string symbol, string[] timeframes)
+    {
+        if (source != Source || symbol != Symbol || _disposed)
+        {
+            return;
+        }
+
+        // The current candle of a larger timeframe is built from the smallest one, so any timeframe counts (MD8).
+        _ = InvokeAsync(async () =>
+        {
+            if (_chart != null)
+            {
+                await _chart.RefreshAsync();
+            }
+        });
+    }
+
+    private void OnAssetStatusChanged(string source, string symbol)
+    {
+        if (source == Source && symbol == Symbol && !_disposed)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await LoadAssetsAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    /// <summary>After a break of the connection events may have been missed: read everything shown again.</summary>
+    private void OnReconnected()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            await LoadAssetsAsync();
+            if (_chart != null)
+            {
+                await _chart.RefreshAsync();
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    private static string Key(string source, string symbol)
+    {
+        return source + "/" + symbol;
+    }
+
+    /// <summary>What the chart shows right now; it follows the address once the settings of the asset are read.</summary>
+    private sealed record ShownSeries(string Source, string Symbol, string Timeframe, double TickSize);
+}

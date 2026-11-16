@@ -104,17 +104,14 @@ public class AssetStatusTests
     [Fact]
     public void The_default_history_is_mapped_and_checked()
     {
-        var response = SettingsMapping.ToResponse(HistorySettings.Initial);
-        var back = SettingsMapping.ToHistory(response.DefaultHistory);
+        var response = SettingsMapping.ToResponse(HistorySettings.Initial, null);
+        var back = SettingsMapping.ToHistory(response.DefaultHistory!);
         var wrong = SettingsMapping.ToHistory(new Dictionary<string, int?> { ["15m"] = 0, ["1h"] = 40000, ["2h"] = 5, ["1d"] = null, ["4h"] = 30 });
-        var missing = SettingsMapping.ToHistory(null);
-
-        Assert.Equal(new int?[] { 90, 365, 730, null, null }, new[] { "15m", "1h", "4h", "1d", "1w" }.Select(code => response.DefaultHistory[code]));
+        Assert.Equal(new int?[] { 90, 365, 730, null, null }, new[] { "15m", "1h", "4h", "1d", "1w" }.Select(code => response.DefaultHistory![code]));
         Assert.Equal(90, back.Value.DepthOf(Timeframe.M15).Days);
         Assert.True(back.Value.DepthOf(Timeframe.W1).IsComplete);
         Assert.Equal(ErrorType.Validation, wrong.Error.Type);
         Assert.Equal(new[] { "defaultHistory.15m", "defaultHistory.1h", "defaultHistory.2h" }, wrong.Error.Fields.Keys.OrderBy(key => key));
-        Assert.Equal(ErrorType.Validation, missing.Error.Type);
     }
 
     private static SymbolStatus Downloader(int pendingJobs15m, int pendingJobs1d, string? gapReason = null)
