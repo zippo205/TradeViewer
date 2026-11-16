@@ -16,7 +16,7 @@ of EWTS.
 | Assets and Market Data | done (2026-11-15) |
 | Price Chart | done (2026-11-16) |
 | Scenario Viewer | open |
-| Watchlists | open |
+| Watchlists | done (2026-11-16) |
 | Drawing Tools | open |
 | Scenario Analysis | open |
 | Indicators | open |

@@ -70,6 +70,24 @@ internal sealed class FakeAssetRepository : IAssetRepository
         return Task.FromResult<IReadOnlyList<(string, string)>>(Pending.ToList());
     }
 
+    public Task<bool> SetOrderAsync(AssetClass assetClass, IReadOnlyList<(string Source, string Symbol)> order, CancellationToken cancellationToken)
+    {
+        var current = Assets.Where(asset => asset.Info.AssetClass == assetClass).Select(asset => (asset.Source, asset.Symbol)).ToList();
+        if (!WatchlistOrder.IsValid(current, order))
+        {
+            return Task.FromResult(false);
+        }
+
+        for (var index = 0; index < order.Count; index++)
+        {
+            var at = Assets.FindIndex(asset => asset.Source == order[index].Source && asset.Symbol == order[index].Symbol);
+            Assets[at] = Assets[at] with { Position = index + 1 };
+        }
+
+        Assets.Sort((a, b) => a.Info.AssetClass != b.Info.AssetClass ? a.Info.AssetClass.CompareTo(b.Info.AssetClass) : a.Position.CompareTo(b.Position));
+        return Task.FromResult(true);
+    }
+
     public Task ClearPendingUnsubscriptionAsync(string source, string symbol, CancellationToken cancellationToken)
     {
         Pending.Remove((source, symbol));
@@ -233,6 +251,11 @@ internal sealed class FakeCandleStore : ICandleStore
         var all = Candles.TryGetValue(series, out var candles) ? candles : new List<Candle>();
         var older = all.Where(candle => before == null || candle.Time < before.Value).ToList();
         return older.Skip(Math.Max(0, older.Count - limit)).ToList();
+    }
+
+    public IReadOnlyDictionary<SeriesKey, IReadOnlyList<Candle>> GetNewestCandles(IReadOnlyList<SeriesKey> series, int count)
+    {
+        return series.Distinct().ToDictionary(key => key, key => GetCandles(key, null, count));
     }
 
     public IReadOnlyList<Candle> GetCandlesFrom(SeriesKey series, long from)

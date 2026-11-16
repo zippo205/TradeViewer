@@ -134,7 +134,7 @@ Depends on: Price Chart
 Branch: `feature/downloader-monitoring`
 
 - Status page of the Downloader, coverage and gaps per asset, all subscriptions
-- Gap markers on the chart
+- Gaps in the asset's status (the markers on the chart came with the Watchlists epic)
 - Aggregation of timeframes a source does not provide
 
 Requirements: DL1, DL2, DL3, DL4, MD3, MD4

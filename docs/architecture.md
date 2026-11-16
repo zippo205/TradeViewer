@@ -124,7 +124,7 @@ Features/
 ├── Assets            symbol list, add, history, remove (AS2-AS5)
 ├── MarketData        candles, current candle, import, sync status, gaps (MD1-MD8)
 ├── Watchlists        the five fixed lists, order, row figures (AS1, AS6)
-├── ChartSettings     settings per asset, last chart (CP2, CP3)
+├── ChartSettings     settings per asset (CP2); built with the first epic that has one (Indicators)
 ├── Indicators        calculation requests, indicator templates (IN1, IN2)
 ├── Drawings          drawings, Fibonacci presets (DR1-DR6)
 ├── Downloader        status and subscriptions for the monitoring page (DL1-DL4)
@@ -140,10 +140,10 @@ A feature folder contains only the subfolders it needs:
 
 ```text
 Watchlists/
-├── Commands        RenameWatchlistCommand
+├── Commands        ReorderWatchlistCommand
 ├── Queries         GetWatchlistsQuery
-├── Handlers        RenameWatchlistCommandHandler, GetWatchlistsQueryHandler
-├── Validators      RenameWatchlistCommandValidator
+├── Handlers        ReorderWatchlistCommandHandler, GetWatchlistsQueryHandler
+├── Validators      ReorderWatchlistCommandValidator
 └── Services        helpers used by several handlers of the feature
 ```
 
@@ -224,7 +224,8 @@ Indicator           Sma, Ema, BollingerBands, Rsi, Macd, Atr: candles + paramete
 IndicatorInstance   indicator type, parameters, style
 IndicatorTemplate   name, indicator instances
 
-ChartSettings       asset, price scale mode, indicator instances, drawings hidden, selected EWTS instance, hidden groups
+ChartSettings       asset, indicator instances, drawings hidden, selected EWTS instance, hidden groups
+                    (the price scale mode is one setting for all charts, see chapter 9)
 
 Drawing             id, asset, tool type, locked, anchors, style, text, payload version
 Anchor              time (UTC) + price, never a bar index
@@ -485,11 +486,17 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/assets/{source}/{symbol}                 get (loading progress, available timeframes), remove; /history put changes the history
 /api/assets/{source}/{symbol}/rescan          reload the files; /rebuild deletes the candles and imports again (MD5)
 /api/candles/{source}/{symbol}/{timeframe}    column arrays; 422 when the timeframe can be neither read nor built (MD3)
+/api/gaps/{source}/{symbol}/{timeframe}       the gaps the source confirmed, within the history of the asset (MD4)
 /api/indicators/{source}/{symbol}/{timeframe}
 /api/indicator-templates
-/api/watchlists                               the five lists with their rows; reorder
-/api/chart-settings/{source}/{symbol}         get (the defaults when nothing is saved), put replaces them
-/api/settings                                 default history, last chart (AS3, CP3); get, put (a part that is null stays)
+/api/watchlists                               the five lists with their rows and figures (AS6)
+/api/watchlists/{assetClass}/order            put: all assets of one list in their new order; 409 when
+                                              the list has other assets than the order names
+/api/chart-settings/{source}/{symbol}         get, put: the settings per asset (CP2). Not built yet: no setting
+                                              per asset exists before the Indicators epic. The table
+                                              chart_settings (workspace script 0003) waits for it
+/api/settings                                 default history, last chart, price scale mode of all charts
+                                              (AS3, CP3, CP2); get, put (a part that is null stays)
 /api/drawings                                 by asset
 /api/fibonacci-presets
 /api/downloader/status
@@ -581,6 +588,26 @@ chart  -> Blazor   drawingCreated, drawingChanged, drawingDeleted, selectionChan
 - The chart page is `/chart/{source}/{symbol}/{timeframe}` (CP1); changing asset or timeframe
   changes the address without a page load. `/` opens the last chart (CP3), or the assets page when
   there is none. The chart stays alive across such changes: only the series is replaced.
+- The watchlists (AS1, AS6) are a panel at the right of the chart page, as in TradingView: the five
+  lists as tabs, a row per asset with last close, change and marks; choosing a row shows the asset
+  in this window in the same timeframe (CP1). The panel can be folded away; that and the open list
+  are kept in the browser (`localStorage`), not in the workspace. The order is changed on the
+  assets page only (drag and drop, or arrow buttons), which shows the same five lists with the
+  management actions folded behind each asset. Rows are read again when the hub reports new
+  candles or a changed state, once for many events.
+- Row figures: the last close is the close of the newest closed candle of the smallest timeframe
+  (never the candle in progress); the change compares it with the last daily candle that ended
+  before its day, the day cut at 00:00 UTC (`RowFigures` in the Domain). The warning of a row names
+  files that were not imported, and nothing else: a gap of the source never goes away, so a mark
+  for it would always be on. The rules about the Downloader's status that several features share
+  are in `DownloaderStatusRules`.
+- Gaps (MD4) are shown in the chart: a series primitive (`GapMarkers`) draws a small icon at the
+  bottom of the pane between the last candle before a gap and the first one after it; pointing at
+  it shows from when to when candles are missing and why. The module reads them from `/api/gaps`
+  after the candles of a series, without waiting for them. The Api takes them from the last status
+  the Downloader reported (sync state), only those with the reason `missingUpstream` and only
+  within the history of the asset: the Downloader also reports gaps of history that another client
+  wanted. Without the Downloader no gaps are known.
 - The module draws what belongs to the canvas itself: the legend with the values under the
   crosshair, the jump-to-latest button and the message in place of a chart without data. Volume is
   a histogram in the lower fifth of the candle pane on its own hidden scale, as in TradingView;

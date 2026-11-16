@@ -56,7 +56,7 @@ public sealed class AssetStatusReader
                 range == null ? null : DateTimeOffset.FromUnixTimeSeconds(range.LastTime),
                 progress?.FilesImported ?? 0,
                 progress?.FilesWanted ?? 0,
-                importing || IsDownloading(status),
+                importing || DownloaderStatusRules.IsDownloading(status),
                 range != null));
         }
 
@@ -71,14 +71,5 @@ public sealed class AssetStatusReader
             !asset.SubscriptionSent,
             timeframes,
             errors.Select(error => error.Error ?? error.File).ToList());
-    }
-
-    /// <summary>
-    /// The Downloader still downloads a timeframe while it has jobs for it or reports a part as "pending".
-    /// What the source does not have (before its history limit, an outage) is nothing to wait for.
-    /// </summary>
-    private static bool IsDownloading(TimeframeStatus? status)
-    {
-        return status != null && (status.PendingJobs > 0 || status.Gaps.Any(gap => gap.Reason == "pending"));
     }
 }

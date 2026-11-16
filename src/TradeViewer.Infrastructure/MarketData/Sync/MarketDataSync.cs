@@ -186,7 +186,7 @@ public sealed class MarketDataSync
 
         _store.SetSyncState(asset.Source, asset.Symbol, new SyncState(lastChange, status.Value, now.ToUnixTimeSeconds()));
 
-        var downloading = IsDownloading(status.Value);
+        var downloading = DownloaderStatusRules.IsDownloading(status.Value);
         if (stored == null || changed || downloading != plan.Downloading)
         {
             await _notifier.AssetStatusChangedAsync(asset.Source, asset.Symbol);
@@ -323,10 +323,6 @@ public sealed class MarketDataSync
         await _notifier.DownloaderStatusChangedAsync(reachable);
     }
 
-    private static bool IsDownloading(SymbolStatus status)
-    {
-        return status.Timeframes.Any(timeframe => timeframe.PendingJobs > 0 || timeframe.Gaps.Any(gap => gap.Reason == "pending"));
-    }
 
     private sealed class Plan
     {

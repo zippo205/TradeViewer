@@ -14,7 +14,9 @@ import {
 } from "lightweight-charts";
 import type { Bar } from "./data/bars";
 import { CandleRequestError, fetchCandles, type SeriesKey } from "./data/candleClient";
+import { fetchGaps, gapText, placeGaps, type Gap } from "./data/gaps";
 import { FIRST_PAGE_SIZE, OLDER_PAGE_SIZE, SeriesData, shouldLoadOlder } from "./data/seriesData";
+import { GAP_ID_PREFIX, GapMarkers } from "./gapMarkers";
 import { formatPrice, formatTimeUtc, formatVolume, isIntraday, priceFormatOf, type PriceFormat } from "./format";
 import { captureView, latestRange, restoreView, type ViewState } from "./range";
 import { themeOf, type ChartTheme } from "./theme";
@@ -62,6 +64,9 @@ export class ChartPane {
   private readonly legend: HTMLDivElement;
   private readonly message: HTMLDivElement;
   private readonly latestButton: HTMLButtonElement;
+  private readonly tooltip: HTMLDivElement;
+  private readonly gapMarkers = new GapMarkers();
+  private gaps: Gap[] = [];
   private readonly fetcher: typeof fetch;
 
   private data = new SeriesData();
@@ -129,6 +134,11 @@ export class ChartPane {
 
     this.legend = overlay(container, "tv-chart-legend");
     this.message = overlay(container, "tv-chart-message");
+    this.tooltip = overlay(container, "tv-chart-tooltip");
+    this.tooltip.hidden = true;
+
+    // Gaps the source confirmed show as icons at the bottom of the chart (MD4).
+    this.candles.attachPrimitive(this.gapMarkers);
     this.latestButton = document.createElement("button");
     this.latestButton.type = "button";
     this.latestButton.className = "tv-chart-latest";
@@ -138,7 +148,10 @@ export class ChartPane {
     this.latestButton.addEventListener("click", () => this.scrollToLatest());
     container.append(this.latestButton);
 
-    this.chart.subscribeCrosshairMove((event) => this.showLegend(event));
+    this.chart.subscribeCrosshairMove((event) => {
+      this.showLegend(event);
+      this.showGapTooltip(event);
+    });
     this.chart.timeScale().subscribeVisibleLogicalRangeChange((range) => this.onRangeChanged(range));
   }
 
@@ -174,6 +187,9 @@ export class ChartPane {
     }
 
     this.data = data;
+    this.gaps = [];
+    this.tooltip.hidden = true;
+    void this.loadGaps(request, generation);
     this.priceFormat = priceFormatOf(request.tickSize);
     this.candles.applyOptions({ priceFormat: { type: "price", ...this.priceFormat } });
     // A new series starts with the price scale fitted to its candles, whatever the user did before (CH1).
@@ -236,6 +252,8 @@ export class ChartPane {
         this.candles.update(this.candleOf(bar, partial));
         this.volume.update(this.volumeOf(bar, partial));
       }
+
+      this.gapMarkers.set(placeGaps(this.data.bars, this.gaps));
     } else {
       const view = this.currentView();
       this.draw();
@@ -329,6 +347,7 @@ export class ChartPane {
 
     this.candles.setData(candles);
     this.volume.setData(volumes);
+    this.gapMarkers.set(placeGaps(bars, this.gaps));
   }
 
   private candleOf(bar: Bar, partial: boolean): CandlestickData<UTCTimestamp> {
@@ -453,9 +472,41 @@ export class ChartPane {
     );
   }
 
+  /** Reads the gaps of the series after its candles; the chart does not wait for them. */
+  private async loadGaps(request: SeriesRequest, generation: number): Promise<void> {
+    const gaps = await fetchGaps(request, this.fetcher);
+    if (generation !== this.generation || this.disposed) {
+      return;
+    }
+
+    this.gaps = gaps;
+    this.gapMarkers.set(placeGaps(this.data.bars, gaps));
+  }
+
+  /** Pointing at a gap icon shows from when to when candles are missing, and why (MD4). */
+  private showGapTooltip(event: MouseEventParams): void {
+    const id = typeof event.hoveredObjectId === "string" ? event.hoveredObjectId : "";
+    const marker = id.startsWith(GAP_ID_PREFIX) ? this.gapMarkers.get(Number(id.slice(GAP_ID_PREFIX.length))) : undefined;
+    if (marker === undefined || event.point === undefined) {
+      this.tooltip.hidden = true;
+      return;
+    }
+
+    this.tooltip.textContent = gapText(marker.gap);
+    this.tooltip.hidden = false;
+
+    // Above the icon, kept inside the chart.
+    const width = this.tooltip.offsetWidth;
+    const left = Math.min(Math.max(event.point.x - width / 2, 8), Math.max(this.container.clientWidth - width - 8, 8));
+    this.tooltip.style.left = `${left}px`;
+    this.tooltip.style.top = `${Math.max(event.point.y - this.tooltip.offsetHeight - 18, 8)}px`;
+  }
+
   private showError(error: unknown): void {
     const text = error instanceof CandleRequestError ? error.message : "The candles could not be shown.";
     this.data = new SeriesData();
+    this.gaps = [];
+    this.tooltip.hidden = true;
     this.draw();
     this.legend.textContent = "";
     this.latestButton.hidden = true;

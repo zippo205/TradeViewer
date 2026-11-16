@@ -1,23 +1,19 @@
 @page "/chart/{Source}/{Symbol}/{Timeframe}"
 @implements IDisposable
 @inject AssetsApi Api
-@inject ChartsApi Charts
+
 @inject WorkspaceApi Workspace
 @inject WorkspaceEvents Events
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>@Symbol @Timeframe - TradeViewer</PageTitle>
 
 <div class="chart-page">
     <div class="chart-toolbar">
-        @if (_assets != null && _assets.Count > 0)
+        @if (_asset != null)
         {
-            <select value="@Key(Source, Symbol)" @onchange="OnAssetChanged" title="Asset">
-                @foreach (var asset in _assets)
-                {
-                    <option value="@Key(asset.Source, asset.Symbol)">@asset.DisplayName (@asset.Source)</option>
-                }
-            </select>
+            <strong class="chart-title">@_asset.DisplayName <small>@_asset.Source</small></strong>
         }
 
         @if (_asset != null)
@@ -42,8 +38,14 @@
                 <span class="badge loading">loading</span>
             }
         }
+
+        <button type="button" class="panel-toggle" title="@(_panelOpen ? "Fold the watchlists away" : "Show the watchlists")" @onclick="TogglePanelAsync">
+            @(_panelOpen ? "Watchlists »" : "« Watchlists")
+        </button>
     </div>
 
+    <div class="chart-body">
+    <div class="chart-area">
     @if (_error != null)
     {
         <p class="status-bad chart-note">@_error</p>
@@ -64,6 +66,12 @@
                    TickSize="@_shown.TickSize"
                    LogScale="@_logScale" />
     }
+    </div>
+    @if (_panelOpen)
+    {
+        <WatchlistPanel Source="@Source" Symbol="@Symbol" OnSelected="OnRowSelected" />
+    }
+    </div>
 </div>
 
 @code {
@@ -71,8 +79,11 @@
     private AssetResponse? _asset;
     private ChartHost? _chart;
     private string? _error;
+    private const string PanelKey = "tradeviewer.watchlist.panel";
+
+    private bool _panelOpen = true;
     private bool _logScale;
-    private string? _settingsOf;
+    private bool _settingsRead;
     private ShownSeries? _shown;
     private string? _rememberedChart;
     private bool _disposed;
@@ -99,41 +110,34 @@
         Events.Reconnected += OnReconnected;
         _ = Events.StartAsync();
 
+        // The price scale mode is one setting for all charts (CP2): read once, before the first chart is drawn.
+        var settings = await Workspace.GetSettingsAsync();
+        _logScale = settings.Value?.PriceScale == PriceScales.Log;
+
         await LoadAssetsAsync();
-        await OpenChartAsync();
+        _settingsRead = true;
+        OpenChart();
     }
 
-    protected override async Task OnParametersSetAsync()
+    protected override Task OnParametersSetAsync()
     {
         // The address changed (selector, back and forward, a link): the same page shows another chart.
         _asset = _assets?.FirstOrDefault(asset => asset.Source == Source && asset.Symbol == Symbol);
-        await OpenChartAsync();
+        OpenChart();
+        return Task.CompletedTask;
     }
 
-    /// <summary>Reads the settings of the asset before its chart is shown (CP2) and remembers the chart as the last one (CP3).</summary>
-    private async Task OpenChartAsync()
+    /// <summary>Shows the chart of the address and remembers it as the last one (CP3).</summary>
+    private void OpenChart()
     {
-        if (_asset == null)
+        if (_asset == null || !_settingsRead)
         {
             return;
         }
 
-        var key = Key(Source, Symbol);
-        if (_settingsOf != key)
-        {
-            var settings = await Charts.GetSettingsAsync(Source, Symbol);
-            if (key != Key(Source, Symbol))
-            {
-                return; // the user has moved on meanwhile
-            }
-
-            _logScale = settings.Value?.PriceScale == ChartSettingsResponse.Log;
-            _settingsOf = key;
-        }
-
         _shown = new ShownSeries(Source, Symbol, Timeframe, _asset.TickSize);
 
-        var chart = key + "/" + Timeframe;
+        var chart = Key(Source, Symbol) + "/" + Timeframe;
         if (_rememberedChart != chart && _asset.Timeframes.Any(timeframe => timeframe.Timeframe == Timeframe))
         {
             _rememberedChart = chart;
@@ -163,28 +167,64 @@
         _asset = _assets.FirstOrDefault(asset => asset.Source == Source && asset.Symbol == Symbol);
     }
 
-    private void OnAssetChanged(ChangeEventArgs e)
+    /// <summary>Selecting an asset in a watchlist shows it in this window (CP1).</summary>
+    private async Task OnRowSelected(WatchlistRowResponse row)
     {
-        var asset = _assets?.FirstOrDefault(item => Key(item.Source, item.Symbol) == e.Value?.ToString());
-        if (asset == null)
+        if (row.Timeframes.Count == 0)
         {
             return;
         }
 
-        // The timeframe stays when the other asset has it, otherwise its largest one with candles.
-        var timeframe = asset.Timeframes.Any(item => item.Timeframe == Timeframe && item.Chartable)
-            ? Timeframe
-            : asset.Timeframes.LastOrDefault(item => item.Chartable)?.Timeframe ?? Timeframe;
+        // An asset added in another window is not known here yet.
+        if (_assets == null || !_assets.Any(asset => asset.Source == row.Source && asset.Symbol == row.Symbol))
+        {
+            await LoadAssetsAsync();
+        }
 
-        Open(asset.Source, asset.Symbol, timeframe);
+        // The timeframe stays when the other asset has it with candles, otherwise its largest one with candles.
+        var timeframe = row.Timeframes.Contains(Timeframe) ? Timeframe : row.Timeframes[row.Timeframes.Count - 1];
+        Open(row.Source, row.Symbol, timeframe);
     }
 
-    /// <summary>A change of the settings shows at once and is saved in the background (CP2).</summary>
+    private async Task TogglePanelAsync()
+    {
+        _panelOpen = !_panelOpen;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", PanelKey, _panelOpen ? "open" : "folded");
+        }
+        catch (JSException)
+        {
+            // no storage in this browser: the choice lasts as long as the window
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            if (await JS.InvokeAsync<string?>("localStorage.getItem", PanelKey) == "folded")
+            {
+                _panelOpen = false;
+                StateHasChanged();
+            }
+        }
+        catch (JSException)
+        {
+            // the panel stays open
+        }
+    }
+
+    /// <summary>The price scale mode shows at once and is saved in the background; it stays for every asset and timeframe (CP2).</summary>
     private void OnLogScaleChanged(ChangeEventArgs e)
     {
         _logScale = e.Value is true;
-        var settings = new ChartSettingsResponse(_logScale ? ChartSettingsResponse.Log : ChartSettingsResponse.Linear);
-        _ = Charts.SaveSettingsAsync(Source, Symbol, settings);
+        _ = Workspace.SavePriceScaleAsync(_logScale ? PriceScales.Log : PriceScales.Linear);
     }
 
     private void Open(string source, string symbol, string timeframe)

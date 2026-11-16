@@ -11,7 +11,7 @@ public static class SettingsMapping
     /// <summary>Ten years more than any source has: a larger number is a typing mistake.</summary>
     public const int MaxHistoryDays = 36500;
 
-    public static SettingsResponse ToResponse(HistorySettings history, LastChartResponse? lastChart)
+    public static SettingsResponse ToResponse(HistorySettings history, LastChartResponse? lastChart, string priceScale)
     {
         var days = new Dictionary<string, int?>();
         foreach (var timeframe in Timeframes.All)
@@ -19,7 +19,7 @@ public static class SettingsMapping
             days[Timeframes.Code(timeframe)] = history.DepthOf(timeframe).Days;
         }
 
-        return new SettingsResponse(days, lastChart);
+        return new SettingsResponse(days, lastChart, priceScale);
     }
 
     public static Result<HistorySettings> ToHistory(IReadOnlyDictionary<string, int?> defaultHistory)
