@@ -9,12 +9,16 @@ using TradeViewer.Application.Features.ChartSettings.Handlers;
 using TradeViewer.Application.Features.ChartSettings.Queries;
 using TradeViewer.Application.Features.MarketData.Handlers;
 using TradeViewer.Application.Features.MarketData.Queries;
+using TradeViewer.Application.Features.Watchlists.Commands;
+using TradeViewer.Application.Features.Watchlists.Handlers;
+using TradeViewer.Application.Features.Watchlists.Queries;
 using TradeViewer.Application.Features.Workspace.Commands;
 using TradeViewer.Application.Features.Workspace.Handlers;
 using TradeViewer.Application.Features.Workspace.Queries;
 using TradeViewer.Contracts.Assets;
 using TradeViewer.Contracts.Charts;
 using TradeViewer.Contracts.MarketData;
+using TradeViewer.Contracts.Watchlists;
 using TradeViewer.Contracts.Workspace;
 
 namespace TradeViewer.Application;
@@ -41,6 +45,10 @@ public static class DependencyInjection
 
         // MarketData
         services.AddScoped<IQueryHandler<GetCandlesQuery, CandlesResponse>, GetCandlesQueryHandler>();
+
+        // Watchlists
+        services.AddScoped<IQueryHandler<GetWatchlistsQuery, IReadOnlyList<WatchlistResponse>>, GetWatchlistsQueryHandler>();
+        services.AddScoped<ICommandHandler<ReorderWatchlistCommand, Unit>, ReorderWatchlistCommandHandler>();
 
         // Workspace
         services.AddScoped<IQueryHandler<GetSettingsQuery, SettingsResponse>, GetSettingsQueryHandler>();

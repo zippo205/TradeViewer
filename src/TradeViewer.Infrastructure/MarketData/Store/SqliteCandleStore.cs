@@ -168,6 +168,45 @@ public sealed class SqliteCandleStore : ICandleStore
         return candles;
     }
 
+    public IReadOnlyDictionary<SeriesKey, IReadOnlyList<Candle>> GetNewestCandles(IReadOnlyList<SeriesKey> series, int count)
+    {
+        var result = new Dictionary<SeriesKey, IReadOnlyList<Candle>>();
+        if (series.Count == 0)
+        {
+            return result;
+        }
+
+        // One connection and one prepared statement for all rows of the watchlists.
+        using var connection = _database.Open();
+        using var command = Command(
+            connection,
+            null,
+            "SELECT open_time, open, high, low, close, volume FROM candles WHERE series_id = " + SeriesIdSql
+            + " ORDER BY open_time DESC LIMIT $limit;");
+        var source = command.Parameters.Add("$source", SqliteType.Text);
+        var symbol = command.Parameters.Add("$symbol", SqliteType.Text);
+        var timeframe = command.Parameters.Add("$timeframe", SqliteType.Text);
+        command.Parameters.AddWithValue("$limit", count);
+
+        foreach (var key in series)
+        {
+            if (result.ContainsKey(key))
+            {
+                continue;
+            }
+
+            source.Value = key.Source;
+            symbol.Value = key.Symbol;
+            timeframe.Value = Timeframes.Code(key.Timeframe);
+
+            var candles = ReadCandles(command, count);
+            candles.Reverse();
+            result[key] = candles;
+        }
+
+        return result;
+    }
+
     public IReadOnlyList<Candle> GetCandlesFrom(SeriesKey series, long from)
     {
         using var connection = _database.Open();

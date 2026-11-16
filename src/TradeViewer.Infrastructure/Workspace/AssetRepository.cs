@@ -154,6 +154,42 @@ public sealed class AssetRepository : IAssetRepository
         return pending;
     }
 
+    public async Task<bool> SetOrderAsync(AssetClass assetClass, IReadOnlyList<(string Source, string Symbol)> order, CancellationToken cancellationToken)
+    {
+        using var workspace = await _database.OpenAsync(cancellationToken);
+        using var transaction = workspace.Connection.BeginTransaction();
+
+        // Checked inside the transaction: another window may have added or removed an asset a moment ago.
+        var current = new List<(string, string)>();
+        using (var select = workspace.CreateCommand("SELECT source, symbol FROM assets WHERE asset_class = $assetClass;"))
+        {
+            select.Transaction = transaction;
+            select.Parameters.AddWithValue("$assetClass", AssetCodes.Code(assetClass));
+            using var reader = select.ExecuteReader();
+            while (reader.Read())
+            {
+                current.Add((reader.GetString(0), reader.GetString(1)));
+            }
+        }
+
+        if (!WatchlistOrder.IsValid(current, order))
+        {
+            return false;
+        }
+
+        for (var index = 0; index < order.Count; index++)
+        {
+            using var update = workspace.CreateCommand("UPDATE assets SET position = $position WHERE source = $source AND symbol = $symbol;");
+            update.Transaction = transaction;
+            AddKey(update, order[index].Source, order[index].Symbol);
+            update.Parameters.AddWithValue("$position", index + 1);
+            update.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+        return true;
+    }
+
     public async Task ClearPendingUnsubscriptionAsync(string source, string symbol, CancellationToken cancellationToken)
     {
         using var workspace = await _database.OpenAsync(cancellationToken);

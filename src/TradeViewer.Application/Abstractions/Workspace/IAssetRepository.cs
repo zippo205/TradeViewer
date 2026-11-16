@@ -33,4 +33,10 @@ public interface IAssetRepository
     Task<IReadOnlyList<(string Source, string Symbol)>> GetPendingUnsubscriptionsAsync(CancellationToken cancellationToken);
 
     Task ClearPendingUnsubscriptionAsync(string source, string symbol, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Puts the assets of one watchlist into a new order, in one step (AS1).
+    /// </summary>
+    /// <returns>False when the order does not name exactly the assets of the list; nothing is changed then.</returns>
+    Task<bool> SetOrderAsync(AssetClass assetClass, IReadOnlyList<(string Source, string Symbol)> order, CancellationToken cancellationToken);
 }

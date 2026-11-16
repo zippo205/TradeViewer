@@ -23,6 +23,9 @@ public interface ICandleStore
     /// <summary>The candles that open at or after the time, oldest first.</summary>
     IReadOnlyList<Candle> GetCandlesFrom(SeriesKey series, long from);
 
+    /// <summary>The newest candles of many series in one go, at most the count each, oldest first; a series without candles has an empty list.</summary>
+    IReadOnlyDictionary<SeriesKey, IReadOnlyList<Candle>> GetNewestCandles(IReadOnlyList<SeriesKey> series, int count);
+
     /// <summary>The timeframes of an asset that hold candles.</summary>
     IReadOnlyList<SeriesRange> GetRanges(string source, string symbol);
 
