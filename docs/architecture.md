@@ -488,8 +488,8 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/indicators/{source}/{symbol}/{timeframe}
 /api/indicator-templates
 /api/watchlists                               the five lists with their rows; reorder
-/api/chart-settings/{source}/{symbol}         get, put
-/api/settings                                 default history, last chart (AS3, CP3); get, put
+/api/chart-settings/{source}/{symbol}         get (the defaults when nothing is saved), put replaces them
+/api/settings                                 default history, last chart (AS3, CP3); get, put (a part that is null stays)
 /api/drawings                                 by asset
 /api/fibonacci-presets
 /api/downloader/status
@@ -547,11 +547,20 @@ client reloads what it shows. The scenario list has no event: the scenario page 
 bundles it into `TradeViewer.Web/wwwroot/chart/`; the first `dotnet build` runs `npm ci` and the
 bundling through an MSBuild target (`-p:SkipChartBuild=true` skips it).
 
+Lightweight Charts is pinned to exactly 5.3.0 and part of the bundle (NF6). Version 5 has panes and
+pane primitives next to series primitives; both kinds were proved in a browser (attached, drawn,
+hit-tested through `hoveredObjectId`, detached). An update of the library is a deliberate step with
+the chart checked by hand. Its attribution logo stays switched on (licence, decision 0001).
+
 ```text
 TradeViewer.Chart/src/
-├── index.ts               entry point exposed to Blazor
-├── ChartPaneController    one chart: series, scales, crosshair, paging, last-price line, jump to latest (CH5)
-├── data/                  fetching candles, indicators and gaps from the Api, page cache; shows the error of a timeframe without data (MD3)
+├── index.ts               entry point exposed to Blazor: createPane; panes() for measurements
+├── chartPane.ts           one chart (ChartPane): series, scales, crosshair legend, paging, last-close line,
+│                          jump to latest (CH5), the message shown instead of a chart without data
+├── range.ts               the rules of the visible range as pure functions (CH3, CH5)
+├── format.ts, theme.ts    price format from the tick size, UTC times (MD7), colours for light and dark
+├── data/                  fetching candles from the Api (later indicators and gaps), the page cache
+│                          (SeriesData), when to load older candles (CH4)
 ├── indicators/            indicator series and panes (values come from the Api)
 ├── tools/                 interaction: hit testing, handles, tool state machine
 └── primitives/            one series primitive per drawing type and per overlay shape
@@ -567,7 +576,27 @@ chart  -> Blazor   drawingCreated, drawingChanged, drawingDeleted, selectionChan
 ```
 
 - `ChartHost` (Web) wraps the calls in typed C# methods; events return through a
-  `DotNetObjectReference`.
+  `DotNetObjectReference`. Built so far: createPane, setSeries (asset, timeframe, tick size),
+  setOptions (price scale mode), refresh, dispose; the other calls come with their epics.
+- The chart page is `/chart/{source}/{symbol}/{timeframe}` (CP1); changing asset or timeframe
+  changes the address without a page load. `/` opens the last chart (CP3), or the assets page when
+  there is none. The chart stays alive across such changes: only the series is replaced.
+- The module draws what belongs to the canvas itself: the legend with the values under the
+  crosshair, the jump-to-latest button and the message in place of a chart without data. Volume is
+  a histogram in the lower fifth of the candle pane on its own hidden scale, as in TradingView;
+  the current candle is drawn paler (MD8). The chart follows the light or dark setting of the system.
+- Visible range (CH3): the number of visible candles is kept. At the latest candles the view stays
+  there with its space to the right; scrolled back within one asset the time at the right edge is
+  kept; another asset always shows its latest candles. A new chart shows 150 candles and 8 bars of
+  space.
+- Paging (CH4): first page 2,000 candles; a page of 5,000 older ones is requested when fewer than
+  500 are left to the left of the view, and added in front without moving the view.
+- Live update (MD2): the hub client stays in Web; on `CandlesUpdated` for the shown asset
+  `ChartHost.RefreshAsync` lets the module read the newest page again. When only the end changed,
+  the last candles are updated in place; the view never moves. After a reconnect of the hub the
+  page does the same.
+- Measured on WSL in a headless Chromium: click to painted chart 112 to 123 ms at worst, median
+  76 ms (NF1: 150 ms); zoom, pan and crosshair 60 frames per second with no request (NF2).
 - Candles and indicator values never go through interop: Blazor passes asset and timeframe, the
   module fetches the column arrays itself.
 - Web owns the list of drawings and saves it; the module owns the geometry while the user drags

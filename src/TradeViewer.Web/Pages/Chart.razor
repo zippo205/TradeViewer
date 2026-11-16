@@ -54,13 +54,14 @@
             @Source/@Symbol is not one of your assets. <a href="assets">Add it on the assets page</a>.
         </p>
     }
-    else if (_asset != null && _settingsOf == Key(Source, Symbol))
+    else if (_asset != null && _shown != null)
     {
+        @* The chart stays while another asset's settings are read: it keeps its view and switches in one step (CH3). *@
         <ChartHost @ref="_chart"
-                   Source="@Source"
-                   Symbol="@Symbol"
-                   Timeframe="@Timeframe"
-                   TickSize="@_asset.TickSize"
+                   Source="@_shown.Source"
+                   Symbol="@_shown.Symbol"
+                   Timeframe="@_shown.Timeframe"
+                   TickSize="@_shown.TickSize"
                    LogScale="@_logScale" />
     }
 </div>
@@ -72,6 +73,7 @@
     private string? _error;
     private bool _logScale;
     private string? _settingsOf;
+    private ShownSeries? _shown;
     private string? _rememberedChart;
     private bool _disposed;
 
@@ -128,6 +130,8 @@
             _logScale = settings.Value?.PriceScale == ChartSettingsResponse.Log;
             _settingsOf = key;
         }
+
+        _shown = new ShownSeries(Source, Symbol, Timeframe, _asset.TickSize);
 
         var chart = key + "/" + Timeframe;
         if (_rememberedChart != chart && _asset.Timeframes.Any(timeframe => timeframe.Timeframe == Timeframe))
@@ -242,4 +246,7 @@
     {
         return source + "/" + symbol;
     }
+
+    /// <summary>What the chart shows right now; it follows the address once the settings of the asset are read.</summary>
+    private sealed record ShownSeries(string Source, string Symbol, string Timeframe, double TickSize);
 }

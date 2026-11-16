@@ -4,7 +4,8 @@
 
 ```text
 Epic:     Price Chart (P0 - Foundation)
-Status:   Plan approved by the owner 2026-11-15 (answers at the end); in work
+Status:   Steps 1 to 8 done 2026-11-16 except the Pi (needs the owner's go-ahead); waiting for the
+          owner's look at the chart
 Branch:   feature/price-chart
 Next:     Epic Scenario Viewer
 Baseline: docs as of commit dee1fab (main)
@@ -90,25 +91,24 @@ Out of scope (later epics):
 
 ```text
 1  Lightweight Charts pinned (exact version), bundled; a first pane with candles from the Api;
-   proof of a series primitive and a pane primitive; licence notice kept                        pinned; the rest
-                                                                                                needs the browser
+   proof of a series primitive and a pane primitive; licence notice kept                        done
 2  Data layer (TypeScript): candle client, columns -> bars, page cache, merging pages, the
    decision when to load older candles; Vitest                                                  done
 3  ChartPaneController: candle and volume series, UTC time scale, price scale (linear, log,
-   precision from the tick size, auto fit and reset), crosshair legend, current candle style    open
+   precision from the tick size, auto fit and reset), crosshair legend, current candle style    done
 4  Behaviour: visible range kept on timeframe and asset change (CH3), paging without a visible
    interruption (CH4), last-close line, jump to latest (CH5); the range rules as pure functions
-   with Vitest                                                                                  open
+   with Vitest                                                                                  done
 5  Workspace: chart settings per asset (schema script 0003, JSON with a payload version), last
    chart as a setting; feature ChartSettings; /api/chart-settings, /api/settings extended;
-   removing an asset deletes its chart settings                                                 open
+   removing an asset deletes its chart settings                                                 done
 6  Web: ChartHost and the interop contract (createPane, setSeries, setOptions, refresh, dispose);
    chart page /chart/{source}/{symbol}/{timeframe} with asset and timeframe selectors, scale
-   mode, legend; start page opens the last chart; link from the assets page                     open
+   mode, legend; start page opens the last chart; link from the assets page                     done
 7  Live update on CandlesUpdated (the last candles are read again, the view stays), reload after
-   a reconnect of the hub                                                                       open
+   a reconnect of the hub                                                                       done
 8  Measurement NF1 and NF2 (WSL, then the Pi with the owner's go-ahead), Docker build,
-   architecture chapter 10 and README updated                                                   open
+   architecture chapter 10 and README updated                                                   done, Pi open
 ```
 
 Each step has its tests: Vitest for everything in the module that is a rule (pages, ranges, time to
@@ -164,3 +164,41 @@ needs them is done.
    the development machine, not a part of the solution; architecture chapter 14 stays as it is.
 2. Volume like in TradingView: in the lower part of the candle pane.
 3. No other change to the proposals.
+
+---
+
+# Result
+
+```text
+Tests      225 unit, 163 integration, 19 architecture (C#); 55 Vitest tests in the chart module
+Browser    headless Chromium (Playwright in ~/tools/browser on the development machine, installed by
+           the owner; not a part of the solution). Scripts there drive the chart page like a user:
+           chart-check, paging-check, settings-check, live-check, measure, shot (screenshots)
+Proved     in the browser, on the frozen copy (BTCUSDT and ETHUSDT, complete history):
+           - candles, volume, scales, legend, last-close line, current candle; light and dark; log
+           - timeframe change keeps 150 candles in view; at the latest candles it stays there, scrolled
+             back it keeps the time at the right edge; asset change shows the latest candles (CH3)
+           - scrolling back 60 drags: 5,000 older candles loaded, the view never jumped (CH4)
+           - jump to latest; address, back button; unknown asset and timeframe show a message
+           - scale mode saved per asset, seen by a second window; start page opens the last chart
+           - live: candles appended to files of a temporary output root reach two open charts
+             without a page load; the current 1h candle follows the 15m candles and is replaced by
+             the closed one; a scrolled-back view does not move
+NF1        click to painted chart: worst 112 to 123 ms (the first change), median 76 ms; of that the
+           module (request and drawing) 13 to 30 ms. Target 150 ms. WSL, headless Chromium
+NF2        zoom, pan, crosshair: 60 frames per second (95 % of frames within 16.8 ms), 0 requests
+Docker     amd64 image: chart and start page work from the container, 57 MB of 512 MB
+Open       the Pi (deployment needs the owner's go-ahead); the owner's own look at the chart in a
+           real browser: the feel of zoom and pan cannot be judged from a script
+```
+
+Found on the way:
+
+- A styling rule for buttons overrode the `hidden` attribute, so the jump-to-latest button always
+  showed. Elements marked as hidden now stay hidden.
+- Reading the settings of an asset first tore the chart down on every asset change, which lost the
+  kept view. The chart now stays and switches once the settings are read.
+- PUT /api/settings replaced the settings as a whole; with the last chart in the same record the
+  settings page and a chart would have overwritten each other. A part that is null now stays.
+- The frame rate is capped at 60 by the headless browser and measured on a desktop machine; it
+  says that the chart is not the bottleneck, not what an old laptop does.
