@@ -143,4 +143,16 @@ Rules for the agent:
              the same day the Pi was switched to main (merge commit 6eba5cc) and rebuilt, again
              with DOWNLOADER_ENABLED=true; the assets the owner had added on the page meanwhile
              (ADAUSDT, VIRTUALUSDT) and their subscriptions were all there after the restart.
+
+2026-11-16   Epics Price Chart and Watchlists deployed by the agent at the owner's request: main at
+             commit 5ea6929, with DOWNLOADER_ENABLED=true (passed inline). The first build failed:
+             the chart module's folder src/data had never been committed, because the ignore rule
+             `data/` matched it (the builds on WSL had the files on disk). The rule now names only
+             `/data` at the root and the files are in the repository; the old container kept
+             running during that time. The arm64 image then built in 71 seconds. workspace.db was
+             upgraded from schema version 2 to 3 with the backup
+             workspace-20261116-191055-before-v3.db. The container is healthy and uses 65 MB of
+             512 MB; the three assets (ADAUSDT, BTCUSDT, VIRTUALUSDT) are in the Crypto watchlist
+             with their last prices. The Downloader reports no gaps for them, so the gap icons of
+             the chart are still not seen with real data.
 ```
