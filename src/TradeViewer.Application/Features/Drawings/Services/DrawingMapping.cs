@@ -18,7 +18,7 @@ public static class DrawingMapping
             drawing.Anchors.Select(anchor => new AnchorRecord(DateTimeOffset.FromUnixTimeSeconds(anchor.Time), anchor.Price)).ToList(),
             new DrawingStyleRecord(drawing.Style.Color, drawing.Style.Width, DrawingCodes.Code(drawing.Style.LineStyle), drawing.Style.Fill),
             drawing.Text,
-            drawing.Levels,
+            ToRecords(drawing.Levels),
             drawing.Wave == null ? null : ToRecord(drawing.Wave),
             drawing.PointLabels?.Select(label => new PointLabelRecord(label.Point, ToRecord(label.Mark))).ToList(),
             drawing.LineHidden);
@@ -92,7 +92,7 @@ public static class DrawingMapping
             record.Anchors!.Select(anchor => new Anchor(anchor.Time.ToUnixTimeSeconds(), anchor.Price)).ToList(),
             new DrawingStyle(record.Style!.Color, record.Style.Width, lineStyle, record.Style.Fill),
             record.Text,
-            record.Levels,
+            ToDomain(record.Levels),
             wave,
             pointLabels,
             record.LineHidden);
@@ -100,7 +100,18 @@ public static class DrawingMapping
 
     public static FibonacciPresetRecord ToRecord(FibonacciPreset preset)
     {
-        return new FibonacciPresetRecord(preset.Id, preset.Name, DrawingCodes.Code(preset.Kind), preset.Levels);
+        return new FibonacciPresetRecord(preset.Id, preset.Name, DrawingCodes.Code(preset.Kind), ToRecords(preset.Levels)!);
+    }
+
+    public static IReadOnlyList<FibonacciLevelRecord>? ToRecords(IReadOnlyList<FibonacciLevel>? levels)
+    {
+        return levels?.Select(level => new FibonacciLevelRecord(level.Ratio, level.Visible)).ToList();
+    }
+
+    /// <summary>The levels of a record; a missing level becomes a missing entry, which the rules refuse.</summary>
+    public static IReadOnlyList<FibonacciLevel>? ToDomain(IReadOnlyList<FibonacciLevelRecord>? levels)
+    {
+        return levels?.Select(level => level == null ? null! : new FibonacciLevel(level.Ratio, level.Visible)).ToList();
     }
 
     private static WaveMarkRecord ToRecord(WaveMark mark)

@@ -22,7 +22,7 @@ public sealed record Drawing(
     IReadOnlyList<Anchor> Anchors,
     DrawingStyle Style,
     string? Text = null,
-    IReadOnlyList<double>? Levels = null,
+    IReadOnlyList<FibonacciLevel>? Levels = null,
     WaveMark? Wave = null,
     IReadOnlyList<PointLabel>? PointLabels = null,
     bool LineHidden = false);

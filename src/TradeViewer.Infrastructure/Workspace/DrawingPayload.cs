@@ -22,7 +22,7 @@ internal static class DrawingPayload
             drawing.Anchors.Select(anchor => new StoredAnchor(anchor.Time, anchor.Price)).ToList(),
             new StoredStyle(drawing.Style.Color, drawing.Style.Width, DrawingCodes.Code(drawing.Style.LineStyle), drawing.Style.Fill),
             drawing.Text,
-            drawing.Levels?.ToList(),
+            StoredLevels.Write(drawing.Levels),
             drawing.Wave == null ? null : Stored(drawing.Wave),
             drawing.PointLabels?.Select(label => new StoredPointLabel(label.Point, Stored(label.Mark))).ToList(),
             drawing.LineHidden ? true : null);
@@ -59,6 +59,12 @@ internal static class DrawingPayload
             return null;
         }
 
+        var levels = StoredLevels.Read(payload.Levels, out var levelsReadable);
+        if (!levelsReadable)
+        {
+            return null;
+        }
+
         List<PointLabel>? pointLabels = null;
         if (payload.PointLabels != null)
         {
@@ -84,7 +90,7 @@ internal static class DrawingPayload
             payload.Anchors.Select(anchor => new Anchor(anchor.Time, anchor.Price)).ToList(),
             new DrawingStyle(payload.Style.Color, payload.Style.Width, lineStyle, payload.Style.Fill),
             payload.Text,
-            payload.Levels,
+            levels,
             wave,
             pointLabels,
             payload.LineHidden == true);
@@ -112,7 +118,7 @@ internal static class DrawingPayload
         List<StoredAnchor>? Anchors,
         StoredStyle? Style,
         string? Text,
-        List<double>? Levels,
+        JsonElement? Levels,
         StoredMark? Wave,
         List<StoredPointLabel>? PointLabels,
         bool? LineHidden);

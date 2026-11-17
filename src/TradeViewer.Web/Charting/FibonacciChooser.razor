@@ -6,7 +6,7 @@
         <select title="Preset" value="@Selected" @onchange="e => OnChanged.InvokeAsync(Guid.TryParse(e.Value?.ToString(), out var id) ? id : Selected)">
             @foreach (var preset in Presets)
             {
-                <option value="@preset.Id">@preset.Name: @string.Join("  ", preset.Levels.Select(level => level.ToString(System.Globalization.CultureInfo.InvariantCulture)))</option>
+                <option value="@preset.Id">@preset.Name: @string.Join("  ", preset.Levels.Where(level => level.Visible).Select(level => level.Ratio.ToString(System.Globalization.CultureInfo.InvariantCulture)))</option>
             }
         </select>
     </label>

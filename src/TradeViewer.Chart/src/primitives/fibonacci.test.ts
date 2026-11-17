@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultStyle, type Drawing } from "./drawing";
-import { fibonacciLevels, levelsOf, ratioText } from "./fibonacci";
+import { fibonacciLevels, levelSpan, levelsOf, ratioText } from "./fibonacci";
 import { shapeOf } from "./shapes";
 
 const RETRACEMENT = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
@@ -80,7 +80,7 @@ describe("the Fibonacci shapes", () => {
     expect(shapeOf("fibonacciExtension")!.anchors).toBe(3);
   });
 
-  it("are hit on a level up to the right edge, not left of the anchors", () => {
+  it("are hit on a level between the first and the last anchor only, as in TradingView", () => {
     const shape = shapeOf("fibonacciRetracement")!;
     const points = [
       { x: 100, y: 500 },
@@ -88,13 +88,35 @@ describe("the Fibonacci shapes", () => {
     ];
     const fib = drawing("fibonacciRetracement", RETRACEMENT);
 
-    expect(shape.hits({ x: 900, y: 302 }, points, pane, fib)).toBe(true); // level 0.5 far to the right
-    expect(shape.hits({ x: 50, y: 300 }, points, pane, fib)).toBe(false);
-    expect(shape.hits({ x: 900, y: 330 }, points, pane, fib)).toBe(false); // between two levels
+    expect(shape.hits({ x: 250, y: 302 }, points, pane, fib)).toBe(true); // level 0.5
+    expect(shape.hits({ x: 900, y: 302 }, points, pane, fib)).toBe(false); // right of the last anchor
+    expect(shape.hits({ x: 50, y: 300 }, points, pane, fib)).toBe(false); // left of the first
+    expect(shape.hits({ x: 250, y: 330 }, points, pane, fib)).toBe(false); // between two levels
+  });
+
+  it("span from the leftmost to the rightmost anchor, also when drawn from right to left", () => {
+    expect(levelSpan([{ x: 300 }, { x: 100 }])).toEqual({ left: 100, right: 300 });
+    expect(levelSpan([{ x: 100 }, { x: 200 }, { x: 400 }])).toEqual({ left: 100, right: 400 });
+  });
+
+  it("draw only the levels switched on, and read plain numbers as levels that are shown", () => {
+    expect(levelsOf([{ ratio: 0, visible: true }, { ratio: 0.5, visible: false }, { ratio: 1 }])).toEqual([0, 1]);
+    expect(levelsOf([0.5, 1])).toEqual([0.5, 1]);
+  });
+
+  it("are not hit on a level that is switched off", () => {
+    const shape = shapeOf("fibonacciRetracement")!;
+    const points = [
+      { x: 100, y: 500 },
+      { x: 300, y: 100 },
+    ];
+    const fib = drawing("fibonacciRetracement", [{ ratio: 0, visible: true }, { ratio: 0.5, visible: false }, { ratio: 1, visible: true }]);
+
+    expect(shape.hits({ x: 250, y: 300 }, points, pane, fib)).toBe(false);
   });
 
   it("ignore levels that are not numbers", () => {
-    expect(levelsOf([0.5, "x", Number.NaN, 1])).toEqual([0.5, 1]);
+    expect(levelsOf([0.5, "x", Number.NaN, 1, { ratio: "y" }])).toEqual([0.5, 1]);
     expect(levelsOf(undefined)).toEqual([]);
   });
 

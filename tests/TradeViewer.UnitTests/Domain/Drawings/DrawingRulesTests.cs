@@ -147,8 +147,8 @@ public class DrawingRulesTests
     public void A_Fibonacci_drawing_needs_its_levels_and_no_other_tool_has_any()
     {
         var withoutLevels = Valid(DrawingTool.FibonacciRetracement) with { Levels = null };
-        var twice = Valid(DrawingTool.FibonacciRetracement) with { Levels = new[] { 0.5, 0.5 } };
-        var lineWithLevels = Valid(DrawingTool.TrendLine) with { Levels = new[] { 0.5 } };
+        var twice = Valid(DrawingTool.FibonacciRetracement) with { Levels = new[] { new FibonacciLevel(0.5), new FibonacciLevel(0.5) } };
+        var lineWithLevels = Valid(DrawingTool.TrendLine) with { Levels = new[] { new FibonacciLevel(0.5) } };
 
         Assert.Contains("levels", DrawingRules.Check(withoutLevels).Keys);
         Assert.Contains("levels", DrawingRules.Check(twice).Keys);

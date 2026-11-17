@@ -2,7 +2,9 @@ import { defaultStyle, NEW_NOTE_TEXT, type Anchor, type Drawing, type DrawingSty
 import { HANDLE_HIT, type PaneSize } from "../primitives/shape";
 import { shapeOf } from "../primitives/shapes";
 import { hasDragged, movedAnchors, type AnchorStart } from "./drag";
-import type { WaveSide } from "../primitives/waveNotation";
+import { labelsOf } from "../primitives/shapes/polyline";
+import { WAVE_DEGREES, type WaveDegree, type WaveSide } from "../primitives/waveNotation";
+import { patternLabels, withSides } from "../primitives/wavePatterns";
 import type { Point } from "./geometry";
 
 /** What the interaction needs of the chart: conversions between pixels and anchors, and a new frame. */
@@ -376,8 +378,8 @@ export class DrawingInteraction {
   finish(): boolean {
     const placing = this.placing;
     const shape = placing === undefined ? undefined : shapeOf(placing.tool);
-    if (placing === undefined || shape?.minimum === undefined || placing.anchors.length < shape.minimum) {
-      return false;
+    if (placing === undefined || shape?.minimum === undefined || placing.anchors.length < shape.minimum || patternOf(placing) !== undefined) {
+      return false; // a wave pattern ends by itself when all its points are placed
     }
 
     this.complete(this.newDrawing(this.newId(), placing, placing.anchors));
@@ -396,17 +398,18 @@ export class DrawingInteraction {
       return;
     }
 
-    // A second click on the last point (a double-click) ends a polyline.
+    // A second click on the last point (a double-click) ends a polyline; a wave pattern ends at its last point.
     const shape = shapeOf(placing.tool)!;
+    const pattern = patternOf(placing);
     const last = placing.anchors[placing.anchors.length - 1];
     const lastPoint = last === undefined ? undefined : this.surface.pointOf(last);
-    if (shape.minimum !== undefined && lastPoint !== undefined && Math.hypot(lastPoint.x - point.x, lastPoint.y - point.y) <= DOUBLE_CLICK_REACH) {
+    if (pattern === undefined && shape.minimum !== undefined && lastPoint !== undefined && Math.hypot(lastPoint.x - point.x, lastPoint.y - point.y) <= DOUBLE_CLICK_REACH) {
       this.finish();
       return;
     }
 
     placing.anchors.push(anchor);
-    if (placing.anchors.length < shape.anchors) {
+    if (placing.anchors.length < (pattern === undefined ? shape.anchors : pattern.labels.length + 1)) {
       this.surface.redraw();
       return;
     }
@@ -440,7 +443,14 @@ export class DrawingInteraction {
   }
 
   private newDrawing(id: string, placing: Placing, anchors: readonly Anchor[]): Drawing {
-    const drawing: Drawing = { ...placing.extras, id, tool: placing.tool, locked: false, anchors: [...anchors], style: placing.style };
+    // A wave pattern is a polyline with labels on its points; its pattern and degree are not part of the record.
+    const pattern = patternOf(placing);
+    const { pattern: _pattern, degree: _degree, ...extras } = placing.extras;
+    const drawing: Drawing = { ...extras, id, tool: placing.tool, locked: false, anchors: [...anchors], style: placing.style };
+    if (pattern !== undefined) {
+      return { ...drawing, pointLabels: patternLabels(anchors, pattern.labels, pattern.degree) };
+    }
+
     return placing.tool === "textNote" ? { ...drawing, text: NEW_NOTE_TEXT } : drawing;
   }
 
@@ -523,7 +533,9 @@ export class DrawingInteraction {
       anchors.push(anchor);
     }
 
-    return { ...original, anchors };
+    // The labels on the points of a polyline stay above the highs and below the lows when a point moves.
+    const labels = labelsOf(original);
+    return labels.length === 0 ? { ...original, anchors } : { ...original, anchors, pointLabels: withSides(anchors, labels) };
   }
 
   private cancelGesture(): void {
@@ -564,4 +576,15 @@ function changedAnchors(before: Drawing, after: Drawing): number[] {
   });
 
   return changed;
+}
+
+/** The wave pattern being placed: the labels of its points after the start, and their degree (DR5). */
+function patternOf(placing: Placing): { readonly labels: readonly string[]; readonly degree: WaveDegree } | undefined {
+  const labels = placing.extras["pattern"];
+  const degree = placing.extras["degree"];
+  if (placing.tool !== "polyline" || !Array.isArray(labels) || labels.length === 0 || !WAVE_DEGREES.includes(degree as WaveDegree)) {
+    return undefined;
+  }
+
+  return { labels: labels.filter((label): label is string => typeof label === "string"), degree: degree as WaveDegree };
 }

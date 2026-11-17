@@ -1,5 +1,6 @@
 using TradeViewer.Application.Abstractions.Messaging;
 using TradeViewer.Application.Features.Drawings.Commands;
+using TradeViewer.Application.Features.Drawings.Services;
 using TradeViewer.Domain.Drawings;
 
 namespace TradeViewer.Application.Features.Drawings.Validators;
@@ -28,7 +29,8 @@ public sealed class SaveFibonacciPresetCommandValidator
         }
         else
         {
-            var candidate = new FibonacciPreset(record.Id, record.Name?.Trim() ?? "", kind, record.Levels?.OrderBy(level => level).ToList() ?? new List<double>());
+            var levels = DrawingMapping.ToDomain(record.Levels)?.OrderBy(level => level.Ratio).ToList() ?? new List<FibonacciLevel>();
+            var candidate = new FibonacciPreset(record.Id, record.Name?.Trim() ?? "", kind, levels);
             foreach (var problem in FibonacciPresets.Check(candidate))
             {
                 problems[problem.Key] = problem.Value;

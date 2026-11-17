@@ -59,3 +59,11 @@ describe("labelBox", () => {
     expect(below.to.x - below.from.x).toBeGreaterThanOrEqual(below.to.y - below.from.y);
   });
 });
+
+describe("Z", () => {
+  it("is written like the other letters of its degree", () => {
+    expect(written("minor", "W", "X", "Y", "X", "Z")).toBe("W X Y X Z");
+    expect(written("minute", "Z")).toBe("((z))");
+    expect(written("intermediate", "Z")).toBe("(Z)");
+  });
+});

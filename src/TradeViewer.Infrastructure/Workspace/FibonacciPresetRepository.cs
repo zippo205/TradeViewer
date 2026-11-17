@@ -57,7 +57,7 @@ public sealed class FibonacciPresetRepository : IFibonacciPresetRepository
         command.Parameters.AddWithValue("$id", preset.Id.ToString("D"));
         command.Parameters.AddWithValue("$name", preset.Name);
         command.Parameters.AddWithValue("$kind", DrawingCodes.Code(preset.Kind));
-        command.Parameters.AddWithValue("$levels", JsonSerializer.Serialize(preset.Levels));
+        command.Parameters.AddWithValue("$levels", StoredLevels.WriteText(preset.Levels));
         command.Parameters.AddWithValue("$updatedAt", _time.GetUtcNow().UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture));
         command.ExecuteNonQuery();
     }
@@ -79,14 +79,7 @@ public sealed class FibonacciPresetRepository : IFibonacciPresetRepository
             return null;
         }
 
-        try
-        {
-            var levels = JsonSerializer.Deserialize<List<double>>(reader.GetString(3));
-            return levels == null ? null : new FibonacciPreset(id, reader.GetString(1), kind, levels);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        var levels = StoredLevels.ReadText(reader.GetString(3), out var readable);
+        return !readable || levels == null ? null : new FibonacciPreset(id, reader.GetString(1), kind, levels);
     }
 }

@@ -20,7 +20,7 @@ public sealed record ChartDrawing(
     int? Version = null,
     string? Source = null,
     string? Symbol = null,
-    IReadOnlyList<double>? Levels = null,
+    IReadOnlyList<FibonacciLevelRecord>? Levels = null,
     WaveMarkRecord? Wave = null,
     IReadOnlyList<PointLabelRecord>? PointLabels = null,
     bool? LineHidden = null);

@@ -531,3 +531,69 @@ describe("exact times (step 9)", () => {
     expect(created).toEqual([expect.objectContaining({ id: "f", anchors: [anchor(10, 400)] })]);
   });
 });
+
+describe("Elliott wave patterns (DR5)", () => {
+  const impulse = { pattern: ["1", "2", "3", "4", "5"], degree: "primary" };
+
+  it("an impulse is a polyline of six points, labelled 1 to 5, finished at its last point", () => {
+    interaction.setTool("polyline", undefined, impulse);
+    const prices = [400, 500, 450, 600, 550, 650];
+    prices.forEach((price, index) => click(at(10 + index * 5, price)));
+
+    expect(reported).toHaveLength(1);
+    const drawing = reported[0]!;
+    expect(drawing.tool).toBe("polyline");
+    expect(drawing.anchors).toHaveLength(6);
+    expect(drawing["pointLabels"]).toEqual([
+      { point: 1, mark: { degree: "primary", label: "1", side: "above" } },
+      { point: 2, mark: { degree: "primary", label: "2", side: "below" } },
+      { point: 3, mark: { degree: "primary", label: "3", side: "above" } },
+      { point: 4, mark: { degree: "primary", label: "4", side: "below" } },
+      { point: 5, mark: { degree: "primary", label: "5", side: "above" } },
+    ]);
+    expect(drawing["pattern"]).toBeUndefined(); // the record holds the labels, not the pattern
+    expect(interaction.tool()).toBeUndefined();
+  });
+
+  it("Enter and a double-click do not end a pattern early", () => {
+    interaction.setTool("polyline", undefined, { pattern: ["A", "B", "C"], degree: "minor" });
+    click(at(10, 600));
+    click(at(15, 500));
+    expect(interaction.finish()).toBe(false);
+    click(at(15, 500)); // a second click on the same point is the next point of the pattern
+    expect(reported).toEqual([]);
+    click(at(20, 450));
+
+    expect(reported[0]!.anchors).toHaveLength(4);
+  });
+
+  it("shows the labels of the points placed so far while placing", () => {
+    interaction.setTool("polyline", undefined, { pattern: ["W", "X", "Y", "X", "Z"], degree: "minor" });
+    click(at(10, 400));
+    interaction.pointerMove(at(15, 500));
+
+    expect(interaction.preview()?.["pointLabels"]).toEqual([{ point: 1, mark: { degree: "minor", label: "W", side: "above" } }]);
+  });
+
+  it("keeps the labels above highs and below lows when a point is reshaped", () => {
+    const count: Drawing = {
+      id: "c",
+      tool: "polyline",
+      locked: false,
+      anchors: [anchor(10, 400), anchor(15, 500), anchor(20, 450)],
+      style: defaultStyle("polyline"),
+      pointLabels: [
+        { point: 1, mark: { degree: "minor", label: "1", side: "above" } },
+        { point: 2, mark: { degree: "minor", label: "2", side: "below" } },
+      ],
+    };
+    interaction.setDrawings([count]);
+    interaction.select("c");
+    drag(at(15, 500), at(15, 300)); // point 1 now below the start
+
+    expect(reported[0]!["pointLabels"]).toEqual([
+      { point: 1, mark: { degree: "minor", label: "1", side: "below" } },
+      { point: 2, mark: { degree: "minor", label: "2", side: "above" } },
+    ]);
+  });
+});

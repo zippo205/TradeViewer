@@ -3,15 +3,39 @@
 <nav class="tool-rail" aria-label="Drawing tools">
     @foreach (var tool in Tools)
     {
+        var active = Tool == tool.Code && !(tool.Code == "polyline" && Pattern != null);
         <button type="button"
-                class="@(Tool == tool.Code ? "selected" : "")"
+                class="@(active ? "selected" : "")"
                 title="@tool.Title"
-                aria-pressed="@(Tool == tool.Code ? "true" : "false")"
+                aria-pressed="@(active ? "true" : "false")"
                 disabled="@(Hidden && tool.Code != null)"
-                @onclick="() => OnTool.InvokeAsync(tool.Code)">
+                @onclick="() => { _open = false; return OnTool.InvokeAsync(tool.Code); }">
             <svg viewBox="0 0 20 20" aria-hidden="true">@((MarkupString)tool.Icon)</svg>
         </button>
     }
+
+    @* The Elliott wave patterns as one group, as in TradingView: the button shows the pattern used last and
+       opens the list of all five. *@
+    <div class="tool-group">
+        <button type="button" class="@(Pattern != null ? "selected" : "")" title="Elliott waves: @Shown.Title"
+                aria-haspopup="true" aria-expanded="@(_open ? "true" : "false")" disabled="@Hidden"
+                @onclick="() => _open = !_open">
+            <svg viewBox="0 0 20 20" aria-hidden="true">@((MarkupString)Shown.Icon)</svg>
+            <span class="tool-group-mark" aria-hidden="true"></span>
+        </button>
+        @if (_open)
+        {
+            <div class="tool-flyout" role="menu" aria-label="Elliott waves">
+                @foreach (var pattern in WavePatterns.All)
+                {
+                    <button type="button" role="menuitem" class="@(Pattern == pattern.Code ? "selected" : "")" @onclick="() => ChooseAsync(pattern)">
+                        <svg viewBox="0 0 20 20" aria-hidden="true">@((MarkupString)pattern.Icon)</svg>
+                        <span>@pattern.Title</span>
+                    </button>
+                }
+            </div>
+        }
+    </div>
 
     <span class="tool-rail-gap"></span>
 
@@ -64,8 +88,29 @@
     };
 
     /// <summary>The tool in use; null for the pointer.</summary>
+    private bool _open;
+
     [Parameter]
     public string? Tool { get; set; }
+
+    /// <summary>The wave pattern in use; null when none is.</summary>
+    [Parameter]
+    public string? Pattern { get; set; }
+
+    /// <summary>The pattern the group button shows: the one used last, the impulse before any.</summary>
+    [Parameter]
+    public string? LastPattern { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnPattern { get; set; }
+
+    private WavePattern Shown => WavePatterns.Find(Pattern ?? LastPattern) ?? WavePatterns.All[0];
+
+    private Task ChooseAsync(WavePattern pattern)
+    {
+        _open = false;
+        return OnPattern.InvokeAsync(pattern.Code);
+    }
 
     [Parameter]
     public bool Magnet { get; set; }

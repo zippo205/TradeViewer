@@ -355,6 +355,42 @@ headless browser for what only a browser shows (dragging, the bar, the keys).
 - In all: 372 unit, 19 architecture, 186 integration and 192 Vitest tests pass; `dotnet format`
   clean.
 
+# Changes after the Owner's Look (2026-11-17)
+
+The owner asked, after looking at the epic in Docker:
+
+1. Fibonacci as in TradingView: levels switched on and off, and the levels from the first to the
+   last click instead of to the right edge.
+2. Elliott wave patterns as in TradingView, under one group button: 1-2-3-4-5, A-B-C, W-X-Y,
+   W-X-Y-X-Z, A-B-C-D-E; labels on by default, the line can be switched off; icons like
+   TradingView's.
+
+Done (DR4 and DR5 changed first, then architecture chapters 5 and 10):
+
+- Domain `FibonacciLevel` (ratio, on or off) for presets and drawings; default presets with the
+  levels of DR4 on and further ones off (retracement 1.272, 1.414, 1.618, 2, 2.618; extension 0,
+  0.382, 0.5, 0.618, 0.786, 4.236, chosen after TradingView's list); Contracts
+  `FibonacciLevelRecord`. Stored as `{ratio, visible}`; plain numbers, stored before, are read as
+  levels that are on (`StoredLevels`); script 0005 gives the default presets their levels that are
+  off, only where the user has not changed them. Payload version stays 1: the epic is not merged
+  and the reader takes both shapes.
+- Chart module: only levels that are on are drawn and hit, from the leftmost to the rightmost anchor.
+  Web: a "levels" panel in the bar of a Fibonacci drawing; the presets on the settings page as
+  levels with a check box each, a field to add one (Enter) and a button to remove one.
+- Z added to the labels (Domain, module, Web; Next: Y to Z, Z to W). `primitives/wavePatterns.ts`:
+  labels for the points of a pattern and their sides; the interaction places a pattern as a
+  polyline with `pattern` and `degree` extras, ends it at its last point (Enter and double-click
+  do not end it early) and gives reshaped polylines' labels their sides again. Web: `WavePatterns`
+  (five patterns with icons), a group button with a flyout on the rail showing the pattern used
+  last, the chooser in degree-only mode, and the degree of a whole count in the bar.
+- Found while checking: Enter in the "add a level" field did nothing, because the field was bound
+  on change (which comes after the key); it is bound on input now.
+- Tests: 375 unit (Z, presets on and off), 188 integration (old plain-number levels read; the
+  upgrade leaves an edited preset alone), 204 Vitest (levels on and off, the span, patterns, sides
+  after a reshape, Z). Headless browser: `fib-check.mjs` rewritten for levels on and off,
+  `elliott-check.mjs` new (the flyout, all five patterns, primary degree, line off, degree of a
+  count, sides after a reshape, Enter does not end a pattern); all eight checks pass.
+
 ---
 
 # Proposals

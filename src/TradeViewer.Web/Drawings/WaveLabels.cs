@@ -26,12 +26,12 @@ public static class WaveLabels
         ("subminuette", "Subminuette")
     };
 
-    public static IReadOnlyList<string> Labels { get; } = new[] { "1", "2", "3", "4", "5", "A", "B", "C", "D", "E", "W", "X", "Y" };
+    public static IReadOnlyList<string> Labels { get; } = new[] { "1", "2", "3", "4", "5", "A", "B", "C", "D", "E", "W", "X", "Y", "Z" };
 
     /// <summary>The degree a new count starts with.</summary>
     public const string FirstDegree = "minor";
 
-    /// <summary>The label the chooser offers after this one: 1 to 5, A to E, W to Y, each run starting again.</summary>
+    /// <summary>The label the chooser offers after this one: 1 to 5, A to E, W to Z, each run starting again.</summary>
     public static string Next(string label)
     {
         switch (label)
@@ -40,7 +40,7 @@ public static class WaveLabels
                 return "1";
             case "E":
                 return "A";
-            case "Y":
+            case "Z":
                 return "W";
             default:
                 var index = IndexOf(Labels, label);

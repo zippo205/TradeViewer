@@ -1,14 +1,14 @@
 import { hitsSegment, type Point } from "../../tools/geometry";
 import type { Drawing } from "../drawing";
-import { fibonacciLevels, levelsOf, ratioText } from "../fibonacci";
+import { fibonacciLevels, levelSpan, levelsOf, ratioText } from "../fibonacci";
 import { drawHandles, moveAnchor, strokeLine, strokeStyle, tolerance, type Look, type PaneSize, type Shape } from "../shape";
 
 const FONT = `11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
 
 /**
  * Fibonacci retracement (2 anchors) or extension (3 anchors), DR4. Its levels are those copied from the preset
- * when it was drawn. Each level is a line from the leftmost anchor to the right edge of the chart with its ratio
- * and price at the left end; a dashed line joins the anchors. One colour for all levels.
+ * when it was drawn; only those switched on are drawn. Each level is a line from the first to the last anchor (left to
+ * right), as in TradingView, with its ratio and price at its left end; a dashed line joins the anchors. One colour.
  */
 export class FibonacciShape implements Shape {
   readonly anchors: number;
@@ -30,14 +30,14 @@ export class FibonacciShape implements Shape {
 
     const levels = fibonacciLevels(points, this.extension, levelsOf(drawing["levels"]));
     if (levels !== undefined) {
-      const left = Math.min(...points.map((point) => point.x));
+      const { left, right } = levelSpan(points);
       strokeStyle(context, drawing);
       context.font = FONT;
       context.textAlign = "left";
       context.textBaseline = "bottom";
       context.fillStyle = drawing.style.color;
       for (const level of levels) {
-        strokeLine(context, { x: left, y: level.y }, { x: pane.width, y: level.y });
+        strokeLine(context, { x: left, y: level.y }, { x: right, y: level.y });
         const price = look.priceText?.(level.y);
         context.fillText(price === undefined ? ratioText(level.ratio) : `${ratioText(level.ratio)} (${price})`, left + 3, level.y - 2);
       }
@@ -61,8 +61,8 @@ export class FibonacciShape implements Shape {
       return false;
     }
 
-    const left = Math.min(...points.map((at) => at.x));
-    return levels.some((level) => hitsSegment(point, { x: left, y: level.y }, { x: pane.width, y: level.y }, reach));
+    const { left, right } = levelSpan(points);
+    return levels.some((level) => hitsSegment(point, { x: left, y: level.y }, { x: right, y: level.y }, reach));
   }
 
   handles(points: readonly Point[]): Point[] {

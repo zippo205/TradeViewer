@@ -1,5 +1,5 @@
 // The notation of the wave labels (DR5), the same table as WaveNotation in the Domain: each degree writes the
-// labels 1-5 and A-E, W, X, Y in its own form. Double brackets, such as ((1)), are drawn as a circle.
+// labels 1-5 and A-E, W, X, Y, Z in its own form. Double brackets, such as ((1)), are drawn as a circle.
 
 export type WaveDegree =
   | "grandSupercycle"
@@ -41,7 +41,7 @@ export const WAVE_DEGREES: readonly WaveDegree[] = [
   "subminuette",
 ];
 
-export const WAVE_LABELS: readonly string[] = ["1", "2", "3", "4", "5", "A", "B", "C", "D", "E", "W", "X", "Y"];
+export const WAVE_LABELS: readonly string[] = ["1", "2", "3", "4", "5", "A", "B", "C", "D", "E", "W", "X", "Y", "Z"];
 
 const UPPER_ROMAN = ["I", "II", "III", "IV", "V"];
 const LOWER_ROMAN = ["i", "ii", "iii", "iv", "v"];

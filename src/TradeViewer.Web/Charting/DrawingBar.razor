@@ -73,27 +73,44 @@
                    @onchange="e => Edit(Drawing with { LineHidden = e.Value is not true })" />
             line
         </label>
-        <select title="Degree of the labels" @bind="_countDegree" disabled="@Drawing.Locked">
-            @foreach (var degree in WaveLabels.Degrees)
-            {
-                <option value="@degree.Code">@degree.Title</option>
-            }
-        </select>
-        <select title="Label of the second point" @bind="_countFirst" disabled="@Drawing.Locked">
-            @foreach (var label in WaveLabels.Labels)
-            {
-                <option value="@label">@WaveLabels.Written(_countDegree, label)</option>
-            }
-        </select>
-        <button type="button" title="Label the points after the first: highs above, lows below" disabled="@Drawing.Locked"
-                @onclick="() => Edit(Drawing with { PointLabels = WaveLabels.ForPoints(Drawing.Anchors, _countDegree, _countFirst) })">
-            label points
-        </button>
         @if (Drawing.PointLabels?.Count > 0)
         {
+            @* A count (a wave pattern, or labelled points): its degree is changed for all its labels at once. *@
+            <select title="Degree of the labels" value="@Drawing.PointLabels[0].Mark.Degree" disabled="@Drawing.Locked"
+                    @onchange="e => SetCountDegree(e.Value?.ToString())">
+                @foreach (var degree in WaveLabels.Degrees)
+                {
+                    <option value="@degree.Code">@degree.Title</option>
+                }
+            </select>
             <button type="button" title="Remove the labels of the points" disabled="@Drawing.Locked"
                     @onclick="() => Edit(Drawing with { PointLabels = null })">no labels</button>
         }
+        else
+        {
+            <select title="Degree of the labels" @bind="_countDegree" disabled="@Drawing.Locked">
+                @foreach (var degree in WaveLabels.Degrees)
+                {
+                    <option value="@degree.Code">@degree.Title</option>
+                }
+            </select>
+            <select title="Label of the second point" @bind="_countFirst" disabled="@Drawing.Locked">
+                @foreach (var label in WaveLabels.Labels)
+                {
+                    <option value="@label">@WaveLabels.Written(_countDegree, label)</option>
+                }
+            </select>
+            <button type="button" title="Label the points after the first: highs above, lows below" disabled="@Drawing.Locked"
+                    @onclick="() => Edit(Drawing with { PointLabels = WaveLabels.ForPoints(Drawing.Anchors, _countDegree, _countFirst) })">
+                label points
+            </button>
+        }
+    }
+
+    @if (Drawing.Levels != null)
+    {
+        <button type="button" class="@(_levelsOpen ? "selected" : "")" title="Switch the levels of this drawing on and off"
+                aria-expanded="@(_levelsOpen ? "true" : "false")" @onclick="() => _levelsOpen = !_levelsOpen">levels</button>
     }
 
     <button type="button" class="@(Drawing.Locked ? "selected" : "")" aria-pressed="@(Drawing.Locked ? "true" : "false")"
@@ -102,6 +119,22 @@
         @(Drawing.Locked ? "locked" : "lock")
     </button>
     <button type="button" class="danger" title="Delete (Del)" disabled="@Drawing.Locked" @onclick="OnDelete">delete</button>
+
+    @if (_levelsOpen && Drawing.Levels != null)
+    {
+        @* The levels of this drawing, each on or off (DR4); the preset it came from does not change. *@
+        <div class="drawing-bar-levels" role="group" aria-label="Levels">
+            @for (var index = 0; index < Drawing.Levels.Count; index++)
+            {
+                var at = index;
+                var level = Drawing.Levels[at];
+                <label class="preset-level @(level.Visible ? "" : "off")">
+                    <input type="checkbox" checked="@level.Visible" disabled="@Drawing.Locked" @onchange="e => SetLevel(at, e.Value is true)" />
+                    @level.Ratio.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                </label>
+            }
+        </div>
+    }
 </div>
 
 @code {
@@ -149,6 +182,27 @@
     {
         var fill = Drawing.Style.Fill == null ? null : Pale(color);
         return Edit(Drawing with { Style = Drawing.Style with { Color = color.ToUpperInvariant(), Fill = fill } });
+    }
+
+    private bool _levelsOpen;
+
+    /// <summary>A level of this Fibonacci drawing switched on or off.</summary>
+    private Task SetLevel(int index, bool visible)
+    {
+        var levels = Drawing.Levels!.Select((level, at) => at == index ? level with { Visible = visible } : level).ToList();
+        return Edit(Drawing with { Levels = levels });
+    }
+
+    /// <summary>All labels of a count take the degree.</summary>
+    private Task SetCountDegree(string? degree)
+    {
+        if (degree == null || Drawing.PointLabels == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var labels = Drawing.PointLabels.Select(label => label with { Mark = label.Mark with { Degree = degree } }).ToList();
+        return Edit(Drawing with { PointLabels = labels });
     }
 
     /// <summary>The label goes to the other side of its candle: from the high to the low, or back.</summary>

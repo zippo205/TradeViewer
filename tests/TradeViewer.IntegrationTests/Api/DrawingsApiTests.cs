@@ -153,17 +153,18 @@ public class DrawingsApiTests : IAsyncLifetime
     {
         var defaults = await _client.GetFromJsonAsync<List<FibonacciPresetRecord>>("/api/fibonacci-presets");
         var id = Guid.NewGuid();
-        var put = await _client.PutAsJsonAsync("/api/fibonacci-presets/" + id, new FibonacciPresetRecord(id, "Golden", "extension", new[] { 1.618, 1 }));
+        var put = await _client.PutAsJsonAsync("/api/fibonacci-presets/" + id, new FibonacciPresetRecord(id, "Golden", "extension", new[] { new FibonacciLevelRecord(1.618), new FibonacciLevelRecord(1, false) }));
         var saved = await put.Content.ReadFromJsonAsync<FibonacciPresetRecord>();
-        var invalid = await _client.PutAsJsonAsync("/api/fibonacci-presets/" + id, new FibonacciPresetRecord(id, "", "extension", new[] { 1.0 }));
+        var invalid = await _client.PutAsJsonAsync("/api/fibonacci-presets/" + id, new FibonacciPresetRecord(id, "", "extension", new[] { new FibonacciLevelRecord(1.0) }));
         var retracement = defaults!.Single(preset => preset.Kind == "retracement");
         var deleteLast = await _client.DeleteAsync("/api/fibonacci-presets/" + retracement.Id);
         var deleteMine = await _client.DeleteAsync("/api/fibonacci-presets/" + id);
 
         Assert.Equal(new[] { "Retracement", "Extension" }, defaults!.Select(preset => preset.Name));
-        Assert.Equal(new[] { 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1 }, retracement.Levels);
+        Assert.Equal(new[] { 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1 }, retracement.Levels.Where(level => level.Visible).Select(level => level.Ratio));
+        Assert.Equal(new[] { 1.272, 1.414, 1.618, 2, 2.618 }, retracement.Levels.Where(level => !level.Visible).Select(level => level.Ratio));
         Assert.Equal(HttpStatusCode.OK, put.StatusCode);
-        Assert.Equal(new[] { 1, 1.618 }, saved!.Levels);
+        Assert.Equal(new[] { new FibonacciLevelRecord(1, false), new FibonacciLevelRecord(1.618) }, saved!.Levels); // in order, each on or off as sent
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, deleteLast.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, deleteMine.StatusCode);

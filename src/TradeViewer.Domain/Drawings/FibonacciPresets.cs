@@ -11,19 +11,22 @@ public static class FibonacciPresets
 
     public const int MaxNameLength = 60;
 
-    /// <summary>The default retracement: 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.</summary>
+    /// <summary>
+    /// The default retracement: 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1 shown; 1.272, 1.414, 1.618, 2, 2.618 there to
+    /// be switched on (DR4, as in TradingView).
+    /// </summary>
     public static FibonacciPreset Retracement { get; } = new FibonacciPreset(
         new Guid("6c0f3b1e-5d2a-4c1b-9a7e-000000000001"),
         "Retracement",
         FibonacciKind.Retracement,
-        new[] { 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1 });
+        Levels(new[] { 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1 }, new[] { 1.272, 1.414, 1.618, 2, 2.618 }));
 
-    /// <summary>The default extension: 1, 1.272, 1.618, 2, 2.618, 3.618.</summary>
+    /// <summary>The default extension: 1, 1.272, 1.618, 2, 2.618, 3.618 shown; 0, 0.382, 0.5, 0.618, 0.786, 4.236 off.</summary>
     public static FibonacciPreset Extension { get; } = new FibonacciPreset(
         new Guid("6c0f3b1e-5d2a-4c1b-9a7e-000000000002"),
         "Extension",
         FibonacciKind.Extension,
-        new[] { 1, 1.272, 1.618, 2, 2.618, 3.618 });
+        Levels(new[] { 1, 1.272, 1.618, 2, 2.618, 3.618 }, new[] { 0, 0.382, 0.5, 0.618, 0.786, 4.236 }));
 
     /// <summary>The presets a new workspace starts with.</summary>
     public static IReadOnlyList<FibonacciPreset> Defaults { get; } = new[] { Retracement, Extension };
@@ -61,8 +64,11 @@ public static class FibonacciPresets
         return problems;
     }
 
-    /// <summary>The problem of a list of levels, or null: one to <see cref="MaxLevels"/> finite ratios within ±<see cref="MaxRatio"/>, none twice.</summary>
-    public static string? CheckLevels(IReadOnlyList<double>? levels)
+    /// <summary>
+    /// The problem of a list of levels, or null: one to <see cref="MaxLevels"/> finite ratios within ±<see cref="MaxRatio"/>,
+    /// none twice. Levels may all be switched off: the drawing then shows its anchors only.
+    /// </summary>
+    public static string? CheckLevels(IReadOnlyList<FibonacciLevel>? levels)
     {
         if (levels == null || levels.Count == 0)
         {
@@ -74,16 +80,25 @@ public static class FibonacciPresets
             return $"At most {MaxLevels} levels are allowed.";
         }
 
-        if (levels.Any(level => !double.IsFinite(level) || Math.Abs(level) > MaxRatio))
+        if (levels.Any(level => level == null || !double.IsFinite(level.Ratio) || Math.Abs(level.Ratio) > MaxRatio))
         {
             return $"Every level is a number between -{MaxRatio} and {MaxRatio}.";
         }
 
-        if (levels.Distinct().Count() != levels.Count)
+        if (levels.Select(level => level.Ratio).Distinct().Count() != levels.Count)
         {
             return "A level may appear only once.";
         }
 
         return null;
+    }
+
+    /// <summary>The levels shown and those switched off, in the order of their ratios.</summary>
+    private static IReadOnlyList<FibonacciLevel> Levels(IEnumerable<double> shown, IEnumerable<double> off)
+    {
+        return shown.Select(ratio => new FibonacciLevel(ratio, true))
+            .Concat(off.Select(ratio => new FibonacciLevel(ratio, false)))
+            .OrderBy(level => level.Ratio)
+            .ToList();
     }
 }

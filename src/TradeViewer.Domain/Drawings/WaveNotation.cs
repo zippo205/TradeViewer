@@ -14,7 +14,7 @@ namespace TradeViewer.Domain.Drawings;
 /// Minuette           (i) ... (v)       (a) (b) (c)
 /// Subminuette        i ... v           a b c
 /// </code>
-/// W, X, Y and D, E take the form of the letters of the degree.
+/// W, X, Y, Z and D, E take the form of the letters of the degree.
 /// </summary>
 public static class WaveNotation
 {
@@ -22,7 +22,7 @@ public static class WaveNotation
     private static readonly string[] LowerRoman = { "i", "ii", "iii", "iv", "v" };
 
     /// <summary>The labels as they are stored: the five waves of a motive move, the letters of corrections and triangles, and those of combinations.</summary>
-    public static IReadOnlyList<string> Labels { get; } = new[] { "1", "2", "3", "4", "5", "A", "B", "C", "D", "E", "W", "X", "Y" };
+    public static IReadOnlyList<string> Labels { get; } = new[] { "1", "2", "3", "4", "5", "A", "B", "C", "D", "E", "W", "X", "Y", "Z" };
 
     /// <summary>All degrees, largest first.</summary>
     public static IReadOnlyList<WaveDegree> Degrees { get; } = new[]
@@ -39,7 +39,7 @@ public static class WaveNotation
 
     /// <summary>
     /// The label the chooser offers after this one has been placed (plan: "the chooser moves to the next
-    /// label"): 1 to 5, A to E, W to Y, each run starting again after its last label.
+    /// label"): 1 to 5, A to E, W to Z, each run starting again after its last label.
     /// </summary>
     public static string Next(string label)
     {
@@ -49,7 +49,7 @@ public static class WaveNotation
                 return "1";
             case "E":
                 return "A";
-            case "Y":
+            case "Z":
                 return "W";
             default:
                 for (var index = 0; index < Labels.Count; index++)

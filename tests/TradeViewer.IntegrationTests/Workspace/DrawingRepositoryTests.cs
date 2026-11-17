@@ -144,9 +144,9 @@ public class DrawingRepositoryTests : IDisposable
     [Fact]
     public async Task Presets_are_added_at_the_end_edited_in_place_and_deleted()
     {
-        var mine = new FibonacciPreset(Guid.NewGuid(), "Deep", FibonacciKind.Retracement, new[] { 0, 0.786, 0.886, 1 });
+        var mine = new FibonacciPreset(Guid.NewGuid(), "Deep", FibonacciKind.Retracement, Levels(0, 0.786, 0.886, 1));
         await _workspace.Presets.SaveAsync(mine, CancellationToken.None);
-        var edited = FibonacciPresets.Retracement with { Levels = new[] { 0, 0.382, 0.618, 1 } };
+        var edited = FibonacciPresets.Retracement with { Levels = Levels(0, 0.382, 0.618, 1) };
         await _workspace.Presets.SaveAsync(edited, CancellationToken.None);
 
         _workspace.Start();
@@ -166,7 +166,7 @@ public class DrawingRepositoryTests : IDisposable
         var drawing = Sample(DrawingTool.FibonacciRetracement, "BTCUSDT");
         await Save(drawing);
 
-        await _workspace.Presets.SaveAsync(FibonacciPresets.Retracement with { Levels = new[] { 0.5 } }, CancellationToken.None);
+        await _workspace.Presets.SaveAsync(FibonacciPresets.Retracement with { Levels = Levels(0.5) }, CancellationToken.None);
 
         var read = await _workspace.Drawings.GetAsync(drawing.Id, CancellationToken.None);
         Assert.Equal(FibonacciPresets.Retracement.Levels, read!.Levels);
@@ -211,10 +211,47 @@ public class DrawingRepositoryTests : IDisposable
         var version = older.Start();
 
         Assert.Equal(older.Schema.LatestVersion, version);
-        Assert.Contains(older.Store.List(), backup => backup.Name.EndsWith("-before-v4.db", StringComparison.Ordinal));
+        Assert.Contains(older.Store.List(), backup => backup.Name.EndsWith("-before-v" + older.Schema.LatestVersion + ".db", StringComparison.Ordinal));
         Assert.NotNull(await older.Assets.GetAsync("binance", "BTCUSDT", CancellationToken.None));
         Assert.Equal(2, (await older.Presets.GetAllAsync(CancellationToken.None)).Count);
         Assert.Equal(DrawingSaveResult.Saved, await older.Drawings.SaveAsync(Sample(DrawingTool.TrendLine, "BTCUSDT"), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Levels_stored_as_plain_numbers_before_they_could_be_switched_off_are_read_as_shown()
+    {
+        await AddAsset("BTCUSDT");
+        Execute("INSERT INTO drawings (id, source, symbol, tool, payload_version, payload, seq, updated_at) VALUES "
+            + "('44444444-4444-4444-4444-444444444444', 'binance', 'BTCUSDT', 'fibonacciRetracement', 1, "
+            + "'{\"locked\":false,\"anchors\":[{\"time\":1763164800,\"price\":100},{\"time\":1763251200,\"price\":120}],"
+            + "\"style\":{\"color\":\"#787B86\",\"width\":1,\"lineStyle\":\"solid\"},\"levels\":[0,0.5,1]}', 1, '2026-11-17T00:00:00Z');");
+        Execute("UPDATE fibonacci_presets SET levels = '[0,0.618,1]' WHERE kind = 'retracement';");
+
+        var drawing = await _workspace.Drawings.GetAsync(new Guid("44444444-4444-4444-4444-444444444444"), CancellationToken.None);
+        var preset = (await _workspace.Presets.GetAllAsync(CancellationToken.None)).Single(candidate => candidate.Kind == FibonacciKind.Retracement);
+
+        Assert.Equal(Levels(0, 0.5, 1), drawing!.Levels);
+        Assert.Equal(Levels(0, 0.618, 1), preset.Levels);
+    }
+
+    [Fact]
+    public async Task The_upgrade_to_levels_on_and_off_leaves_a_preset_the_user_changed_as_it_was()
+    {
+        _workspace.Dispose();
+        using var older = new WorkspaceFixture();
+        older.StartUpTo(4);
+        using (var connection = WorkspaceDatabase.OpenFile(older.Locations.WorkspaceDatabasePath))
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "UPDATE fibonacci_presets SET levels = '[0,0.5,1]' WHERE kind = 'retracement';";
+            command.ExecuteNonQuery();
+        }
+
+        older.Start();
+        var presets = await older.Presets.GetAllAsync(CancellationToken.None);
+
+        Assert.Equal(Levels(0, 0.5, 1), presets.Single(preset => preset.Kind == FibonacciKind.Retracement).Levels);
+        Assert.Equal(Json(FibonacciPresets.Extension.Levels), Json(presets.Single(preset => preset.Kind == FibonacciKind.Extension).Levels));
     }
 
     [Fact]
@@ -227,7 +264,7 @@ public class DrawingRepositoryTests : IDisposable
 
         await Save(before with { Locked = true });
         await Save(Sample(DrawingTool.Arrow, "BTCUSDT"));
-        await _workspace.Presets.SaveAsync(new FibonacciPreset(Guid.NewGuid(), "Later", FibonacciKind.Extension, new[] { 1.0 }), CancellationToken.None);
+        await _workspace.Presets.SaveAsync(new FibonacciPreset(Guid.NewGuid(), "Later", FibonacciKind.Extension, Levels(1.0)), CancellationToken.None);
 
         await _workspace.Backups.RestoreAsync(backup.Name, CancellationToken.None);
 
@@ -273,6 +310,12 @@ public class DrawingRepositoryTests : IDisposable
     }
 
     /// <summary>A drawing or preset as JSON: records holding lists compare their lists by reference, their JSON by content.</summary>
+    /// <summary>Levels that are shown, from their ratios.</summary>
+    private static FibonacciLevel[] Levels(params double[] ratios)
+    {
+        return ratios.Select(ratio => new FibonacciLevel(ratio)).ToArray();
+    }
+
     private static string Json<T>(T value)
     {
         return JsonSerializer.Serialize(value);

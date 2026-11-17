@@ -233,8 +233,9 @@ Drawing             id, asset, tool type, locked, anchors, style, text, payload 
                     what could not be read again; DrawingTools holds the rules of each tool
 Anchor              time (UTC) + price, never a bar index; a wave label has no price (it sits at
                     the high or low of the candle that contains its time)
-WaveMark            degree, label (1-5, A-E, W, X, Y) and side; WaveNotation gives the drawn form
-FibonacciPreset     name, kind (retracement, extension), levels (ratios); the two defaults of DR4
+WaveMark            degree, label (1-5, A-E, W, X, Y, Z) and side; WaveNotation gives the drawn form
+FibonacciPreset     name, kind (retracement, extension), levels (FibonacciLevel: ratio, on or off); the
+                    two defaults of DR4, with further levels switched off
 
 EwtsInstance        id, name, base address
 ```
@@ -689,13 +690,24 @@ context menu; the bar of the selected drawing does what one would.
   count is clicked label after label. The notation is a small table in the module
   (`primitives/waveNotation.ts`, for drawing) and in Web (`Drawings/WaveLabels`, for the chooser),
   both equal to `WaveNotation` in the Domain; tests keep them equal.
+- Wave patterns (DR5): one group button of the rail, as in TradingView, opens the five patterns
+  (`Drawings/WavePatterns` in Web); the button shows the one used last. A pattern is the polyline
+  tool with the extras `pattern` (its labels) and `degree`: the module ends it after the start and
+  one point per label, and gives the points their labels, highs above and lows below
+  (`primitives/wavePatterns.ts`). The record is a plain polyline with point labels, so it is
+  reshaped, relabelled and has its line hidden like any polyline; when a point is reshaped, the
+  labels take their sides from the prices again. The bar changes the degree of all labels of a
+  count at once.
 - Fibonacci (DR4): a retracement has level 0 at its second anchor and 1 at its first; an extension
-  lays the move from its first to its second anchor, times the ratio, from its third. Each level
-  runs from the leftmost anchor to the right edge with ratio and price at its left end. The module
-  interpolates the levels in pixels: on a linear scale that is linear in price, on a logarithmic
-  scale linear in the logarithm of the price, which is what DR4 asks; the price shown is read
-  back from the scale. A new drawing copies the levels of the preset chosen beside the tool rail;
-  the presets are edited on the settings page.
+  lays the move from its first to its second anchor, times the ratio, from its third. A level is a
+  ratio that is on or off (`FibonacciLevel`); only the levels on are drawn, each from the first to
+  the last anchor, left to right, with ratio and price at its left end, as in TradingView. The
+  module interpolates the levels in pixels: on a linear scale that is linear in price, on a
+  logarithmic scale linear in the logarithm of the price, which is what DR4 asks; the price shown
+  is read back from the scale. A new drawing copies all levels, on and off, of the preset chosen
+  beside the tool rail; the bar of the drawing switches them, the settings page switches, adds
+  and removes those of the presets. Levels stored as plain numbers, before they could be switched
+  off, are read as on; script 0005 gave the unchanged default presets their levels that are off.
 - Exact anchor times: an anchor that is placed or reshaped on the high or low of its candle, and a
   wave label, gets the time of the candle of the asset's smallest timeframe that made that price
   (Web passes the timeframes with candles in setSeries). The module reads that candle's period in

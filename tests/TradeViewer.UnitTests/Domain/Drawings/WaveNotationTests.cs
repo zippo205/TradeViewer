@@ -46,7 +46,8 @@ public class WaveNotationTests
     [InlineData("C", "D")]
     [InlineData("E", "A")]
     [InlineData("W", "X")]
-    [InlineData("Y", "W")]
+    [InlineData("Y", "Z")]
+    [InlineData("Z", "W")]
     public void The_chooser_moves_on_to_the_next_label(string label, string next)
     {
         Assert.Equal(next, WaveNotation.Next(label));

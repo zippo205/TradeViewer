@@ -34,7 +34,32 @@ export function ratioText(ratio: number): string {
   return String(Number(ratio.toFixed(4)));
 }
 
-/** The levels of a drawing record: the finite numbers of its `levels`, or none. */
+/**
+ * The ratios of the levels of a drawing record that are switched on (DR4). A level is `{ ratio, visible }`; a plain
+ * number, as levels were stored before they could be switched off, is a level that is shown.
+ */
 export function levelsOf(value: unknown): number[] {
-  return Array.isArray(value) ? value.filter((level): level is number => typeof level === "number" && Number.isFinite(level)) : [];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const ratios: number[] = [];
+  for (const level of value as unknown[]) {
+    if (typeof level === "number" && Number.isFinite(level)) {
+      ratios.push(level);
+    } else if (typeof level === "object" && level !== null) {
+      const { ratio, visible } = level as { ratio?: unknown; visible?: unknown };
+      if (typeof ratio === "number" && Number.isFinite(ratio) && visible !== false) {
+        ratios.push(ratio);
+      }
+    }
+  }
+
+  return ratios;
+}
+
+/** Where the levels of a drawing begin and end: from its first to its last anchor, left to right (DR4). */
+export function levelSpan(points: readonly { x: number }[]): { readonly left: number; readonly right: number } {
+  const xs = points.map((point) => point.x);
+  return { left: Math.min(...xs), right: Math.max(...xs) };
 }

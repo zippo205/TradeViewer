@@ -65,6 +65,7 @@
         <div class="chart-with-tools">
             <DrawingToolbar Tool="@_tool" Magnet="@_magnet" Hidden="@_hidden"
                             CanUndo="@Session.CanUndo" CanRedo="@Session.CanRedo" Problem="@(_drawingError ?? Saves.Problem)"
+                            Pattern="@_pattern" LastPattern="@_lastPattern" OnPattern="ChoosePatternAsync"
                             OnTool="ChooseToolAsync" OnMagnet="SetMagnetAsync" OnHidden="SetHiddenAsync"
                             OnUndo="() => Session.Undo()" OnRedo="() => Session.Redo()" />
             <div class="chart-canvas-area">
@@ -86,9 +87,9 @@
                 {
                     <DrawingBar Drawing="@Session.Selected" Wave="@((_waveDegree, _waveLabel))" OnEdit="OnDrawingEdited" OnDelete="() => Session.Delete(Session.Selected.Id)" />
                 }
-                @if (_tool == "waveLabel" && !_hidden)
+                @if ((_tool == "waveLabel" || _pattern != null) && !_hidden)
                 {
-                    <WaveChooser Degree="@_waveDegree" Label="@_waveLabel" OnChanged="OnWaveChosen" />
+                    <WaveChooser Degree="@_waveDegree" Label="@_waveLabel" Pattern="@WavePatterns.Find(_pattern)" OnChanged="OnWaveChosen" />
                 }
                 @if (KindOf(_tool) is string kind && !_hidden)
                 {
@@ -127,6 +128,8 @@
     private string? _drawingError;
     private string _waveDegree = WaveLabels.FirstDegree;
     private string _waveLabel = "1";
+    private string? _pattern;
+    private string? _lastPattern;
     private List<FibonacciPresetRecord> _presets = new List<FibonacciPresetRecord>();
 
     /// <summary>The preset chosen per kind (retracement, extension) in this window; the first of the kind before a choice.</summary>
@@ -475,9 +478,20 @@
     {
         _waveDegree = wave.Degree;
         _waveLabel = wave.Label;
-        if (_tool == "waveLabel" && _chart != null)
+        if ((_tool == "waveLabel" || _pattern != null) && _chart != null)
         {
-            await _chart.SetToolAsync("waveLabel", WaveExtras());
+            await _chart.SetToolAsync(_tool, ToolExtras(_tool));
+        }
+    }
+
+    /// <summary>A wave pattern chosen in the group of the rail: a polyline whose points get the labels of the pattern.</summary>
+    private async Task ChoosePatternAsync(string code)
+    {
+        _pattern = code;
+        _lastPattern = code;
+        if (_chart != null)
+        {
+            await _chart.SetToolAsync("polyline", ToolExtras("polyline")); // the chart answers with ToolChanged
         }
     }
 
@@ -487,6 +501,12 @@
         if (tool == "waveLabel")
         {
             return WaveExtras();
+        }
+
+        var pattern = tool == "polyline" ? WavePatterns.Find(_pattern) : null;
+        if (pattern != null)
+        {
+            return new { pattern = pattern.Labels, degree = _waveDegree };
         }
 
         var kind = KindOf(tool);
@@ -554,6 +574,10 @@
     private void OnToolChanged(string? tool)
     {
         _tool = tool;
+        if (tool != "polyline")
+        {
+            _pattern = null; // the pattern ended, or another tool was chosen
+        }
     }
 
     private void OnDrawingEdited(DrawingRecord drawing)
@@ -584,6 +608,7 @@
 
     private async Task ChooseToolAsync(string? tool)
     {
+        _pattern = null; // a tool of the rail, also the free polyline, is not a pattern
         if (_chart != null)
         {
             await _chart.SetToolAsync(tool, ToolExtras(tool)); // the chart answers with ToolChanged

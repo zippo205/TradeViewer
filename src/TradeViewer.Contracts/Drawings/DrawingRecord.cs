@@ -17,7 +17,7 @@ public sealed record DrawingRecord(
     IReadOnlyList<AnchorRecord> Anchors,
     DrawingStyleRecord Style,
     string? Text = null,
-    IReadOnlyList<double>? Levels = null,
+    IReadOnlyList<FibonacciLevelRecord>? Levels = null,
     WaveMarkRecord? Wave = null,
     IReadOnlyList<PointLabelRecord>? PointLabels = null,
     bool LineHidden = false);

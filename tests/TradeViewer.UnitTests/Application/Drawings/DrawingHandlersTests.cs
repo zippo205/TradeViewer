@@ -67,7 +67,7 @@ public class DrawingHandlersTests
             new DrawingStyleRecord("#2962FF", 1, "solid"), Wave: new WaveMarkRecord("grandSupercycle", "W", "below"));
         var fibonacci = new DrawingRecord(
             Guid.NewGuid(), "binance", "BTCUSDT", "fibonacciExtension", 1, false, new[] { Anchor(0, 100), Anchor(5, 200), Anchor(8, 150) },
-            new DrawingStyleRecord("#64B5F6", 1, "dashed"), Levels: new[] { 1, 1.618, 2.618 });
+            new DrawingStyleRecord("#64B5F6", 1, "dashed"), Levels: Levels(1, 1.618, 2.618));
         var channel = new DrawingRecord(
             Guid.NewGuid(), "binance", "BTCUSDT", "parallelChannel", 1, false, new[] { Anchor(0, 100), Anchor(5, 200), Anchor(2, 90) },
             new DrawingStyleRecord("#2962FF", 1, "solid", "#2962FF1A"));
@@ -180,10 +180,10 @@ public class DrawingHandlersTests
         var id = Guid.NewGuid();
         var handler = new SaveFibonacciPresetCommandHandler(_presets);
 
-        var result = await handler.HandleAsync(new SaveFibonacciPresetCommand(id, new FibonacciPresetRecord(id, "  Deep ", "retracement", new[] { 1, 0.886, 0 })), CancellationToken.None);
+        var result = await handler.HandleAsync(new SaveFibonacciPresetCommand(id, new FibonacciPresetRecord(id, "  Deep ", "retracement", Levels(1, 0.886, 0))), CancellationToken.None);
         var all = await new GetFibonacciPresetsQueryHandler(_presets).HandleAsync(new GetFibonacciPresetsQuery(), CancellationToken.None);
 
-        Assert.Equal(new FibonacciPresetRecord(id, "Deep", "retracement", new[] { 0, 0.886, 1 }).Levels, result.Value.Levels);
+        Assert.Equal(new FibonacciPresetRecord(id, "Deep", "retracement", Levels(0, 0.886, 1)).Levels, result.Value.Levels);
         Assert.Equal("Deep", result.Value.Name);
         Assert.Equal(new[] { "Retracement", "Extension", "Deep" }, all.Value.Select(preset => preset.Name));
     }
@@ -194,9 +194,9 @@ public class DrawingHandlersTests
         var id = Guid.NewGuid();
         var handler = new SaveFibonacciPresetCommandHandler(_presets);
 
-        var kind = await handler.HandleAsync(new SaveFibonacciPresetCommand(id, new FibonacciPresetRecord(id, "X", "fan", new[] { 0.5 })), CancellationToken.None);
-        var levels = await handler.HandleAsync(new SaveFibonacciPresetCommand(id, new FibonacciPresetRecord(id, "X", "extension", Array.Empty<double>())), CancellationToken.None);
-        var otherId = await handler.HandleAsync(new SaveFibonacciPresetCommand(Guid.NewGuid(), new FibonacciPresetRecord(id, "X", "extension", new[] { 1.0 })), CancellationToken.None);
+        var kind = await handler.HandleAsync(new SaveFibonacciPresetCommand(id, new FibonacciPresetRecord(id, "X", "fan", Levels(0.5))), CancellationToken.None);
+        var levels = await handler.HandleAsync(new SaveFibonacciPresetCommand(id, new FibonacciPresetRecord(id, "X", "extension", Array.Empty<FibonacciLevelRecord>())), CancellationToken.None);
+        var otherId = await handler.HandleAsync(new SaveFibonacciPresetCommand(Guid.NewGuid(), new FibonacciPresetRecord(id, "X", "extension", Levels(1.0))), CancellationToken.None);
 
         Assert.Contains("kind", kind.Error.Fields.Keys);
         Assert.Contains("levels", levels.Error.Fields.Keys);
@@ -213,7 +213,7 @@ public class DrawingHandlersTests
 
         var deleted = await delete.HandleAsync(new DeleteFibonacciPresetCommand(extension.Id), CancellationToken.None);
         var turned = await save.HandleAsync(
-            new SaveFibonacciPresetCommand(extension.Id, new FibonacciPresetRecord(extension.Id, "Extension", "retracement", new[] { 0.5 })),
+            new SaveFibonacciPresetCommand(extension.Id, new FibonacciPresetRecord(extension.Id, "Extension", "retracement", Levels(0.5))),
             CancellationToken.None);
         var unknown = await delete.HandleAsync(new DeleteFibonacciPresetCommand(Guid.NewGuid()), CancellationToken.None);
 
@@ -223,7 +223,7 @@ public class DrawingHandlersTests
 
         // With a second extension preset the first may go.
         var id = Guid.NewGuid();
-        await save.HandleAsync(new SaveFibonacciPresetCommand(id, new FibonacciPresetRecord(id, "Short", "extension", new[] { 1, 1.618 })), CancellationToken.None);
+        await save.HandleAsync(new SaveFibonacciPresetCommand(id, new FibonacciPresetRecord(id, "Short", "extension", Levels(1, 1.618))), CancellationToken.None);
         Assert.True((await delete.HandleAsync(new DeleteFibonacciPresetCommand(extension.Id), CancellationToken.None)).IsSuccess);
     }
 
@@ -254,6 +254,12 @@ public class DrawingHandlersTests
         Assert.Equal(ErrorType.NotFound, get.Error.Type);
         Assert.Equal(ErrorType.NotFound, save.Error.Type);
         Assert.Equal(ErrorType.Validation, empty.Error.Type);
+    }
+
+    /// <summary>Levels that are shown, from their ratios.</summary>
+    private static FibonacciLevelRecord[] Levels(params double[] ratios)
+    {
+        return ratios.Select(ratio => new FibonacciLevelRecord(ratio)).ToArray();
     }
 
     private static AnchorRecord Anchor(int hours, double price)
