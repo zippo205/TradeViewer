@@ -1,6 +1,11 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using TradeViewer.Application.Abstractions.MarketData;
+using TradeViewer.Infrastructure.MarketData.Downloader;
+using TradeViewer.IntegrationTests.MarketData;
 
 namespace TradeViewer.IntegrationTests;
 
@@ -8,12 +13,29 @@ namespace TradeViewer.IntegrationTests;
 public sealed class TradeViewerFactory : WebApplicationFactory<Program>
 {
     private readonly string _root;
+    private readonly StubDownloader? _downloader;
     private bool _ownsRoot;
 
     public TradeViewerFactory()
     {
         _root = Path.Combine(Path.GetTempPath(), "tradeviewer-tests", Guid.NewGuid().ToString("N"));
         _ownsRoot = true;
+    }
+
+    private TradeViewerFactory(StubDownloader downloader)
+        : this()
+    {
+        _downloader = downloader;
+        _downloader.AnswerOthersWithNotFound = true;
+    }
+
+    /// <summary>
+    /// The application with the Downloader switched on, answered by the stub: still no real Downloader is called. A
+    /// method, not a constructor: xUnit builds class fixtures through the one public constructor.
+    /// </summary>
+    public static TradeViewerFactory WithDownloader(StubDownloader downloader)
+    {
+        return new TradeViewerFactory(downloader);
     }
 
     private TradeViewerFactory(string existingRoot)
@@ -49,9 +71,17 @@ public sealed class TradeViewerFactory : WebApplicationFactory<Program>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["MarketData:RootPath"] = MarketDataRoot,
-                ["Storage:DataPath"] = DataPath
+                ["Storage:DataPath"] = DataPath,
+                ["MarketData:Downloader:Enabled"] = _downloader == null ? "false" : "true",
+                ["MarketData:Downloader:Client"] = "tradeviewer-test"
             });
         });
+
+        if (_downloader != null)
+        {
+            builder.ConfigureTestServices(services =>
+                services.AddHttpClient<IDownloaderClient, DownloaderClient>().ConfigurePrimaryHttpMessageHandler(() => _downloader));
+        }
     }
 
     protected override void Dispose(bool disposing)

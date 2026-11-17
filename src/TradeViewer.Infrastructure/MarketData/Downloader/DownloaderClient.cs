@@ -42,8 +42,9 @@ public sealed class DownloaderClient : IDownloaderClient
 
     public async Task<Result<CatalogPage>> SearchAsync(string source, string text, int limit, CancellationToken cancellationToken)
     {
-        var path = "api/v1/sources/" + Escape(source) + "/symbols?q=" + Uri.EscapeDataString(text)
-            + "&limit=" + limit.ToString(CultureInfo.InvariantCulture);
+        // Without a text the Downloader lists the first symbols of the source.
+        var query = string.IsNullOrEmpty(text) ? string.Empty : "q=" + Uri.EscapeDataString(text) + "&";
+        var path = "api/v1/sources/" + Escape(source) + "/symbols?" + query + "limit=" + limit.ToString(CultureInfo.InvariantCulture);
         var result = await SendAsync<CatalogResponse>(HttpMethod.Get, path, null, cancellationToken);
         if (result.IsFailure)
         {

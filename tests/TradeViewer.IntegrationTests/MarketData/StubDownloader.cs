@@ -17,6 +17,12 @@ public sealed class StubDownloader : HttpMessageHandler
     /// <summary>The requests in the order they came, as "METHOD /path?query".</summary>
     public List<string> Requests { get; } = new List<string>();
 
+    /// <summary>
+    /// True: a request no answer was given for gets 404 instead of failing the test, for the application's own
+    /// calls in the background (the sync at start-up) when the stub stands in inside the running application.
+    /// </summary>
+    public bool AnswerOthersWithNotFound { get; set; }
+
     /// <summary>The body of the last request that had one.</summary>
     public string? LastBody { get; private set; }
 
@@ -66,6 +72,11 @@ public sealed class StubDownloader : HttpMessageHandler
 
         if (!_answers.TryGetValue(key, out var answer))
         {
+            if (AnswerOthersWithNotFound)
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("{}", Encoding.UTF8, "application/problem+json") };
+            }
+
             throw new InvalidOperationException("The test did not expect the request " + key);
         }
 

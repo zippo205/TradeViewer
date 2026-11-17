@@ -94,18 +94,51 @@ public class AssetHandlersTests
     }
 
     [Fact]
-    public async Task Only_symbols_of_the_list_can_be_added_and_each_only_once()
+    public async Task Only_symbols_of_sources_TradeViewer_can_chart_are_added_and_each_only_once()
     {
-        var unknown = await AddAsync("binance", "NOPEUSDT");
-        var otherSource = await AddAsync("yahoo", "BTCUSDT");
+        var otherSource = await AddAsync("yahoo", "SPY");
         await AddAsync("binance", "BTCUSDT");
         var twice = await AddAsync("binance", "BTCUSDT");
 
-        Assert.Equal((ErrorType.NotFound, "symbol.notFound"), (unknown.Error.Type, unknown.Error.Code));
         Assert.Equal(ErrorType.NotFound, otherSource.Error.Type);
         Assert.Equal((ErrorType.Conflict, "asset.exists"), (twice.Error.Type, twice.Error.Code));
         Assert.Single(_assets.Assets);
-        Assert.Equal(2, _downloader.Calls.Count); // the second attempt did not reach the Downloader
+        Assert.Equal(new[] { "lookup binance/BTCUSDT", "subscribe binance/BTCUSDT", "lookup binance/BTCUSDT" }, _downloader.Calls); // never subscribed twice
+    }
+
+    [Fact]
+    public async Task With_the_Downloader_any_symbol_of_its_catalog_is_added_the_lookup_being_the_check()
+    {
+        // XRPUSDC is not in the fixed list; the Downloader's catalog has it.
+        var result = await AddAsync("binance", "XRPUSDC");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("XRPUSDC", _assets.Assets.Single().Symbol);
+    }
+
+    [Fact]
+    public async Task Without_the_Downloader_only_symbols_of_the_fixed_list_are_added()
+    {
+        _downloader.Enabled = false;
+
+        var unknown = await AddAsync("binance", "NOPEUSDT");
+
+        Assert.Equal((ErrorType.NotFound, "symbol.notFound"), (unknown.Error.Type, unknown.Error.Code));
+    }
+
+    [Fact]
+    public async Task A_symbol_picked_by_its_ticker_is_stored_under_the_folder_name_of_the_lookup_and_subscribed_with_the_ticker()
+    {
+        _downloader.LookupInfo = new SymbolInfo("binance", "BTCUSDT", "BTC/USDT", AssetClass.Crypto, 0.01, Session.ContinuousUtc, Timeframes.All, "BTC-TICKER");
+        var handler = new AddAssetCommandHandler(_catalog, _assets, _settings, _downloader, _folders, _imports, Status(), _clock);
+
+        var result = await handler.HandleAsync(new AddAssetCommand("binance", "BTCUSDT", "BTC-TICKER"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("lookup binance/BTC-TICKER", _downloader.Calls[0]);
+        Assert.Equal("subscribe binance/BTCUSDT", _downloader.Calls[1]);
+        Assert.Equal("BTC-TICKER", _downloader.SubscribedTicker);
+        Assert.Equal("BTC-TICKER", _assets.Assets.Single().Info.Ticker);
     }
 
     [Fact]
@@ -273,19 +306,85 @@ public class AssetHandlersTests
     }
 
     [Fact]
-    public async Task The_symbol_list_is_searched_and_marks_what_is_added()
+    public async Task Without_the_Downloader_the_fixed_list_is_searched_and_marks_what_is_added()
     {
+        _downloader.Enabled = false;
+        _folders.Symbols.Add("binance/ETHUSDT");
         await AddAsync("binance", "ETHUSDT");
-        var handler = new GetSymbolsQueryHandler(_catalog, _assets);
+        var handler = new GetSymbolsQueryHandler(_catalog, _assets, _downloader);
 
         var all = await handler.HandleAsync(new GetSymbolsQuery("binance", null), CancellationToken.None);
         var found = await handler.HandleAsync(new GetSymbolsQuery("binance", "eth"), CancellationToken.None);
-        var unknownSource = await handler.HandleAsync(new GetSymbolsQuery("nasdaq", null), CancellationToken.None);
 
-        Assert.Equal(13, all.Value.Count);
-        Assert.Equal(new[] { "ETHUSDT" }, all.Value.Where(symbol => symbol.Added).Select(symbol => symbol.Symbol));
-        Assert.Equal(new SymbolResponse("binance", "ETHUSDT", "ETH/USDT", "crypto", true), Assert.Single(found.Value));
-        Assert.Equal(ErrorType.NotFound, unknownSource.Error.Type);
+        Assert.Equal((13, 13, false, false), (all.Value.Symbols.Count, all.Value.Total, all.Value.Truncated, all.Value.FromCatalog));
+        Assert.Equal(new[] { "ETHUSDT" }, all.Value.Symbols.Where(symbol => symbol.Added).Select(symbol => symbol.Symbol));
+        Assert.Equal(new SymbolResponse("binance", "ETHUSDT", "ETH/USDT", "crypto", true), Assert.Single(found.Value.Symbols));
+    }
+
+    [Fact]
+    public async Task With_the_Downloader_its_catalog_is_searched_with_the_ticker_and_the_exchange()
+    {
+        await AddAsync("binance", "ETHUSDT");
+        var refreshed = new DateTimeOffset(2026, 11, 17, 7, 0, 0, TimeSpan.Zero);
+        _downloader.Catalog = new CatalogPage(refreshed, 120, true, new[]
+        {
+            new CatalogEntry("ETHUSDT", "ETHUSDT", "ETH / USDT", "crypto", null),
+            new CatalogEntry("NYSE:BRK.B", "BRK-B", "Berkshire Hathaway", "stock", "NYSE")
+        });
+        var handler = new GetSymbolsQueryHandler(_catalog, _assets, _downloader);
+
+        var result = (await handler.HandleAsync(new GetSymbolsQuery("binance", "  eth "), CancellationToken.None)).Value;
+
+        Assert.Contains("search binance eth 50", _downloader.Calls);
+        Assert.Equal((120, true, true, (DateTimeOffset?)refreshed), (result.Total, result.Truncated, result.FromCatalog, result.RefreshedAt));
+        Assert.Equal(new SymbolResponse("binance", "ETHUSDT", "ETH / USDT", "crypto", true), result.Symbols[0]);
+        Assert.Equal(new SymbolResponse("binance", "BRK-B", "Berkshire Hathaway", "stock", false, "NYSE:BRK.B", "NYSE"), result.Symbols[1]);
+    }
+
+    [Fact]
+    public async Task Sources_TradeViewer_cannot_chart_and_texts_too_long_for_the_catalog_are_refused()
+    {
+        var handler = new GetSymbolsQueryHandler(_catalog, _assets, _downloader);
+
+        var yahoo = await handler.HandleAsync(new GetSymbolsQuery("yahoo", "spy"), CancellationToken.None);
+        var tooLong = await handler.HandleAsync(new GetSymbolsQuery("binance", new string('x', 41)), CancellationToken.None);
+
+        Assert.Equal(ErrorType.NotFound, yahoo.Error.Type);
+        Assert.Equal(ErrorType.Validation, tooLong.Error.Type);
+        Assert.Empty(_downloader.Calls);
+    }
+
+    [Fact]
+    public async Task The_catalog_unreachable_is_answered_with_the_message_of_the_Downloader()
+    {
+        _downloader.SearchError = Error.Unavailable("downloader.unreachable", "The Downloader cannot be reached.");
+
+        var result = await new GetSymbolsQueryHandler(_catalog, _assets, _downloader).HandleAsync(new GetSymbolsQuery("binance", "btc"), CancellationToken.None);
+
+        Assert.Equal(ErrorType.Unavailable, result.Error.Type);
+    }
+
+    [Fact]
+    public async Task A_symbol_picked_is_looked_up_with_tick_size_session_timeframes_and_earliest_dates()
+    {
+        var handler = new GetSymbolDetailsQueryHandler(_catalog, _assets, _downloader);
+
+        var details = (await handler.HandleAsync(new GetSymbolDetailsQuery("binance", "SOLUSDT"), CancellationToken.None)).Value;
+
+        Assert.Equal("lookup binance/SOLUSDT", Assert.Single(_downloader.Calls));
+        Assert.Equal(("SOLUSDT", "SOLUSDT", "crypto", 0.5, "continuous", "UTC"), (details.Symbol, details.SourceSymbol, details.AssetClass, details.TickSize, details.Session, details.TimeZone));
+        Assert.Equal(new[] { "15m", "1h", "4h", "1d", "1w" }, details.Timeframes);
+        Assert.False(details.Added);
+    }
+
+    [Fact]
+    public async Task A_symbol_the_Downloader_does_not_know_is_refused_when_it_is_looked_up()
+    {
+        _downloader.LookupError = Error.InvalidData("downloader.unknownSymbol", "Symbol 'NOPE' is unknown at source 'binance'.");
+
+        var result = await new GetSymbolDetailsQueryHandler(_catalog, _assets, _downloader).HandleAsync(new GetSymbolDetailsQuery("binance", "NOPE"), CancellationToken.None);
+
+        Assert.Equal("Symbol 'NOPE' is unknown at source 'binance'.", result.Error.Message);
     }
 
     [Fact]
