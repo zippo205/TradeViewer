@@ -20,7 +20,7 @@ of EWTS.
 | Drawing Tools | done (2026-11-17) |
 | Symbol Catalog | done (2026-11-17) |
 | Scenario Analysis | open |
-| Indicators | open |
+| Indicators | in progress |
 | Downloader Monitoring | open |
 
 ## V2 - EWTS
