@@ -9,6 +9,8 @@ export interface PaneSize {
 /** How a drawing looks at the moment: selected drawings show their handles. */
 export interface Look {
   readonly selected: boolean;
+  /** The price at a height, as the price scale writes it; for levels that show their price. */
+  readonly priceText?: (y: number) => string | undefined;
 }
 
 /**

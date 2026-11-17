@@ -1,6 +1,7 @@
 import type { ToolCode } from "../drawing";
 import type { Shape } from "../shape";
 import { ArrowShape } from "./arrow";
+import { FibonacciShape } from "./fibonacci";
 import { HorizontalLineShape } from "./horizontalLine";
 import { ParallelChannelShape } from "./parallelChannel";
 import { PolylineShape } from "./polyline";
@@ -11,7 +12,7 @@ import { TrendLineShape } from "./trendLine";
 import { VerticalLineShape } from "./verticalLine";
 import { WaveLabelShape } from "./waveLabel";
 
-/** One shape per tool; Fibonacci follows with step 8. */
+/** One shape per tool of DR1. */
 const shapes: Partial<Record<ToolCode, Shape>> = {
   trendLine: new TrendLineShape(),
   ray: new RayShape(),
@@ -21,6 +22,8 @@ const shapes: Partial<Record<ToolCode, Shape>> = {
   arrow: new ArrowShape(),
   textNote: new TextNoteShape(),
   parallelChannel: new ParallelChannelShape(),
+  fibonacciRetracement: new FibonacciShape(false),
+  fibonacciExtension: new FibonacciShape(true),
   polyline: new PolylineShape(),
   waveLabel: new WaveLabelShape(),
 };

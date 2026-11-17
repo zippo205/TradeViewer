@@ -140,6 +140,12 @@ export class DrawingLayer implements ISeriesPrimitive<Time>, DrawingSurface {
     return x === null || y === null ? undefined : { x, y };
   }
 
+  /** The price at a height with the precision of the asset, as the price scale writes it. */
+  private priceText(y: number): string | undefined {
+    const price = this.priceAt(y);
+    return price === undefined || this.series === undefined ? undefined : this.series.priceFormatter().format(price);
+  }
+
   barsBetween(fromX: number, toX: number): number | undefined {
     const timeScale = this.chart?.timeScale();
     const from = timeScale?.coordinateToLogical(fromX);
@@ -238,7 +244,7 @@ export class DrawingLayer implements ISeriesPrimitive<Time>, DrawingSurface {
         }
 
         context.save();
-        shape!.draw(context, points, this.size, drawing, { selected: drawing.id === selected });
+        shape!.draw(context, points, this.size, drawing, { selected: drawing.id === selected, priceText: (y) => this.priceText(y) });
         context.restore();
       }
     });

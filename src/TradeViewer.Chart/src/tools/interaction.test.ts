@@ -156,8 +156,8 @@ describe("placing", () => {
     expect(interaction.isBusy()).toBe(true);
   });
 
-  it("knows no tool it cannot draw yet", () => {
-    interaction.setTool("fibonacciRetracement");
+  it("knows no tool it cannot draw, e.g. one of a newer build", () => {
+    interaction.setTool("pitchfork" as ToolCode);
 
     expect(interaction.tool()).toBeUndefined();
     expect(events).toEqual(["tool -"]);
@@ -398,5 +398,28 @@ describe("wave labels (DR5)", () => {
     drag({ x: 100, y: 1000 - 530 }, { x: 130, y: 1000 - 470 });
 
     expect(reported).toEqual([{ ...label, anchors: [{ time: T0 + 13 * HOUR, price: null }], wave: { degree: "minor", label: "3", side: "below" } }]);
+  });
+});
+
+describe("Fibonacci (DR4)", () => {
+  it("a retracement takes the levels of the preset chosen, and keeps them", () => {
+    const levels = [0, 0.382, 0.618, 1];
+    interaction.setTool("fibonacciRetracement", undefined, { levels });
+    click(at(10, 400));
+    click(at(30, 600));
+
+    expect(reported[0]).toMatchObject({ tool: "fibonacciRetracement", anchors: [anchor(10, 400), anchor(30, 600)], levels });
+    expect(reported[0]!.style).toEqual(defaultStyle("fibonacciRetracement"));
+  });
+
+  it("an extension needs three clicks: start, end and retracement", () => {
+    interaction.setTool("fibonacciExtension", undefined, { levels: [1, 1.618] });
+    click(at(10, 400));
+    click(at(20, 600));
+    expect(reported).toEqual([]);
+    click(at(30, 500));
+
+    expect(reported[0]!.anchors).toHaveLength(3);
+    expect(reported[0]!.style.color).toBe("#64B5F6"); // light blue (DR4)
   });
 });

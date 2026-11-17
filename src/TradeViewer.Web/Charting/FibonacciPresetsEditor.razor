@@ -1,0 +1,170 @@
+@using System.Globalization
+@inject DrawingsApi Api
+
+@* The Fibonacci presets (DR4) on the settings page: edit names and levels, add, delete. A drawing keeps the
+   levels it was drawn with, so a change here counts for new drawings only. *@
+<section>
+    <h2>Fibonacci presets</h2>
+    <p class="muted">
+        The levels a new Fibonacci drawing takes, as ratios separated by spaces or commas. Changing a preset does not
+        change drawings already made. Each kind keeps at least one preset.
+    </p>
+
+    @if (_rows == null)
+    {
+        <p class="muted">Loading...</p>
+    }
+    else
+    {
+        <table class="list presets">
+            <thead>
+                <tr>
+                    <th>Kind</th>
+                    <th>Name</th>
+                    <th>Levels</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _rows)
+                {
+                    <tr @key="row.Id">
+                        <td>@row.Kind</td>
+                        <td><input type="text" aria-label="Name" maxlength="60" @bind="row.Name" /></td>
+                        <td><input type="text" class="preset-levels" aria-label="Levels" @bind="row.Levels" /></td>
+                        <td>
+                            <button type="button" disabled="@_busy" @onclick="() => SaveAsync(row)">Save</button>
+                            <button type="button" class="danger" disabled="@(_busy || !row.Stored)" @onclick="() => DeleteAsync(row)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="toolbar">
+            <button type="button" disabled="@_busy" @onclick='() => Add("retracement")'>Add retracement</button>
+            <button type="button" disabled="@_busy" @onclick='() => Add("extension")'>Add extension</button>
+        </div>
+    }
+
+    @if (_message != null)
+    {
+        <p class="@(_failed ? "status-bad" : "status-ok")">@_message</p>
+    }
+</section>
+
+@code {
+    private List<Row>? _rows;
+    private bool _busy;
+    private string? _message;
+    private bool _failed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var presets = await Api.GetPresetsAsync();
+        if (presets.Value == null)
+        {
+            Show(presets.Error, true);
+            return;
+        }
+
+        _rows = presets.Value.Select(preset => new Row(preset.Id, preset.Kind, preset.Name, Write(preset.Levels), true)).ToList();
+    }
+
+    /// <summary>A new preset starts with the levels of the first of its kind.</summary>
+    private void Add(string kind)
+    {
+        var template = _rows!.FirstOrDefault(row => row.Kind == kind);
+        _rows!.Add(new Row(Guid.NewGuid(), kind, "New " + kind, template?.Levels ?? "1", false));
+    }
+
+    private async Task SaveAsync(Row row)
+    {
+        var levels = Parse(row.Levels);
+        if (levels == null)
+        {
+            Show("The levels are numbers separated by spaces or commas, e.g. 0 0.382 0.618 1.", true);
+            return;
+        }
+
+        _busy = true;
+        var saved = await Api.SavePresetAsync(new FibonacciPresetRecord(row.Id, row.Name, row.Kind, levels));
+        _busy = false;
+        if (saved.Value == null)
+        {
+            Show(saved.Error, true);
+            return;
+        }
+
+        row.Name = saved.Value.Name;
+        row.Levels = Write(saved.Value.Levels);
+        row.Stored = true;
+        Show(row.Name + " is saved.", false);
+    }
+
+    private async Task DeleteAsync(Row row)
+    {
+        _busy = true;
+        var problem = await Api.DeletePresetAsync(row.Id);
+        _busy = false;
+        if (problem != null)
+        {
+            Show(problem, true);
+            return;
+        }
+
+        _rows!.Remove(row);
+        Show(row.Name + " is deleted.", false);
+    }
+
+    private void Show(string? message, bool failed)
+    {
+        _message = message;
+        _failed = failed;
+    }
+
+    /// <returns>The ratios, or null when one of them is not a number.</returns>
+    private static List<double>? Parse(string text)
+    {
+        var levels = new List<double>();
+        foreach (var part in text.Split(new[] { ' ', ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (!double.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out var level))
+            {
+                return null;
+            }
+
+            levels.Add(level);
+        }
+
+        return levels;
+    }
+
+    private static string Write(IEnumerable<double> levels)
+    {
+        return string.Join(" ", levels.Select(level => level.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    /// <summary>A preset as the page edits it; Stored false until the server has it.</summary>
+    private sealed class Row
+    {
+        public Row(Guid id, string kind, string name, string levels, bool stored)
+        {
+            Id = id;
+            Kind = kind;
+            Name = name;
+            Levels = levels;
+            Stored = stored;
+        }
+
+        public Guid Id { get; }
+
+        public string Kind { get; }
+
+        public string Name { get; set; }
+
+        public string Levels { get; set; }
+
+        public bool Stored { get; set; }
+    }
+}

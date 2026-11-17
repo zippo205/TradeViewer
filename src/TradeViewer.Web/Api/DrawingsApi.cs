@@ -13,6 +13,8 @@ public sealed class DrawingsApi : IDrawingRemote
     private readonly HttpClient _http;
     private readonly WindowIdentity _window;
 
+    private const string Presets = "api/fibonacci-presets";
+
     public DrawingsApi(HttpClient http, WindowIdentity window)
     {
         _http = http;
@@ -32,6 +34,23 @@ public sealed class DrawingsApi : IDrawingRemote
     public Task<SaveOutcome> DeleteAsync(Guid id)
     {
         return SendAsync(HttpMethod.Delete, id, null, notFoundIsDone: true);
+    }
+
+    public Task<ApiResult<List<FibonacciPresetRecord>>> GetPresetsAsync()
+    {
+        return ApiCalls.SendAsync<List<FibonacciPresetRecord>>(() => _http.GetAsync(Presets));
+    }
+
+    /// <summary>Stores a preset, new or edited; the answer holds its levels as stored (sorted).</summary>
+    public Task<ApiResult<FibonacciPresetRecord>> SavePresetAsync(FibonacciPresetRecord preset)
+    {
+        return ApiCalls.SendAsync<FibonacciPresetRecord>(() => _http.PutAsJsonAsync(Presets + "/" + preset.Id, preset));
+    }
+
+    /// <returns>Null when the preset was deleted, otherwise the message to show (the last of a kind stays).</returns>
+    public Task<string?> DeletePresetAsync(Guid id)
+    {
+        return ApiCalls.SendAsync(() => _http.DeleteAsync(Presets + "/" + id));
     }
 
     public Task<ApiResult<ChartSettingsResponse>> GetChartSettingsAsync(string source, string symbol)

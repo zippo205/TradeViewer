@@ -684,6 +684,13 @@ context menu; the bar of the selected drawing does what one would.
   count is clicked label after label. The notation is a small table in the module
   (`primitives/waveNotation.ts`, for drawing) and in Web (`Drawings/WaveLabels`, for the chooser),
   both equal to `WaveNotation` in the Domain; tests keep them equal.
+- Fibonacci (DR4): a retracement has level 0 at its second anchor and 1 at its first; an extension
+  lays the move from its first to its second anchor, times the ratio, from its third. Each level
+  runs from the leftmost anchor to the right edge with ratio and price at its left end. The module
+  interpolates the levels in pixels: on a linear scale that is linear in price, on a logarithmic
+  scale linear in the logarithm of the price, which is what DR4 asks; the price shown is read
+  back from the scale. A new drawing copies the levels of the preset chosen beside the tool rail;
+  the presets are edited on the settings page.
 - Drawings and overlays are positioned by time and price. Switching the timeframe reloads
   candles and indicators only; a time between two candles is drawn at the candle that contains
   it.

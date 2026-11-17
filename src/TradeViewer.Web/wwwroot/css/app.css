@@ -667,7 +667,8 @@ input:disabled {
 }
 
 /* The chooser of degree and label of the wave label tool (DR5), where the bar of a selected drawing would be. */
-.wave-chooser {
+.wave-chooser,
+.tool-chooser {
     position: absolute;
     top: 30px;
     left: 50%;
@@ -698,4 +699,8 @@ input:disabled {
     color: #ffffff;
     background: var(--link);
     border-color: var(--link);
+}
+
+.preset-levels {
+    width: 26em;
 }

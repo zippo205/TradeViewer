@@ -1,0 +1,26 @@
+@* The preset of the Fibonacci tool in use (DR4): the new drawing copies its levels. The presets are edited on
+   the settings page. *@
+<div class="tool-chooser" role="toolbar" aria-label="Fibonacci preset">
+    <label>
+        Levels
+        <select title="Preset" value="@Selected" @onchange="e => OnChanged.InvokeAsync(Guid.TryParse(e.Value?.ToString(), out var id) ? id : Selected)">
+            @foreach (var preset in Presets)
+            {
+                <option value="@preset.Id">@preset.Name: @string.Join("  ", preset.Levels.Select(level => level.ToString(System.Globalization.CultureInfo.InvariantCulture)))</option>
+            }
+        </select>
+    </label>
+    <a href="settings" title="Edit the presets">edit</a>
+</div>
+
+@code {
+    /// <summary>The presets of the kind of the tool in use.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<FibonacciPresetRecord> Presets { get; set; } = Array.Empty<FibonacciPresetRecord>();
+
+    [Parameter]
+    public Guid Selected { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnChanged { get; set; }
+}

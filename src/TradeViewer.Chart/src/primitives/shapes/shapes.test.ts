@@ -165,14 +165,24 @@ describe("text note", () => {
 });
 
 describe("shapes", () => {
-  it("exist for every tool but the Fibonacci ones, which come with step 8", () => {
-    const tools = ["trendLine", "ray", "horizontalLine", "verticalLine", "rectangle", "arrow", "textNote", "parallelChannel", "polyline", "waveLabel"] as const;
+  it("exist for every tool of DR1", () => {
+    const tools = [
+      "trendLine",
+      "ray",
+      "horizontalLine",
+      "verticalLine",
+      "rectangle",
+      "arrow",
+      "textNote",
+      "parallelChannel",
+      "polyline",
+      "waveLabel",
+      "fibonacciRetracement",
+      "fibonacciExtension",
+    ] as const;
     for (const tool of tools) {
       expect(shapeOf(tool)).toBeDefined();
     }
-
-    expect(shapeOf("fibonacciRetracement")).toBeUndefined();
-    expect(shapeOf("fibonacciExtension")).toBeUndefined();
   });
 
   it("number their anchors as the Domain does (DrawingTools.AnchorCount)", () => {

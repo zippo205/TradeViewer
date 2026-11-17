@@ -88,6 +88,10 @@
                 {
                     <WaveChooser Degree="@_waveDegree" Label="@_waveLabel" OnChanged="OnWaveChosen" />
                 }
+                @if (KindOf(_tool) is string kind && !_hidden)
+                {
+                    <FibonacciChooser Presets="@PresetsOf(kind)" Selected="@(PresetOf(kind)?.Id ?? Guid.Empty)" OnChanged="id => OnPresetChosen(kind, id)" />
+                }
             </div>
         </div>
     }
@@ -121,6 +125,10 @@
     private string? _drawingError;
     private string _waveDegree = WaveLabels.FirstDegree;
     private string _waveLabel = "1";
+    private List<FibonacciPresetRecord> _presets = new List<FibonacciPresetRecord>();
+
+    /// <summary>The preset chosen per kind (retracement, extension) in this window; the first of the kind before a choice.</summary>
+    private readonly Dictionary<string, Guid> _chosenPresets = new Dictionary<string, Guid>();
 
     [Parameter]
     public string Source { get; set; } = string.Empty;
@@ -150,6 +158,10 @@
         var settings = await Workspace.GetSettingsAsync();
         _logScale = settings.Value?.PriceScale == PriceScales.Log;
         _magnet = settings.Value?.Magnet ?? true;
+
+        // The Fibonacci presets (DR4): a new Fibonacci drawing copies the levels of the one chosen.
+        var presets = await DrawingsApi.GetPresetsAsync();
+        _presets = presets.Value ?? new List<FibonacciPresetRecord>();
 
         await LoadAssetsAsync();
         _settingsRead = true;
@@ -451,6 +463,56 @@
         }
     }
 
+    /// <summary>What a new drawing of the tool gets besides its anchors: a wave mark, or Fibonacci levels.</summary>
+    private object? ToolExtras(string? tool)
+    {
+        if (tool == "waveLabel")
+        {
+            return WaveExtras();
+        }
+
+        var kind = KindOf(tool);
+        var preset = kind == null ? null : PresetOf(kind);
+        return preset == null ? null : new { levels = preset.Levels };
+    }
+
+    /// <summary>The kind of preset a Fibonacci tool uses; null for the other tools.</summary>
+    private static string? KindOf(string? tool)
+    {
+        switch (tool)
+        {
+            case "fibonacciRetracement":
+                return "retracement";
+            case "fibonacciExtension":
+                return "extension";
+            default:
+                return null;
+        }
+    }
+
+    private IReadOnlyList<FibonacciPresetRecord> PresetsOf(string kind)
+    {
+        return _presets.Where(preset => preset.Kind == kind).ToList();
+    }
+
+    private FibonacciPresetRecord? PresetOf(string kind)
+    {
+        var presets = PresetsOf(kind);
+        return _chosenPresets.TryGetValue(kind, out var id) && presets.Any(preset => preset.Id == id)
+            ? presets.First(preset => preset.Id == id)
+            : presets.FirstOrDefault();
+    }
+
+    /// <summary>Another preset chosen: the tool in use places its levels from now on.</summary>
+    private async Task OnPresetChosen(string kind, Guid id)
+    {
+        _chosenPresets[kind] = id;
+        if (KindOf(_tool) == kind && _chart != null)
+        {
+            await _chart.SetToolAsync(_tool, ToolExtras(_tool));
+        }
+    }
+
     /// <summary>What a new wave label gets: the degree and label of the chooser; the chart adds the side.</summary>
     private object WaveExtras()
     {
@@ -506,7 +568,7 @@
     {
         if (_chart != null)
         {
-            await _chart.SetToolAsync(tool, tool == "waveLabel" ? WaveExtras() : null); // the chart answers with ToolChanged
+            await _chart.SetToolAsync(tool, ToolExtras(tool)); // the chart answers with ToolChanged
         }
     }
 

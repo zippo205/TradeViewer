@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-7 done (2026-11-17)
+Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-8 done (2026-11-17)
 Branch:   feature/drawing-tools
-Next:     step 8
+Next:     step 9
 Baseline: docs as of commit 50c0225 (main)
 ```
 
@@ -141,7 +141,7 @@ Out of scope:
 7  Chart module and Web: polyline, wave label, labels on the points of a polyline, the chooser of
    degree and label                                                                              done
 8  Chart module and Web: Fibonacci retracement and extension (linear and log), presets on the
-   settings page                                                                                 open
+   settings page                                                                                 done
 9  Exact anchor times across timeframes (see the proposal "Where a snapped anchor sits");
    accepted by the owner                                                                         open
 10 Second window follows (DrawingsChanged); measurement of NF3 (frame times while dragging with
@@ -293,6 +293,24 @@ headless browser for what only a browser shows (dragging, the bar, the keys).
   below by the click, without a price, the chooser at ((5)) afterwards; Escape puts the tool away;
   a label is selected by a click and put on the other side; on 4h all six drawings are there, the
   labels on their candles. No console errors.
+
+# Result of Step 8 (2026-11-17)
+
+- Chart module: `fibonacci.ts` (levels interpolated in pixels: linear in price on a linear scale,
+  in log space on a logarithmic one) and `FibonacciShape` for both tools; `Look.priceText` gives
+  the price of a level as the scale writes it.
+- Web: the two tools on the rail; `FibonacciChooser` (the preset whose levels a new drawing
+  copies, per kind, for the window) beside the rail while a Fibonacci tool is in use;
+  `FibonacciPresetsEditor` on the settings page (edit name and levels, add, delete; the server
+  keeps the last preset of a kind).
+- 11 new Vitest tests (184 in all), among them one that checks the levels on a logarithmic scale
+  against the price formula of log space. Headless browser (`~/tools/browser/fib-check.mjs`): a
+  retracement takes the default levels; an extension takes three clicks, the extension levels and
+  light blue; on the log scale the 0.5 level sits at the geometric mean (66946.50 between 72863.69
+  and 61509.84, against 67186.76 on the linear scale); the settings page lists, edits (levels
+  saved in order), refuses levels that are not numbers, keeps the last preset of a kind and adds
+  one; drawings made before keep their levels; new drawings take the edited and the chosen
+  preset. No console errors. The script puts the presets of the development workspace back.
 
 ---
 
