@@ -569,8 +569,10 @@ TradeViewer.Chart/src/
 ├── data/                  fetching candles from the Api (later indicators and gaps), the page cache
 │                          (SeriesData), when to load older candles (CH4)
 ├── indicators/            indicator series and panes (values come from the Api)
-├── tools/                 interaction: hit testing, handles, tool state machine
-└── primitives/            one series primitive per drawing type and per overlay shape
+├── tools/                 interaction: time-to-index mapping, geometry and hit testing, dragging,
+│                          pointer input taken before the chart, tool state machine
+└── primitives/            the drawing layer (one series primitive holding all drawings, one class
+                           per drawing type on it) and the overlay shapes
 ```
 
 ### Interop Contract

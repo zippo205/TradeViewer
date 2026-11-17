@@ -17,6 +17,10 @@ import { CandleRequestError, fetchCandles, type SeriesKey } from "./data/candleC
 import { fetchGaps, gapText, placeGaps, type Gap } from "./data/gaps";
 import { FIRST_PAGE_SIZE, OLDER_PAGE_SIZE, SeriesData, shouldLoadOlder } from "./data/seriesData";
 import { GAP_ID_PREFIX, GapMarkers } from "./gapMarkers";
+import { DrawingLayer, type TrendLine } from "./primitives/drawingLayer";
+import type { Point } from "./tools/geometry";
+import { PointerInput } from "./tools/pointerInput";
+import { TimeMapping, timeframeSeconds } from "./tools/timeMapping";
 import { formatPrice, formatTimeUtc, formatVolume, isIntraday, priceFormatOf, type PriceFormat } from "./format";
 import { captureView, latestRange, restoreView, type ViewState } from "./range";
 import { themeOf, type ChartTheme } from "./theme";
@@ -50,6 +54,10 @@ export interface PaneStats {
   readonly lastTime: number | undefined;
   /** True: the last candle is the current one, still in progress. */
   readonly partial: boolean;
+  /** Drawings on the chart, presses that hit one, and drags reported as finished. */
+  readonly drawings: number;
+  readonly drawingHits: number;
+  readonly drawingChanges: number;
 }
 
 /**
@@ -67,6 +75,10 @@ export class ChartPane {
   private readonly tooltip: HTMLDivElement;
   private readonly gapMarkers = new GapMarkers();
   private gaps: Gap[] = [];
+  private readonly drawingLayer = new DrawingLayer(() => this.timeMapping());
+  private readonly pointerInput: PointerInput;
+  private mappingCache: { bars: readonly Bar[]; timeframe: string; mapping: TimeMapping | undefined } | undefined;
+  private drawingChanges = 0;
   private readonly fetcher: typeof fetch;
 
   private data = new SeriesData();
@@ -139,6 +151,12 @@ export class ChartPane {
 
     // Gaps the source confirmed show as icons at the bottom of the chart (MD4).
     this.candles.attachPrimitive(this.gapMarkers);
+
+    // The drawings of the asset (DR3), on every timeframe; the pointer is taken before the chart gets it.
+    this.candles.attachPrimitive(this.drawingLayer);
+    this.pointerInput = new PointerInput(canvasHost, this.chart, this.candles, this.drawingLayer, () => this.timeMapping(), () => {
+      this.drawingChanges++;
+    });
     this.latestButton = document.createElement("button");
     this.latestButton.type = "button";
     this.latestButton.className = "tv-chart-latest";
@@ -298,6 +316,21 @@ export class ChartPane {
     this.chart.timeScale().setVisibleLogicalRange(latestRange(range.to - range.from, this.data.bars.length));
   }
 
+  /** Shows these drawings, placed by time and price on the candles of the timeframe shown. */
+  setDrawings(drawings: readonly TrendLine[]): void {
+    this.drawingLayer.set(drawings);
+  }
+
+  /** The drawings as the chart has them now, with what the user has dragged. */
+  drawings(): readonly TrendLine[] {
+    return this.drawingLayer.all();
+  }
+
+  /** Where the anchors of a drawing are drawn, in pixels of the pane, for checks in the browser. */
+  drawingPoints(id: string): (Point | undefined)[] {
+    return this.drawingLayer.get(id)?.anchors.map((anchor) => this.drawingLayer.pointOf(anchor)) ?? [];
+  }
+
   stats(): PaneStats {
     const range = this.chart.timeScale().getVisibleLogicalRange();
     const bars = this.data.bars;
@@ -310,6 +343,9 @@ export class ChartPane {
       firstTime: bars[0]?.time,
       lastTime: bars[bars.length - 1]?.time,
       partial: this.data.partial,
+      drawings: this.drawingLayer.all().length,
+      drawingHits: this.pointerInput.hits,
+      drawingChanges: this.drawingChanges,
     };
   }
 
@@ -317,6 +353,7 @@ export class ChartPane {
     this.disposed = true;
     this.generation++;
     this.onDisposed();
+    this.pointerInput.dispose();
     this.chart.remove();
     this.container.replaceChildren();
     this.container.classList.remove("tv-chart");
@@ -325,6 +362,21 @@ export class ChartPane {
   private async fetchPage(request: SeriesKey, to: number | undefined, limit: number) {
     this.requests++;
     return fetchCandles(request, to, limit, this.fetcher);
+  }
+
+  /** The time mapping of the candles in memory; built again only when they or the timeframe change. */
+  private timeMapping(): TimeMapping | undefined {
+    const bars = this.data.bars;
+    const timeframe = this.request?.timeframe ?? "";
+    const cache = this.mappingCache;
+    if (cache !== undefined && cache.bars === bars && cache.timeframe === timeframe) {
+      return cache.mapping;
+    }
+
+    const step = timeframeSeconds(timeframe);
+    const mapping = step === undefined || bars.length === 0 ? undefined : new TimeMapping(bars.map((bar) => bar.time), step);
+    this.mappingCache = { bars, timeframe, mapping };
+    return mapping;
   }
 
   private currentView(): ViewState | undefined {

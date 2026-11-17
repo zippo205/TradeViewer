@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. No code yet
+Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Step 1 done (2026-11-17)
 Branch:   feature/drawing-tools
-Next:     step 1
+Next:     step 2
 Baseline: docs as of commit 50c0225 (main)
 ```
 
@@ -124,7 +124,7 @@ Out of scope:
 ```text
 1  Chart module, proof first: the time mapping as pure functions with tests; one drawing layer
    (series primitive) that draws a trend line from data and reports a hit; pointer events taken
-   before the chart so that dragging does not pan. Checked in the headless browser               open
+   before the chart so that dragging does not pan. Checked in the headless browser               done
 2  Domain and contracts: Drawing, Anchor, tool types with their rules (number of anchors, style,
    payload version), FibonacciPreset with the defaults, wave degrees and labels; unit tests      open
 3  Workspace: script 0004 (drawings, fibonacci_presets), repositories; ChartSettings repository
@@ -153,6 +153,29 @@ Each step has its tests: Vitest for mapping, geometry, hit testing, the state ma
 levels and the magnet; C# unit tests for the rules of a drawing, the handlers and undo/redo;
 integration tests for endpoints, repositories and the schema upgrade; scripted checks in the
 headless browser for what only a browser shows (dragging, the bar, the keys).
+
+---
+
+# Result of Step 1 (2026-11-17)
+
+- `tools/timeMapping.ts`: `timeframeSeconds` and `TimeMapping` (`indexOf`: the candle that contains
+  the time, whole timeframes outside the candles, rounded outwards before the first; `timeOf`: the way
+  back). Calendar months (1M, later) have no fixed length and are not handled yet.
+- `tools/geometry.ts` (distance to a segment, hit tolerance), `tools/drag.ts` (anchors moved by whole
+  bars and by pixels converted through the price scale, so a drag on the log scale keeps the ratio).
+- `primitives/drawingLayer.ts`: one series primitive with trend lines from data; draws them, finds the
+  topmost one under a point, reports it to the library (`drawing:<id>`, cursor "move").
+- `tools/pointerInput.ts`: `mousedown` in the capture phase on the element around the chart; a press
+  on a drawing never reaches the library, so it does not pan; the drawing follows the pointer and the
+  result is reported once on release; Escape puts it back.
+- `ChartPane.setDrawings`, `drawings`, `drawingPoints` and three figures in `stats()` for the checks;
+  the calls of the interop contract and the events come with steps 5 and 6.
+- 26 new Vitest tests (90 in all). Headless browser (`~/tools/browser/drawing-check.mjs`, BTCUSDT 1h
+  of the development data): the "move" cursor on the line; a drag moves both anchors by the same
+  18 whole hours, follows the pointer to 0.2 px and leaves the visible range unchanged; a drag beside
+  the line still pans; Escape restores the line and reports nothing; the line is drawn on 4h, 15m and
+  1d; an anchor 6.5 h after the last candle sits 6 bars after it and stays on whole hours when dragged;
+  on the log scale a vertical drag keeps the ratio of the two prices. No console errors.
 
 ---
 
