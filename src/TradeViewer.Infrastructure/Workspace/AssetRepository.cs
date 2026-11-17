@@ -114,7 +114,7 @@ public sealed class AssetRepository : IAssetRepository
         using var workspace = await _database.OpenAsync(cancellationToken);
         using var transaction = workspace.Connection.BeginTransaction();
 
-        // The history goes with the asset (ON DELETE CASCADE). Later epics delete drawings and chart settings here too (AS5).
+        // History, chart settings and drawings go with the asset (ON DELETE CASCADE, AS5).
         using (var delete = workspace.CreateCommand("DELETE FROM assets WHERE source = $source AND symbol = $symbol;"))
         {
             delete.Transaction = transaction;

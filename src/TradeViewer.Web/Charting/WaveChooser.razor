@@ -1,0 +1,41 @@
+@* The chooser of degree and label (DR5). For the wave label tool: degree and label; after each label placed the
+   page moves it on to the next one, so a count is clicked label after label. For a wave pattern: the degree, and
+   the labels of the pattern as they will be written. *@
+<div class="wave-chooser" role="toolbar" aria-label="@(Pattern == null ? "Wave label" : Pattern.Title)">
+    <select title="Degree" value="@Degree" @onchange="e => OnChanged.InvokeAsync((e.Value?.ToString() ?? Degree, Label))">
+        @foreach (var degree in WaveLabels.Degrees)
+        {
+            <option value="@degree.Code">@degree.Title</option>
+        }
+    </select>
+    @if (Pattern == null)
+    {
+        <span class="wave-chooser-labels">
+            @foreach (var label in WaveLabels.Labels)
+            {
+                <button type="button" class="@(label == Label ? "selected" : "")" title="@label"
+                        @onclick="() => OnChanged.InvokeAsync((Degree, label))">@WaveLabels.Written(Degree, label)</button>
+            }
+        </span>
+    }
+    else
+    {
+        <span class="muted">start, then @string.Join("  ", Pattern.Labels.Select(label => WaveLabels.Written(Degree, label)))</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Degree { get; set; } = WaveLabels.FirstDegree;
+
+    [Parameter]
+    public string Label { get; set; } = "1";
+
+    /// <summary>The wave pattern in use; null for the wave label tool.</summary>
+    [Parameter]
+    public WavePattern? Pattern { get; set; }
+
+    /// <summary>The degree and the label chosen.</summary>
+    [Parameter]
+    public EventCallback<(string Degree, string Label)> OnChanged { get; set; }
+}

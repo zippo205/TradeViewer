@@ -24,7 +24,7 @@ public static class WorkspaceEndpoints
             ICommandHandler<UpdateSettingsCommand, SettingsResponse> handler,
             CancellationToken cancellationToken) =>
         {
-            var result = await handler.HandleAsync(new UpdateSettingsCommand(request.DefaultHistory, request.LastChart, request.PriceScale), cancellationToken);
+            var result = await handler.HandleAsync(new UpdateSettingsCommand(request.DefaultHistory, request.LastChart, request.PriceScale, request.Magnet), cancellationToken);
             return result.ToHttpResult();
         });
 

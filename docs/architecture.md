@@ -124,7 +124,7 @@ Features/
 ├── Assets            symbol list, add, history, remove (AS2-AS5)
 ├── MarketData        candles, current candle, import, sync status, gaps (MD1-MD8)
 ├── Watchlists        the five fixed lists, order, row figures (AS1, AS6)
-├── ChartSettings     settings per asset (CP2); built with the first epic that has one (Indicators)
+├── ChartSettings     settings per asset (CP2): so far "drawings hidden" (DR6)
 ├── Indicators        calculation requests, indicator templates (IN1, IN2)
 ├── Drawings          drawings, Fibonacci presets (DR1-DR6)
 ├── Downloader        status and subscriptions for the monitoring page (DL1-DL4)
@@ -227,9 +227,15 @@ IndicatorTemplate   name, indicator instances
 ChartSettings       asset, indicator instances, drawings hidden, selected EWTS instance, hidden groups
                     (the price scale mode is one setting for all charts, see chapter 9)
 
-Drawing             id, asset, tool type, locked, anchors, style, text, payload version
-Anchor              time (UTC) + price, never a bar index
-FibonacciPreset     name, kind (retracement, extension), levels (ratios)
+Drawing             id, asset, tool type, locked, anchors, style, text, payload version; what only
+                    some tools have: levels (Fibonacci, copied from the preset when drawn), wave mark
+                    (wave label), point labels and "line hidden" (polyline). DrawingRules refuses
+                    what could not be read again; DrawingTools holds the rules of each tool
+Anchor              time (UTC) + price, never a bar index; a wave label has no price (it sits at
+                    the high or low of the candle that contains its time)
+WaveMark            degree, label (1-5, A-E, W, X, Y, Z) and side; WaveNotation gives the drawn form
+FibonacciPreset     name, kind (retracement, extension), levels (FibonacciLevel: ratio, on or off); the
+                    two defaults of DR4, with further levels switched off
 
 EwtsInstance        id, name, base address
 ```
@@ -492,13 +498,16 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/watchlists                               the five lists with their rows and figures (AS6)
 /api/watchlists/{assetClass}/order            put: all assets of one list in their new order; 409 when
                                               the list has other assets than the order names
-/api/chart-settings/{source}/{symbol}         get, put: the settings per asset (CP2). Not built yet: no setting
-                                              per asset exists before the Indicators epic. The table
-                                              chart_settings (workspace script 0003) waits for it
-/api/settings                                 default history, last chart, price scale mode of all charts
-                                              (AS3, CP3, CP2); get, put (a part that is null stays)
-/api/drawings                                 by asset
-/api/fibonacci-presets
+/api/chart-settings/{source}/{symbol}         get, put: the settings per asset (CP2); the defaults when never
+                                              saved; 404 for an unknown asset
+/api/settings                                 default history, last chart, price scale mode and magnet of all
+                                              charts (AS3, CP3, CP2, DR2); get, put (a part that is null stays)
+/api/drawings/{source}/{symbol}               the drawings of an asset in the order they were made
+/api/drawings/{id}                            put stores (new or changed), delete; 400 with the fields when
+                                              the record breaks the rules of its tool, 404 unknown asset,
+                                              409 when the id is a drawing of another asset
+/api/fibonacci-presets                        list; /{id} put (levels kept sorted), delete; 409 for the last
+                                              preset of a kind
 /api/downloader/status
 /api/downloader/subscriptions
 /api/downloader/assets/{source}/{symbol}      coverage, gaps, import errors
@@ -523,10 +532,17 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 - Drawings get their id (UUID) from the client and are written with an idempotent `PUT`, so the
   client can show a change at once and save it in the background (NF3, WS1). Chart settings,
   settings and the order of a watchlist are replaced as a whole.
+- A request that changes drawings names its window in the header `X-TradeViewer-Window` (a
+  UUID per browser window); the hub event `DrawingsChanged` carries it back, so that window
+  ignores its own change.
+- The lock of a drawing (DR2) is kept by the chart, not checked by the Api: the client sends only
+  the last of several changes of one drawing, so "unlock, then move" arrives as one save that must
+  not be refused.
 - A ZIP and a backup download are file results: a handler returns `Result<FileContent>` (stream,
   name, media type) and the endpoint streams it; the ZIP is built in memory from the scenario
   files of the run.
-- No OpenAPI document; `src/TradeViewer.Api/TradeViewer.Api.http` holds example requests.
+- No OpenAPI document and no file of example requests: the routes are listed here, the records are
+  in `TradeViewer.Contracts`, and the integration tests call every endpoint.
 
 ### SignalR Hub `/hubs/workspace`
 
@@ -536,6 +552,7 @@ Server to client only; user actions go through REST.
 CandlesUpdated(source, symbol, timeframes)    timeframes as codes
 AssetStatusChanged(source, symbol)
 DownloaderStatusChanged(reachable)
+DrawingsChanged(source, symbol, window)        a drawing of the asset was saved or deleted by that window
 EwtsInstanceStatusChanged(instanceId, reachable)
 OverlaysChanged(instanceId, symbol)
 TestRunChanged(instanceId, testRunId, state)
@@ -569,22 +586,31 @@ TradeViewer.Chart/src/
 ├── data/                  fetching candles from the Api (later indicators and gaps), the page cache
 │                          (SeriesData), when to load older candles (CH4)
 ├── indicators/            indicator series and panes (values come from the Api)
-├── tools/                 interaction: hit testing, handles, tool state machine
-└── primitives/            one series primitive per drawing type and per overlay shape
+├── tools/                 interaction: time-to-index mapping, geometry and hit testing, dragging,
+│                          pointer input taken before the chart, tool state machine
+└── primitives/            the drawing layer (one series primitive holding all drawings, one class
+                           per drawing type on it) and the overlay shapes
 ```
 
 ### Interop Contract
 
 ```text
 Blazor -> chart    createPane, setSeries(asset, timeframe), setIndicators, setDrawings,
-                   setOverlays, setTool, setOptions, refresh, dispose
-chart  -> Blazor   drawingCreated, drawingChanged, drawingDeleted, selectionChanged,
-                   contextMenuRequested
+                   setOverlays, setTool(tool, style), setDrawingOptions(magnet, hidden),
+                   selectDrawing, setOptions, refresh, dispose
+chart  -> Blazor   drawingCreated, drawingChanged, selectionChanged, toolChanged
 ```
+
+Deleting a drawing is an action of Web (the bar of the selected drawing, the Delete key): Web
+removes it from its list and calls setDrawings, so the module reports no deletion. There is no
+context menu; the bar of the selected drawing does what one would.
 
 - `ChartHost` (Web) wraps the calls in typed C# methods; events return through a
   `DotNetObjectReference`. Built so far: createPane, setSeries (asset, timeframe, tick size),
-  setOptions (price scale mode), refresh, dispose; the other calls come with their epics.
+  setOptions (price scale mode), refresh, dispose, and the drawing calls and events; the calls for
+  indicators and overlays come with their epics. Three helpers of the module serve the page:
+  `bindDrawingEvents` (the events of a pane to ChartHost), `bindPageKeys` (Delete, Ctrl+Z, Ctrl+Y and
+  Ctrl+Shift+Z on the page, not while typing in a field) and `warnWhenLeaving`.
 - The chart page is `/chart/{source}/{symbol}/{timeframe}` (CP1); changing asset or timeframe
   changes the address without a page load. `/` opens the last chart (CP3), or the assets page when
   there is none. The chart stays alive across such changes: only the series is replaced.
@@ -624,10 +650,73 @@ chart  -> Blazor   drawingCreated, drawingChanged, drawingDeleted, selectionChan
   page does the same.
 - Measured on WSL in a headless Chromium: click to painted chart 112 to 123 ms at worst, median
   76 ms (NF1: 150 ms); zoom, pan and crosshair 60 frames per second with no request (NF2).
+  Dragging a line with 200 drawings of all tools on the chart: 60 frames per second, no frame
+  over 16.8 ms and no long task, the same as on an empty chart (NF3).
+- Other windows follow (CP1): a window that shows an asset reads its drawings again when the hub
+  reports `DrawingsChanged` for it from another window, so a line drawn on 4h appears in the 1d
+  window beside it. The window that made the change ignores its own event.
 - Candles and indicator values never go through interop: Blazor passes asset and timeframe, the
   module fetches the column arrays itself.
 - Web owns the list of drawings and saves it; the module owns the geometry while the user drags
   and reports the result. Undo and redo are client state in Web (DR2).
+- Drawings in Web (`TradeViewer.Web/Drawings`, one of each per window): `DrawingSession` holds the
+  drawings of the asset shown, the selection and an undo history per asset; it refuses to change or
+  delete a locked drawing, apart from unlocking it. `DrawingSaveQueue` sends each change at once
+  in the background: one request per drawing at a time, only the newest of several changes, a
+  failed one tried again after 1, 2, 5 and then every 10 seconds; while a save fails or was refused
+  the tool rail shows "not saved", and while a change is unconfirmed closing the window asks first.
+  Saves go out with the browser's keep-alive flag, so a save that has started survives closing the
+  window. Reading the drawings again lays the unconfirmed changes over the answer of the server.
+- The chart page has a tool rail at the left (pointer, the tools, magnet, hide all, undo, redo)
+  and, while a drawing is selected, a bar above the chart (colour, width, line style, fill, text of
+  a note, lock, delete). Hide all is saved per asset in the chart settings, the magnet for all
+  charts in the settings.
+- Drawings in the module: one series primitive, the drawing layer, draws all drawings of the chart
+  and the preview of the one being placed; each tool is one shape class in `primitives/shapes/`
+  (geometry, drawing, hit test, handles, reshape). The state machine (`tools/interaction.ts`)
+  places a drawing with click, move, click and then returns to the pointer; selects the topmost
+  drawing under the pointer; moves it by whole bars, reshapes it by a handle of the selected one;
+  Escape cancels. A locked drawing is selected but never moved or reshaped. The magnet (on by
+  default) snaps a placed or reshaped anchor to the open, high, low or close of its candle that is
+  nearest in pixels. A press the module takes never reaches the library (`mousedown` in the
+  capture phase on the element around the chart), so the chart does not pan; any other press
+  goes to the chart. A horizontal line shows its price on the price scale.
+- A polyline takes points until a double-click on its last point or Enter (Escape drops it); it
+  can hide its line and show only the wave labels on its points. A wave label has one anchor
+  without a price: the layer draws it at the high (above) or the low (below) of the candle that
+  contains its time, so it follows the candle on every timeframe; it is placed on the side of the
+  candle the click is on and moved to another candle and side as a whole. The wave label tool
+  stays in use after each label, and Web moves its chooser on to the next label (1, 2, 3 ...), so a
+  count is clicked label after label. The notation is a small table in the module
+  (`primitives/waveNotation.ts`, for drawing) and in Web (`Drawings/WaveLabels`, for the chooser),
+  both equal to `WaveNotation` in the Domain; tests keep them equal.
+- Wave patterns (DR5): one group button of the rail, as in TradingView, opens the five patterns
+  (`Drawings/WavePatterns` in Web) and, at its bottom, the single wave label and the free polyline,
+  for counts that fit no pattern; the button shows the entry used last. A pattern is the polyline
+  tool with the extras `pattern` (its labels) and `degree`: the module ends it after the start and
+  one point per label, and gives the points their labels, highs above and lows below
+  (`primitives/wavePatterns.ts`). The record is a plain polyline with point labels, so it is
+  reshaped, relabelled and has its line hidden like any polyline; when a point is reshaped, the
+  labels take their sides from the prices again. The bar changes the degree of all labels of a
+  count at once.
+- Fibonacci (DR4): a retracement has level 0 at its second anchor and 1 at its first; an extension
+  lays the move from its first to its second anchor, times the ratio, from its third. A level is a
+  ratio that is on or off (`FibonacciLevel`); only the levels on are drawn, each from the first to
+  the last anchor, left to right, with ratio and price at its left end, as in TradingView. The
+  module interpolates the levels in pixels: on a linear scale that is linear in price, on a
+  logarithmic scale linear in the logarithm of the price, which is what DR4 asks; the price shown
+  is read back from the scale. A new drawing copies all levels, on and off, of the preset chosen
+  beside the tool rail; the bar of the drawing switches them, the settings page switches, adds
+  and removes those of the presets. Levels stored as plain numbers, before they could be switched
+  off, are read as on; script 0005 gave the unchanged default presets their levels that are off.
+- Exact anchor times: an anchor that is placed or reshaped on the high or low of its candle, and a
+  wave label, gets the time of the candle of the asset's smallest timeframe that made that price
+  (Web passes the timeframes with candles in setSeries). The module reads that candle's period in
+  the smallest timeframe (one `/api/candles` request per anchor, never while dragging) and reports
+  the drawing once, with the exact times. On the timeframe it was drawn on nothing moves; on every
+  smaller one the point sits on the candle that made the extreme. A drawing moved as a whole keeps
+  the times it was moved to. If the drawing changes during the lookup, its latest state is
+  reported and the lookup is dropped; a failed lookup keeps the times.
 - Drawings and overlays are positioned by time and price. Switching the timeframe reloads
   candles and indicators only; a time between two candles is drawn at the candle that contains
   it.

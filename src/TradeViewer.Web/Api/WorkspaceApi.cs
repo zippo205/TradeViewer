@@ -39,6 +39,12 @@ public sealed class WorkspaceApi
         return SaveSettingsAsync(new SettingsResponse(null, null, priceScale));
     }
 
+    /// <summary>Saves the magnet of the drawing tools, one setting for all charts (DR2); the other settings stay.</summary>
+    public Task<ApiResult<SettingsResponse>> SaveMagnetAsync(bool magnet)
+    {
+        return SaveSettingsAsync(new SettingsResponse(null, null, null, magnet));
+    }
+
     public async Task<IReadOnlyList<BackupResponse>> GetBackupsAsync()
     {
         var backups = await _http.GetFromJsonAsync<List<BackupResponse>>(Backups);

@@ -6,6 +6,8 @@ import { ChartPane, type PaneOptions } from "./chartPane";
 export { moduleInfo } from "./moduleInfo";
 export type { ModuleInfo } from "./moduleInfo";
 export type { PaneOptions, PaneStats, SeriesRequest } from "./chartPane";
+export type { Anchor, Drawing, DrawingStyle, LineStyle, ToolCode } from "./primitives/drawing";
+export type { DrawingEvents, DrawingOptions } from "./tools/interaction";
 
 const openPanes = new Set<ChartPane>();
 
@@ -20,3 +22,5 @@ export function createPane(element: HTMLElement, options?: PaneOptions): ChartPa
 export function panes(): ChartPane[] {
   return [...openPanes];
 }
+
+export { bindDrawingEvents, bindPageKeys, warnWhenLeaving } from "./blazorBridge";

@@ -180,19 +180,27 @@ Every requirement has an id. The backlog refers to these ids.
   line style, text) and deleted. Undo and redo cover the actions of the current session. A
   drawing can be locked; a locked drawing cannot be moved, changed or deleted until it is
   unlocked. A magnet option (on by default) snaps anchors to the open, high, low or close of
-  the nearest candle.
+  the nearest candle; it is one setting for all charts and is kept, like the price scale mode.
 - **DR3** A drawing belongs to an asset, not to a timeframe: it stays on the chart
   when the timeframe is switched. Anchors may lie to the right of the last candle.
-- **DR4** Fibonacci tools take their levels from a preset the user can edit and add to. Default
-  retracement levels: 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1. Default extension levels: 1,
-  1.272, 1.618, 2, 2.618, 3.618. A drawing has one colour for all its levels (default for
-  extensions: light blue); each level shows its ratio and price. On a logarithmic price scale
-  the levels are calculated in log space.
+- **DR4** Fibonacci tools take their levels from a preset the user can edit and add to. Each level
+  of a preset and of a drawing can be switched on and off, as in TradingView. Levels switched on
+  by default: retracement 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1; extension 1, 1.272, 1.618, 2,
+  2.618, 3.618. The default presets also hold levels that are switched off (retracement 1.272,
+  1.414, 1.618, 2, 2.618; extension 0, 0.382, 0.5, 0.618, 0.786, 4.236). A drawing has one colour
+  for all its levels (default for extensions: light blue); each level shows its ratio and price
+  and spans from the first to the last anchor of the drawing. On a logarithmic price scale the
+  levels are calculated in log space.
 - **DR5** Wave labels are text markers from a fixed list: the nine Elliott degrees (Grand
-  Supercycle to Subminuette) with their numbers and letters (1-5, A-C, W-X-Y, A-E). A label
+  Supercycle to Subminuette) with their numbers and letters (1-5, A-E, W, X, Y, Z). A label
   sits above a high or below a low and follows the candle. Labels can sit on the points of a
-  polyline; the polyline can hide its line and show only its labels. TradeViewer does not
-  check labels against any Elliott Wave rule.
+  polyline; the polyline can hide its line and show only its labels. Wave patterns, grouped
+  under one button of the tool rail as in TradingView, place such a polyline with its labels in
+  one go: impulse 1-2-3-4-5, correction A-B-C, triangle A-B-C-D-E, double combination W-X-Y and
+  triple combination W-X-Y-X-Z, after a first click on the start of the move. Their labels are
+  on, their line can be switched off. The single wave label and the polyline sit at the bottom of
+  the same group, for counts that fit no pattern, such as one still in progress. TradeViewer does
+  not check labels against any Elliott Wave rule.
 - **DR6** All drawings of a chart can be hidden and shown at once.
 
 ### 4.7 Downloader Monitoring

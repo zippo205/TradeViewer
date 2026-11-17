@@ -528,3 +528,287 @@ input:disabled {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     pointer-events: none;
 }
+
+/* Drawing tools (DR1-DR6): the tool rail at the left of the chart and the bar of the selected drawing. */
+.chart-with-tools {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.chart-canvas-area {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tool-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 40px;
+    padding: 6px 0;
+    border-right: 1px solid var(--border);
+}
+
+.tool-rail button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.tool-rail button:hover:not(:disabled) {
+    background: var(--surface);
+}
+
+.tool-rail button.selected {
+    color: var(--link);
+    background: var(--surface);
+    border-color: var(--link);
+}
+
+.tool-rail button:disabled {
+    opacity: 0.35;
+}
+
+.tool-rail svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+.tool-rail svg .line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.tool-rail-gap {
+    height: 10px;
+    width: 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+}
+
+.tool-rail-unsaved {
+    margin-top: 8px;
+    padding: 2px;
+    font-size: 11px;
+    line-height: 1.1;
+    text-align: center;
+    color: #ffffff;
+    background: var(--bad);
+    border-radius: 4px;
+}
+
+.drawing-bar {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    transform: translateX(-50%);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+}
+
+.drawing-bar-swatches {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.drawing-bar .swatch {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 50%;
+}
+
+.drawing-bar .swatch.selected {
+    border-color: var(--text);
+}
+
+.drawing-bar input[type="color"] {
+    width: 24px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+.drawing-bar-text {
+    width: 160px;
+}
+
+.drawing-bar button.selected {
+    color: #ffffff;
+    background: var(--link);
+    border-color: var(--link);
+}
+
+/* The chooser of degree and label of the wave label tool (DR5), where the bar of a selected drawing would be. */
+.wave-chooser,
+.tool-chooser {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    transform: translateX(-50%);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+}
+
+.wave-chooser-labels {
+    display: flex;
+    gap: 2px;
+}
+
+.wave-chooser-labels button {
+    min-width: 30px;
+    padding: 2px 4px;
+}
+
+.wave-chooser-labels button.selected {
+    color: #ffffff;
+    background: var(--link);
+    border-color: var(--link);
+}
+
+/* The Fibonacci presets on the settings page: a head with name and buttons, then the levels as chips. */
+.preset {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.preset-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.preset-levels {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.preset-level {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 4px 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.preset-level.off {
+    color: var(--muted);
+}
+
+.preset-remove {
+    padding: 0 4px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+}
+
+.preset-add {
+    width: 9em;
+}
+
+/* A group of tools on the rail (the Elliott wave patterns): the button opens a list beside the rail. */
+.tool-group {
+    position: relative;
+}
+
+.tool-group > button {
+    position: relative;
+}
+
+.tool-group-mark {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    border-left: 4px solid transparent;
+    border-bottom: 4px solid currentColor;
+}
+
+.tool-flyout {
+    position: absolute;
+    top: 0;
+    left: 38px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    min-width: 230px;
+    padding: 4px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.tool-rail .tool-flyout button {
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+    height: 32px;
+    padding: 0 8px;
+    white-space: nowrap;
+}
+
+.tool-flyout svg {
+    flex: none;
+}
+
+/* The levels of a selected Fibonacci drawing: a panel that drops down below the bar. */
+.drawing-bar-levels {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    width: 340px;
+    padding: 6px;
+    white-space: nowrap;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.tool-flyout-separator {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--border);
+}

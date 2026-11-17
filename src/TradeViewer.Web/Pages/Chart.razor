@@ -1,9 +1,13 @@
 @page "/chart/{Source}/{Symbol}/{Timeframe}"
 @implements IDisposable
 @inject AssetsApi Api
+@inject DrawingsApi DrawingsApi
+@inject DrawingSession Session
+@inject DrawingSaveQueue Saves
 
 @inject WorkspaceApi Workspace
 @inject WorkspaceEvents Events
+@inject WindowIdentity Window
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -58,13 +62,41 @@
     }
     else if (_asset != null && _shown != null)
     {
-        @* The chart stays while another asset's settings are read: it keeps its view and switches in one step (CH3). *@
-        <ChartHost @ref="_chart"
-                   Source="@_shown.Source"
-                   Symbol="@_shown.Symbol"
-                   Timeframe="@_shown.Timeframe"
-                   TickSize="@_shown.TickSize"
-                   LogScale="@_logScale" />
+        <div class="chart-with-tools">
+            <DrawingToolbar Tool="@_tool" Magnet="@_magnet" Hidden="@_hidden"
+                            CanUndo="@Session.CanUndo" CanRedo="@Session.CanRedo" Problem="@(_drawingError ?? Saves.Problem)"
+                            Pattern="@_pattern" LastPattern="@_lastPattern" OnPattern="ChoosePatternAsync"
+                            OnTool="ChooseToolAsync" OnMagnet="SetMagnetAsync" OnHidden="SetHiddenAsync"
+                            OnUndo="() => Session.Undo()" OnRedo="() => Session.Redo()" />
+            <div class="chart-canvas-area">
+                @* The chart stays while another asset's settings are read: it keeps its view and switches in one step (CH3). *@
+                <ChartHost @ref="_chart"
+                           Source="@_shown.Source"
+                           Symbol="@_shown.Symbol"
+                           Timeframe="@_shown.Timeframe"
+                           TickSize="@_shown.TickSize"
+                           Timeframes="@_shown.Timeframes"
+                           LogScale="@_logScale"
+                           OnReady="OnChartReadyAsync"
+                           OnDrawingCreated="OnDrawingCreated"
+                           OnDrawingChanged="OnDrawingChanged"
+                           OnSelectionChanged="OnSelectionChanged"
+                           OnToolChanged="OnToolChanged"
+                           OnKey="OnKey" />
+                @if (Session.Selected != null && !_hidden)
+                {
+                    <DrawingBar Drawing="@Session.Selected" Wave="@((_waveDegree, _waveLabel))" OnEdit="OnDrawingEdited" OnDelete="() => Session.Delete(Session.Selected.Id)" />
+                }
+                @if ((_tool == "waveLabel" || _pattern != null) && !_hidden)
+                {
+                    <WaveChooser Degree="@_waveDegree" Label="@_waveLabel" Pattern="@WavePatterns.Find(_pattern)" OnChanged="OnWaveChosen" />
+                }
+                @if (KindOf(_tool) is string kind && !_hidden)
+                {
+                    <FibonacciChooser Presets="@PresetsOf(kind)" Selected="@(PresetOf(kind)?.Id ?? Guid.Empty)" OnChanged="id => OnPresetChosen(kind, id)" />
+                }
+            </div>
+        </div>
     }
     </div>
     @if (_panelOpen)
@@ -88,6 +120,21 @@
     private string? _rememberedChart;
     private bool _disposed;
 
+    // Drawings (DR1-DR6): the tool in use, magnet and "all hidden", the asset whose drawings are shown.
+    private string? _tool;
+    private bool _magnet = true;
+    private bool _hidden;
+    private string? _drawingsAsset;
+    private string? _drawingError;
+    private string _waveDegree = WaveLabels.FirstDegree;
+    private string _waveLabel = "1";
+    private string? _pattern;
+    private string? _lastPattern;
+    private List<FibonacciPresetRecord> _presets = new List<FibonacciPresetRecord>();
+
+    /// <summary>The preset chosen per kind (retracement, extension) in this window; the first of the kind before a choice.</summary>
+    private readonly Dictionary<string, Guid> _chosenPresets = new Dictionary<string, Guid>();
+
     [Parameter]
     public string Source { get; set; } = string.Empty;
 
@@ -106,13 +153,21 @@
     protected override async Task OnInitializedAsync()
     {
         Events.CandlesUpdated += OnCandlesUpdated;
+        Events.DrawingsChanged += OnDrawingsChanged;
         Events.AssetStatusChanged += OnAssetStatusChanged;
         Events.Reconnected += OnReconnected;
         _ = Events.StartAsync();
+        Session.Changed += OnSessionChanged;
+        Saves.StateChanged += OnSavesChanged;
 
         // The price scale mode is one setting for all charts (CP2): read once, before the first chart is drawn.
         var settings = await Workspace.GetSettingsAsync();
         _logScale = settings.Value?.PriceScale == PriceScales.Log;
+        _magnet = settings.Value?.Magnet ?? true;
+
+        // The Fibonacci presets (DR4): a new Fibonacci drawing copies the levels of the one chosen.
+        var presets = await DrawingsApi.GetPresetsAsync();
+        _presets = presets.Value ?? new List<FibonacciPresetRecord>();
 
         await LoadAssetsAsync();
         _settingsRead = true;
@@ -135,7 +190,8 @@
             return;
         }
 
-        _shown = new ShownSeries(Source, Symbol, Timeframe, _asset.TickSize);
+        _shown = new ShownSeries(Source, Symbol, Timeframe, _asset.TickSize, _asset.Timeframes.Where(timeframe => timeframe.Chartable).Select(timeframe => timeframe.Timeframe).ToList());
+        ShowDrawingsOf(Source, Symbol);
 
         var chart = Key(Source, Symbol) + "/" + Timeframe;
         if (_rememberedChart != chart && _asset.Timeframes.Any(timeframe => timeframe.Timeframe == Timeframe))
@@ -149,8 +205,11 @@
     {
         _disposed = true;
         Events.CandlesUpdated -= OnCandlesUpdated;
+        Events.DrawingsChanged -= OnDrawingsChanged;
         Events.AssetStatusChanged -= OnAssetStatusChanged;
         Events.Reconnected -= OnReconnected;
+        Session.Changed -= OnSessionChanged;
+        Saves.StateChanged -= OnSavesChanged;
     }
 
     private async Task LoadAssetsAsync()
@@ -250,6 +309,20 @@
         });
     }
 
+    /// <summary>
+    /// Another window saved or deleted a drawing of the asset shown: this one reads the drawings again, so a line
+    /// drawn on 4h appears in the 1d window beside it (CP1). Its own changes it knows already.
+    /// </summary>
+    private void OnDrawingsChanged(string source, string symbol, string window)
+    {
+        if (source != Source || symbol != Symbol || window == Window.Id || _disposed)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() => LoadDrawingsAsync(source, symbol));
+    }
+
     private void OnAssetStatusChanged(string source, string symbol)
     {
         if (source == Source && symbol == Symbol && !_disposed)
@@ -278,8 +351,290 @@
                 await _chart.RefreshAsync();
             }
 
+            await LoadDrawingsAsync(Source, Symbol);
+
             StateHasChanged();
         });
+    }
+
+    /// <summary>
+    /// Another asset: its drawings replace those of the last one at once (none until they are read), and its
+    /// "all hidden" comes with them (CP2). The timeframe alone changes nothing: drawings belong to the asset (DR3).
+    /// </summary>
+    private void ShowDrawingsOf(string source, string symbol)
+    {
+        var asset = Key(source, symbol);
+        if (_drawingsAsset == asset)
+        {
+            return;
+        }
+
+        _drawingsAsset = asset;
+        Session.Show(source, symbol, Array.Empty<DrawingRecord>());
+        _ = LoadDrawingsAsync(source, symbol);
+    }
+
+    private async Task LoadDrawingsAsync(string source, string symbol)
+    {
+        var drawings = await DrawingsApi.GetAsync(source, symbol);
+        var settings = await DrawingsApi.GetChartSettingsAsync(source, symbol);
+        if (_disposed || _drawingsAsset != Key(source, symbol))
+        {
+            return; // the user has moved on to another asset meanwhile
+        }
+
+        _drawingError = drawings.Error == null ? null : "Drawings could not be read: " + drawings.Error;
+        _hidden = settings.Value?.DrawingsHidden ?? false;
+        await PushOptionsAsync();
+        if (drawings.Value != null)
+        {
+            Session.Show(source, symbol, drawings.Value);
+        }
+
+        StateHasChanged();
+    }
+
+    /// <summary>The chart is ready: it gets the drawings, the options and the tool shown so far.</summary>
+    private async Task OnChartReadyAsync()
+    {
+        await PushOptionsAsync();
+        await PushDrawingsAsync();
+        if (_chart != null)
+        {
+            await _chart.WarnWhenLeavingAsync(Saves.HasUnsaved);
+        }
+    }
+
+    private async Task PushDrawingsAsync()
+    {
+        if (_chart != null)
+        {
+            var drawings = Session.Drawings.Select(ChartDrawings.ToChart).ToList();
+            await _chart.SetDrawingsAsync(drawings, Session.SelectedId?.ToString());
+        }
+    }
+
+    private async Task PushOptionsAsync()
+    {
+        if (_chart != null)
+        {
+            await _chart.SetDrawingOptionsAsync(_magnet, _hidden);
+        }
+    }
+
+    /// <summary>The list or the selection changed (the user, undo, redo, reading again): the chart shows it.</summary>
+    private void OnSessionChanged()
+    {
+        if (!_disposed)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await PushDrawingsAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    private void OnSavesChanged()
+    {
+        if (!_disposed)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                if (_chart != null)
+                {
+                    await _chart.WarnWhenLeavingAsync(Saves.HasUnsaved);
+                }
+
+                StateHasChanged();
+            });
+        }
+    }
+
+    private async Task OnDrawingCreated(ChartDrawing drawing)
+    {
+        var record = ChartDrawings.ToRecord(drawing, Source, Symbol);
+        if (record == null)
+        {
+            return;
+        }
+
+        Session.Created(record);
+
+        // A wave label placed: the chooser moves on to the next label, and the tool, still in use, places that one.
+        if (record.Tool == "waveLabel" && record.Wave != null)
+        {
+            _waveDegree = record.Wave.Degree;
+            _waveLabel = WaveLabels.Next(record.Wave.Label);
+            if (_tool == "waveLabel" && _chart != null)
+            {
+                await _chart.SetToolAsync("waveLabel", WaveExtras());
+            }
+        }
+    }
+
+    /// <summary>The chooser changed: the wave label tool, when in use, places the label chosen.</summary>
+    private async Task OnWaveChosen((string Degree, string Label) wave)
+    {
+        _waveDegree = wave.Degree;
+        _waveLabel = wave.Label;
+        if ((_tool == "waveLabel" || _pattern != null) && _chart != null)
+        {
+            await _chart.SetToolAsync(_tool, ToolExtras(_tool));
+        }
+    }
+
+    /// <summary>A wave pattern chosen in the group of the rail: a polyline whose points get the labels of the pattern.</summary>
+    private async Task ChoosePatternAsync(string code)
+    {
+        _pattern = code;
+        _lastPattern = code;
+        if (_chart != null)
+        {
+            await _chart.SetToolAsync("polyline", ToolExtras("polyline")); // the chart answers with ToolChanged
+        }
+    }
+
+    /// <summary>What a new drawing of the tool gets besides its anchors: a wave mark, or Fibonacci levels.</summary>
+    private object? ToolExtras(string? tool)
+    {
+        if (tool == "waveLabel")
+        {
+            return WaveExtras();
+        }
+
+        var pattern = tool == "polyline" ? WavePatterns.Find(_pattern) : null;
+        if (pattern != null)
+        {
+            return new { pattern = pattern.Labels, degree = _waveDegree };
+        }
+
+        var kind = KindOf(tool);
+        var preset = kind == null ? null : PresetOf(kind);
+        return preset == null ? null : new { levels = preset.Levels };
+    }
+
+    /// <summary>The kind of preset a Fibonacci tool uses; null for the other tools.</summary>
+    private static string? KindOf(string? tool)
+    {
+        switch (tool)
+        {
+            case "fibonacciRetracement":
+                return "retracement";
+            case "fibonacciExtension":
+                return "extension";
+            default:
+                return null;
+        }
+    }
+
+    private IReadOnlyList<FibonacciPresetRecord> PresetsOf(string kind)
+    {
+        return _presets.Where(preset => preset.Kind == kind).ToList();
+    }
+
+    private FibonacciPresetRecord? PresetOf(string kind)
+    {
+        var presets = PresetsOf(kind);
+        return _chosenPresets.TryGetValue(kind, out var id) && presets.Any(preset => preset.Id == id)
+            ? presets.First(preset => preset.Id == id)
+            : presets.FirstOrDefault();
+    }
+
+    /// <summary>Another preset chosen: the tool in use places its levels from now on.</summary>
+    private async Task OnPresetChosen(string kind, Guid id)
+    {
+        _chosenPresets[kind] = id;
+        if (KindOf(_tool) == kind && _chart != null)
+        {
+            await _chart.SetToolAsync(_tool, ToolExtras(_tool));
+        }
+    }
+
+    /// <summary>What a new wave label gets: the degree and label of the chooser; the chart adds the side.</summary>
+    private object WaveExtras()
+    {
+        return new { wave = new { degree = _waveDegree, label = _waveLabel } };
+    }
+
+    private void OnDrawingChanged(ChartDrawing drawing)
+    {
+        var record = ChartDrawings.ToRecord(drawing, Source, Symbol);
+        if (record != null)
+        {
+            Session.Moved(record);
+        }
+    }
+
+    private void OnSelectionChanged(string? id)
+    {
+        Session.Select(Guid.TryParse(id, out var selected) ? selected : null);
+    }
+
+    private void OnToolChanged(string? tool)
+    {
+        _tool = tool;
+        if (tool != "polyline")
+        {
+            _pattern = null; // the pattern ended, or another tool was chosen
+        }
+    }
+
+    private void OnDrawingEdited(DrawingRecord drawing)
+    {
+        Session.Edit(drawing);
+    }
+
+    /// <summary>Delete, Ctrl+Z and Ctrl+Y on the chart page (DR2).</summary>
+    private void OnKey(string key)
+    {
+        switch (key)
+        {
+            case "delete":
+                if (Session.SelectedId != null)
+                {
+                    Session.Delete(Session.SelectedId.Value);
+                }
+
+                break;
+            case "undo":
+                Session.Undo();
+                break;
+            case "redo":
+                Session.Redo();
+                break;
+        }
+    }
+
+    private async Task ChooseToolAsync(string? tool)
+    {
+        _pattern = null; // a tool of the rail, also the free polyline, is not a pattern
+        if (tool == "waveLabel" || tool == "polyline")
+        {
+            _lastPattern = tool; // the Elliott group shows it next time
+        }
+
+        if (_chart != null)
+        {
+            await _chart.SetToolAsync(tool, ToolExtras(tool)); // the chart answers with ToolChanged
+        }
+    }
+
+    /// <summary>The magnet is one setting for all charts (DR2): it shows at once and is saved in the background.</summary>
+    private async Task SetMagnetAsync(bool magnet)
+    {
+        _magnet = magnet;
+        await PushOptionsAsync();
+        _ = Workspace.SaveMagnetAsync(magnet);
+    }
+
+    /// <summary>All drawings of the asset hidden or shown (DR6), saved per asset (CP2).</summary>
+    private async Task SetHiddenAsync(bool hidden)
+    {
+        _hidden = hidden;
+        await PushOptionsAsync();
+        var problem = await DrawingsApi.SaveChartSettingsAsync(Source, Symbol, new ChartSettingsResponse(hidden));
+        _drawingError = problem == null ? null : "Not saved: " + problem;
     }
 
     private static string Key(string source, string symbol)
@@ -288,5 +643,5 @@
     }
 
     /// <summary>What the chart shows right now; it follows the address once the settings of the asset are read.</summary>
-    private sealed record ShownSeries(string Source, string Symbol, string Timeframe, double TickSize);
+    private sealed record ShownSeries(string Source, string Symbol, string Timeframe, double TickSize, IReadOnlyList<string> Timeframes);
 }

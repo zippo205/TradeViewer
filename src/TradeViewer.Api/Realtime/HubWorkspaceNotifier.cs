@@ -30,6 +30,11 @@ public sealed class HubWorkspaceNotifier : IWorkspaceNotifier
         return SendAsync("DownloaderStatusChanged", reachable);
     }
 
+    public Task DrawingsChangedAsync(string source, string symbol, string window)
+    {
+        return SendAsync("DrawingsChanged", source, symbol, window);
+    }
+
     private async Task SendAsync(string name, params object[] arguments)
     {
         try

@@ -19,12 +19,12 @@ public sealed class UpdateSettingsCommandHandler : ICommandHandler<UpdateSetting
 
     public async Task<Result<SettingsResponse>> HandleAsync(UpdateSettingsCommand command, CancellationToken cancellationToken)
     {
-        if (command.DefaultHistory == null && command.LastChart == null && command.PriceScale == null)
+        if (command.DefaultHistory == null && command.LastChart == null && command.PriceScale == null && command.Magnet == null)
         {
             return Error.Validation(
                 "settings.invalid",
                 "The settings are not valid.",
-                new Dictionary<string, string[]> { ["settings"] = new[] { "The default history, the last chart or the price scale is required." } });
+                new Dictionary<string, string[]> { ["settings"] = new[] { "The default history, the last chart, the price scale or the magnet is required." } });
         }
 
         // Everything is checked before anything is written.
@@ -56,6 +56,11 @@ public sealed class UpdateSettingsCommandHandler : ICommandHandler<UpdateSetting
             await PriceScaleSetting.WriteAsync(_settings, command.PriceScale, cancellationToken);
         }
 
+        if (command.Magnet != null)
+        {
+            await MagnetSetting.WriteAsync(_settings, command.Magnet.Value, cancellationToken);
+        }
+
         if (command.LastChart != null)
         {
             await LastChartSetting.WriteAsync(_settings, command.LastChart, cancellationToken);
@@ -64,6 +69,7 @@ public sealed class UpdateSettingsCommandHandler : ICommandHandler<UpdateSetting
         return Result.Success(SettingsMapping.ToResponse(
             await _history.GetAsync(cancellationToken),
             await LastChartSetting.ReadAsync(_settings, cancellationToken),
-            await PriceScaleSetting.ReadAsync(_settings, cancellationToken)));
+            await PriceScaleSetting.ReadAsync(_settings, cancellationToken),
+            await MagnetSetting.ReadAsync(_settings, cancellationToken)));
     }
 }

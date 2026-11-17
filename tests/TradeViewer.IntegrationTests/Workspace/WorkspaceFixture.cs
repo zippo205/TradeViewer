@@ -46,6 +46,12 @@ public sealed class WorkspaceFixture : IDisposable
 
     public AssetRepository Assets { get; private set; } = null!;
 
+    public ChartSettingsRepository ChartSettings { get; private set; } = null!;
+
+    public DrawingRepository Drawings { get; private set; } = null!;
+
+    public FibonacciPresetRepository Presets { get; private set; } = null!;
+
     public static SchemaScript ExtraScript(int version, string sql)
     {
         return new SchemaScript(version, version.ToString("0000") + "_test.sql", sql);
@@ -55,6 +61,16 @@ public sealed class WorkspaceFixture : IDisposable
     public int Start(params SchemaScript[] extraScripts)
     {
         Build(extraScripts);
+        return new WorkspaceInitializer(Database, Schema, Store, Backups, NullLogger<WorkspaceInitializer>.Instance).Initialize();
+    }
+
+    /// <summary>Starts the workspace like an older build that knows only the scripts up to the version.</summary>
+    public int StartUpTo(int version)
+    {
+        Stop();
+        Build();
+        Schema = new WorkspaceSchema(WorkspaceSchema.FromEmbeddedScripts().Scripts.Where(script => script.Version <= version));
+        Backups = new WorkspaceBackups(Database, Schema, Store, Locations, Restored, NullLogger<WorkspaceBackups>.Instance);
         return new WorkspaceInitializer(Database, Schema, Store, Backups, NullLogger<WorkspaceInitializer>.Instance).Initialize();
     }
 
@@ -69,6 +85,9 @@ public sealed class WorkspaceFixture : IDisposable
         Backups = new WorkspaceBackups(Database, Schema, Store, Locations, Restored, NullLogger<WorkspaceBackups>.Instance);
         Settings = new SettingsRepository(Database, Clock);
         Assets = new AssetRepository(Database, Clock);
+        ChartSettings = new ChartSettingsRepository(Database, Clock);
+        Drawings = new DrawingRepository(Database, Clock);
+        Presets = new FibonacciPresetRepository(Database, Clock);
     }
 
     public DailyBackupService DailyService(string time = "03:00")

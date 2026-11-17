@@ -17,6 +17,13 @@ import { CandleRequestError, fetchCandles, type SeriesKey } from "./data/candleC
 import { fetchGaps, gapText, placeGaps, type Gap } from "./data/gaps";
 import { FIRST_PAGE_SIZE, OLDER_PAGE_SIZE, SeriesData, shouldLoadOlder } from "./data/seriesData";
 import { GAP_ID_PREFIX, GapMarkers } from "./gapMarkers";
+import type { Drawing, DrawingStyle, ToolCode } from "./primitives/drawing";
+import { DrawingLayer } from "./primitives/drawingLayer";
+import type { Point } from "./tools/geometry";
+import { DrawingInteraction, type DrawingEvents, type DrawingOptions } from "./tools/interaction";
+import { PointerInput } from "./tools/pointerInput";
+import { extremeOf, finestOf, madeAt, type Extreme } from "./tools/exactTime";
+import { TimeMapping, timeframeSeconds } from "./tools/timeMapping";
 import { formatPrice, formatTimeUtc, formatVolume, isIntraday, priceFormatOf, type PriceFormat } from "./format";
 import { captureView, latestRange, restoreView, type ViewState } from "./range";
 import { themeOf, type ChartTheme } from "./theme";
@@ -25,6 +32,8 @@ import { themeOf, type ChartTheme } from "./theme";
 export interface SeriesRequest extends SeriesKey {
   /** The tick size of the asset: prices are shown with its precision (CH1). */
   readonly tickSize: number;
+  /** The timeframes of the asset with candles; the smallest gives anchors their exact times (step 9). */
+  readonly timeframes?: readonly string[];
 }
 
 export interface PaneOptions {
@@ -50,6 +59,12 @@ export interface PaneStats {
   readonly lastTime: number | undefined;
   /** True: the last candle is the current one, still in progress. */
   readonly partial: boolean;
+  /** Drawings on the chart, those created and changed by the user, the selected one and the tool in use. */
+  readonly drawings: number;
+  readonly drawingsCreated: number;
+  readonly drawingChanges: number;
+  readonly selectedDrawing: string | undefined;
+  readonly tool: ToolCode | undefined;
 }
 
 /**
@@ -67,6 +82,16 @@ export class ChartPane {
   private readonly tooltip: HTMLDivElement;
   private readonly gapMarkers = new GapMarkers();
   private gaps: Gap[] = [];
+  private readonly drawingLayer = new DrawingLayer(
+    () => this.timeMapping(),
+    () => this.data.bars,
+  );
+  private readonly drawingInteraction: DrawingInteraction;
+  private readonly pointerInput: PointerInput;
+  private drawingListener: Partial<DrawingEvents> = {};
+  private drawingsCreated = 0;
+  private mappingCache: { bars: readonly Bar[]; timeframe: string; mapping: TimeMapping | undefined } | undefined;
+  private drawingChanges = 0;
   private readonly fetcher: typeof fetch;
 
   private data = new SeriesData();
@@ -139,6 +164,28 @@ export class ChartPane {
 
     // Gaps the source confirmed show as icons at the bottom of the chart (MD4).
     this.candles.attachPrimitive(this.gapMarkers);
+
+    // The drawings of the asset (DR3), on every timeframe; the pointer is taken before the chart gets it.
+    this.candles.attachPrimitive(this.drawingLayer);
+    this.drawingInteraction = new DrawingInteraction(
+      this.drawingLayer,
+      {
+        drawingCreated: (drawing) => {
+          this.drawingsCreated++;
+          this.drawingListener.drawingCreated?.(drawing);
+        },
+        drawingChanged: (drawing) => {
+          this.drawingChanges++;
+          this.drawingListener.drawingChanged?.(drawing);
+        },
+        selectionChanged: (id) => this.drawingListener.selectionChanged?.(id),
+        toolChanged: (tool) => this.drawingListener.toolChanged?.(tool),
+      },
+      undefined,
+      (drawing, changed) => this.exactTimes(drawing, changed),
+    );
+    this.drawingLayer.bind(this.drawingInteraction);
+    this.pointerInput = new PointerInput(canvasHost, this.chart, this.drawingInteraction);
     this.latestButton = document.createElement("button");
     this.latestButton.type = "button";
     this.latestButton.className = "tv-chart-latest";
@@ -298,6 +345,46 @@ export class ChartPane {
     this.chart.timeScale().setVisibleLogicalRange(latestRange(range.to - range.from, this.data.bars.length));
   }
 
+  /** Shows these drawings of the asset (DR3), placed by time and price on the candles of the timeframe shown. */
+  setDrawings(drawings: readonly Drawing[]): void {
+    this.drawingInteraction.setDrawings(drawings);
+  }
+
+  /** The drawings as the chart has them now, with what the user has changed. */
+  drawings(): readonly Drawing[] {
+    return this.drawingInteraction.all();
+  }
+
+  /** Chooses the tool to place next (undefined: the pointer); a style given replaces the default of the tool. */
+  setTool(tool: ToolCode | null | undefined, style?: DrawingStyle | null, extras?: Record<string, unknown> | null): void {
+    this.drawingInteraction.setTool(tool ?? undefined, style ?? undefined, extras ?? {});
+  }
+
+  /** The magnet and "all drawings hidden" (DR2, DR6). */
+  setDrawingOptions(options: Partial<DrawingOptions>): void {
+    this.drawingInteraction.setOptions(options);
+  }
+
+  selectDrawing(id: string | null | undefined): void {
+    this.drawingInteraction.select(id ?? undefined);
+  }
+
+  /** Who hears what the user does with drawings; Web in step 6 of the plan. */
+  onDrawingEvents(listener: Partial<DrawingEvents>): void {
+    this.drawingListener = listener;
+  }
+
+  /** Where a time and price are drawn, in pixels of the pane, for checks in the browser; changes nothing. */
+  pointOf(time: number, price: number): Point | undefined {
+    return this.drawingLayer.pointOf({ time, price });
+  }
+
+  /** Where the anchors of a drawing are drawn, in pixels of the pane, for checks in the browser. */
+  drawingPoints(id: string): (Point | undefined)[] {
+    const drawing = this.drawingInteraction.all().find((candidate) => candidate.id === id);
+    return drawing?.anchors.map((anchor) => this.drawingLayer.pointOf(anchor)) ?? [];
+  }
+
   stats(): PaneStats {
     const range = this.chart.timeScale().getVisibleLogicalRange();
     const bars = this.data.bars;
@@ -310,6 +397,11 @@ export class ChartPane {
       firstTime: bars[0]?.time,
       lastTime: bars[bars.length - 1]?.time,
       partial: this.data.partial,
+      drawings: this.drawingInteraction.all().length,
+      drawingsCreated: this.drawingsCreated,
+      drawingChanges: this.drawingChanges,
+      selectedDrawing: this.drawingInteraction.selected(),
+      tool: this.drawingInteraction.tool(),
     };
   }
 
@@ -317,6 +409,7 @@ export class ChartPane {
     this.disposed = true;
     this.generation++;
     this.onDisposed();
+    this.pointerInput.dispose();
     this.chart.remove();
     this.container.replaceChildren();
     this.container.classList.remove("tv-chart");
@@ -325,6 +418,82 @@ export class ChartPane {
   private async fetchPage(request: SeriesKey, to: number | undefined, limit: number) {
     this.requests++;
     return fetchCandles(request, to, limit, this.fetcher);
+  }
+
+  /**
+   * Exact anchor times (step 9 of the plan): an anchor on the high or low of its candle, and a wave label, gets
+   * the time of the candle of the smallest timeframe that made that price, looked up in one request per anchor.
+   * Undefined when there is nothing to look up: the timeframe shown is the smallest, or no anchor is on an
+   * extreme. A failed request leaves the times as they are.
+   */
+  private exactTimes(drawing: Drawing, changed: readonly number[]): Promise<Drawing> | undefined {
+    const request = this.request;
+    const step = request === undefined ? undefined : timeframeSeconds(request.timeframe);
+    const finest = request?.timeframes === undefined ? undefined : finestOf(request.timeframes);
+    const mapping = this.timeMapping();
+    if (request === undefined || step === undefined || finest === undefined || finest.seconds >= step || mapping === undefined) {
+      return undefined;
+    }
+
+    const lookups: { index: number; bar: Bar; extreme: Extreme; price: number }[] = [];
+    for (const index of changed) {
+      const anchor = drawing.anchors[index];
+      const barIndex = anchor === undefined ? undefined : mapping.indexOf(anchor.time);
+      const bar = barIndex === undefined ? undefined : this.data.bars[barIndex];
+      if (anchor === undefined || bar === undefined || anchor.time !== bar.time) {
+        continue; // beside the candles, or exact already
+      }
+
+      if (drawing.tool === "waveLabel") {
+        const above = (drawing["wave"] as { side?: string } | undefined)?.side === "above";
+        lookups.push({ index, bar, extreme: above ? "high" : "low", price: above ? bar.high : bar.low });
+        continue;
+      }
+
+      const extreme = anchor.price === null ? undefined : extremeOf(bar, anchor.price);
+      if (extreme !== undefined) {
+        lookups.push({ index, bar, extreme, price: anchor.price! });
+      }
+    }
+
+    if (lookups.length === 0) {
+      return undefined;
+    }
+
+    const key = { source: request.source, symbol: request.symbol, timeframe: finest.code };
+    const perCandle = Math.min(Math.ceil(step / finest.seconds), 5000);
+    return (async () => {
+      const anchors = [...drawing.anchors];
+      for (const lookup of lookups) {
+        this.requests++;
+        const page = await fetchCandles(key, lookup.bar.time + step, perCandle, this.fetcher);
+        const time = madeAt(
+          page.bars.filter((candle) => candle.time >= lookup.bar.time),
+          lookup.extreme,
+          lookup.price,
+        );
+        if (time !== undefined) {
+          anchors[lookup.index] = { ...anchors[lookup.index]!, time };
+        }
+      }
+
+      return { ...drawing, anchors };
+    })();
+  }
+
+  /** The time mapping of the candles in memory; built again only when they or the timeframe change. */
+  private timeMapping(): TimeMapping | undefined {
+    const bars = this.data.bars;
+    const timeframe = this.request?.timeframe ?? "";
+    const cache = this.mappingCache;
+    if (cache !== undefined && cache.bars === bars && cache.timeframe === timeframe) {
+      return cache.mapping;
+    }
+
+    const step = timeframeSeconds(timeframe);
+    const mapping = step === undefined || bars.length === 0 ? undefined : new TimeMapping(bars.map((bar) => bar.time), step);
+    this.mappingCache = { bars, timeframe, mapping };
+    return mapping;
   }
 
   private currentView(): ViewState | undefined {

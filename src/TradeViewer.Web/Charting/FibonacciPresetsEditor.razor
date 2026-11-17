@@ -1,0 +1,197 @@
+@using System.Globalization
+@inject DrawingsApi Api
+
+@* The Fibonacci presets (DR4) on the settings page, as in TradingView: each level can be switched on and off,
+   levels can be added and removed. A drawing keeps the levels it was drawn with, so a change here counts for
+   new drawings only. *@
+<section>
+    <h2>Fibonacci presets</h2>
+    <p class="muted">
+        The levels a new Fibonacci drawing takes; only the levels switched on are drawn. Changing a preset does not
+        change drawings already made, whose levels are switched in the bar of the drawing. Each kind keeps at least
+        one preset.
+    </p>
+
+    @if (_rows == null)
+    {
+        <p class="muted">Loading...</p>
+    }
+    else
+    {
+        @foreach (var row in _rows)
+        {
+            <div class="preset" @key="row.Id">
+                <div class="preset-head">
+                    <span class="muted">@row.Kind</span>
+                    <input type="text" aria-label="Name" maxlength="60" @bind="row.Name" />
+                    <button type="button" disabled="@_busy" @onclick="() => SaveAsync(row)">Save</button>
+                    <button type="button" class="danger" disabled="@(_busy || !row.Stored)" @onclick="() => DeleteAsync(row)">Delete</button>
+                </div>
+                <div class="preset-levels">
+                    @foreach (var level in row.Levels)
+                    {
+                        <span class="preset-level @(level.Visible ? "" : "off")">
+                            <label title="Show this level">
+                                <input type="checkbox" checked="@level.Visible" @onchange="e => level.Visible = e.Value is true" />
+                                @Write(level.Ratio)
+                            </label>
+                            <button type="button" class="preset-remove" title="Remove this level" @onclick="() => row.Levels.Remove(level)">×</button>
+                        </span>
+                    }
+
+                    <input type="text" class="preset-add" placeholder="add, e.g. 1.414" aria-label="Add a level"
+                           @bind="row.NewLevel" @bind:event="oninput" @onkeydown="e => AddOnEnter(e, row)" />
+                    <button type="button" @onclick="() => AddLevel(row)">Add</button>
+                </div>
+            </div>
+        }
+
+        <div class="toolbar">
+            <button type="button" disabled="@_busy" @onclick='() => Add("retracement")'>Add retracement</button>
+            <button type="button" disabled="@_busy" @onclick='() => Add("extension")'>Add extension</button>
+        </div>
+    }
+
+    @if (_message != null)
+    {
+        <p class="@(_failed ? "status-bad" : "status-ok")">@_message</p>
+    }
+</section>
+
+@code {
+    private List<Row>? _rows;
+    private bool _busy;
+    private string? _message;
+    private bool _failed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var presets = await Api.GetPresetsAsync();
+        if (presets.Value == null)
+        {
+            Show(presets.Error, true);
+            return;
+        }
+
+        _rows = presets.Value.Select(preset => new Row(preset.Id, preset.Kind, preset.Name, preset.Levels, true)).ToList();
+    }
+
+    /// <summary>A new preset starts with the levels of the first of its kind.</summary>
+    private void Add(string kind)
+    {
+        var template = _rows!.FirstOrDefault(row => row.Kind == kind);
+        var levels = template?.Levels.Select(level => new FibonacciLevelRecord(level.Ratio, level.Visible)).ToList() ?? new List<FibonacciLevelRecord> { new FibonacciLevelRecord(1) };
+        _rows!.Add(new Row(Guid.NewGuid(), kind, "New " + kind, levels, false));
+    }
+
+    private void AddOnEnter(KeyboardEventArgs e, Row row)
+    {
+        if (e.Key == "Enter")
+        {
+            AddLevel(row);
+        }
+    }
+
+    /// <summary>A new level is switched on and takes its place by its ratio.</summary>
+    private void AddLevel(Row row)
+    {
+        if (!double.TryParse(row.NewLevel.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var ratio))
+        {
+            Show("A level is a number, e.g. 1.414.", true);
+            return;
+        }
+
+        if (row.Levels.Any(level => level.Ratio == ratio))
+        {
+            Show("The level " + Write(ratio) + " is there already.", true);
+            return;
+        }
+
+        row.Levels.Add(new EditedLevel(ratio, true));
+        row.Levels.Sort((a, b) => a.Ratio.CompareTo(b.Ratio));
+        row.NewLevel = string.Empty;
+        _message = null;
+    }
+
+    private async Task SaveAsync(Row row)
+    {
+        _busy = true;
+        var levels = row.Levels.Select(level => new FibonacciLevelRecord(level.Ratio, level.Visible)).ToList();
+        var saved = await Api.SavePresetAsync(new FibonacciPresetRecord(row.Id, row.Name, row.Kind, levels));
+        _busy = false;
+        if (saved.Value == null)
+        {
+            Show(saved.Error, true);
+            return;
+        }
+
+        row.Name = saved.Value.Name;
+        row.Stored = true;
+        Show(row.Name + " is saved.", false);
+    }
+
+    private async Task DeleteAsync(Row row)
+    {
+        _busy = true;
+        var problem = await Api.DeletePresetAsync(row.Id);
+        _busy = false;
+        if (problem != null)
+        {
+            Show(problem, true);
+            return;
+        }
+
+        _rows!.Remove(row);
+        Show(row.Name + " is deleted.", false);
+    }
+
+    private void Show(string? message, bool failed)
+    {
+        _message = message;
+        _failed = failed;
+    }
+
+    private static string Write(double ratio)
+    {
+        return ratio.ToString(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>A level as the page edits it.</summary>
+    private sealed class EditedLevel
+    {
+        public EditedLevel(double ratio, bool visible)
+        {
+            Ratio = ratio;
+            Visible = visible;
+        }
+
+        public double Ratio { get; }
+
+        public bool Visible { get; set; }
+    }
+
+    /// <summary>A preset as the page edits it; Stored false until the server has it.</summary>
+    private sealed class Row
+    {
+        public Row(Guid id, string kind, string name, IEnumerable<FibonacciLevelRecord> levels, bool stored)
+        {
+            Id = id;
+            Kind = kind;
+            Name = name;
+            Levels = levels.Select(level => new EditedLevel(level.Ratio, level.Visible)).OrderBy(level => level.Ratio).ToList();
+            Stored = stored;
+        }
+
+        public Guid Id { get; }
+
+        public string Kind { get; }
+
+        public string Name { get; set; }
+
+        public List<EditedLevel> Levels { get; }
+
+        public string NewLevel { get; set; } = string.Empty;
+
+        public bool Stored { get; set; }
+    }
+}
