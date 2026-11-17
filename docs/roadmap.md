@@ -17,7 +17,7 @@ of EWTS.
 | Price Chart | done (2026-11-16) |
 | Scenario Viewer | open |
 | Watchlists | done (2026-11-16) |
-| Drawing Tools | in progress |
+| Drawing Tools | done (2026-11-17) |
 | Scenario Analysis | open |
 | Indicators | open |
 | Downloader Monitoring | open |

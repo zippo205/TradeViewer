@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. All 10 steps done (2026-11-17); waiting for the owner's look and approval
+Status:   Done: all 10 steps and the changes after the owner's look; approved by the owner 2026-11-17, merged into main
 Branch:   feature/drawing-tools
-Next:     owner's look (Docker on WSL, localhost:8080), approval, merge; Pi on go-ahead
+Next:     Pi deployment on the owner's go-ahead (workspace upgrades to schema 5 with a backup)
 Baseline: docs as of commit 50c0225 (main)
 ```
 
