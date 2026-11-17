@@ -22,6 +22,7 @@ import { DrawingLayer } from "./primitives/drawingLayer";
 import type { Point } from "./tools/geometry";
 import { DrawingInteraction, type DrawingEvents, type DrawingOptions } from "./tools/interaction";
 import { PointerInput } from "./tools/pointerInput";
+import { extremeOf, finestOf, madeAt, type Extreme } from "./tools/exactTime";
 import { TimeMapping, timeframeSeconds } from "./tools/timeMapping";
 import { formatPrice, formatTimeUtc, formatVolume, isIntraday, priceFormatOf, type PriceFormat } from "./format";
 import { captureView, latestRange, restoreView, type ViewState } from "./range";
@@ -31,6 +32,8 @@ import { themeOf, type ChartTheme } from "./theme";
 export interface SeriesRequest extends SeriesKey {
   /** The tick size of the asset: prices are shown with its precision (CH1). */
   readonly tickSize: number;
+  /** The timeframes of the asset with candles; the smallest gives anchors their exact times (step 9). */
+  readonly timeframes?: readonly string[];
 }
 
 export interface PaneOptions {
@@ -164,18 +167,23 @@ export class ChartPane {
 
     // The drawings of the asset (DR3), on every timeframe; the pointer is taken before the chart gets it.
     this.candles.attachPrimitive(this.drawingLayer);
-    this.drawingInteraction = new DrawingInteraction(this.drawingLayer, {
-      drawingCreated: (drawing) => {
-        this.drawingsCreated++;
-        this.drawingListener.drawingCreated?.(drawing);
+    this.drawingInteraction = new DrawingInteraction(
+      this.drawingLayer,
+      {
+        drawingCreated: (drawing) => {
+          this.drawingsCreated++;
+          this.drawingListener.drawingCreated?.(drawing);
+        },
+        drawingChanged: (drawing) => {
+          this.drawingChanges++;
+          this.drawingListener.drawingChanged?.(drawing);
+        },
+        selectionChanged: (id) => this.drawingListener.selectionChanged?.(id),
+        toolChanged: (tool) => this.drawingListener.toolChanged?.(tool),
       },
-      drawingChanged: (drawing) => {
-        this.drawingChanges++;
-        this.drawingListener.drawingChanged?.(drawing);
-      },
-      selectionChanged: (id) => this.drawingListener.selectionChanged?.(id),
-      toolChanged: (tool) => this.drawingListener.toolChanged?.(tool),
-    });
+      undefined,
+      (drawing, changed) => this.exactTimes(drawing, changed),
+    );
     this.drawingLayer.bind(this.drawingInteraction);
     this.pointerInput = new PointerInput(canvasHost, this.chart, this.drawingInteraction);
     this.latestButton = document.createElement("button");
@@ -405,6 +413,67 @@ export class ChartPane {
   private async fetchPage(request: SeriesKey, to: number | undefined, limit: number) {
     this.requests++;
     return fetchCandles(request, to, limit, this.fetcher);
+  }
+
+  /**
+   * Exact anchor times (step 9 of the plan): an anchor on the high or low of its candle, and a wave label, gets
+   * the time of the candle of the smallest timeframe that made that price, looked up in one request per anchor.
+   * Undefined when there is nothing to look up: the timeframe shown is the smallest, or no anchor is on an
+   * extreme. A failed request leaves the times as they are.
+   */
+  private exactTimes(drawing: Drawing, changed: readonly number[]): Promise<Drawing> | undefined {
+    const request = this.request;
+    const step = request === undefined ? undefined : timeframeSeconds(request.timeframe);
+    const finest = request?.timeframes === undefined ? undefined : finestOf(request.timeframes);
+    const mapping = this.timeMapping();
+    if (request === undefined || step === undefined || finest === undefined || finest.seconds >= step || mapping === undefined) {
+      return undefined;
+    }
+
+    const lookups: { index: number; bar: Bar; extreme: Extreme; price: number }[] = [];
+    for (const index of changed) {
+      const anchor = drawing.anchors[index];
+      const barIndex = anchor === undefined ? undefined : mapping.indexOf(anchor.time);
+      const bar = barIndex === undefined ? undefined : this.data.bars[barIndex];
+      if (anchor === undefined || bar === undefined || anchor.time !== bar.time) {
+        continue; // beside the candles, or exact already
+      }
+
+      if (drawing.tool === "waveLabel") {
+        const above = (drawing["wave"] as { side?: string } | undefined)?.side === "above";
+        lookups.push({ index, bar, extreme: above ? "high" : "low", price: above ? bar.high : bar.low });
+        continue;
+      }
+
+      const extreme = anchor.price === null ? undefined : extremeOf(bar, anchor.price);
+      if (extreme !== undefined) {
+        lookups.push({ index, bar, extreme, price: anchor.price! });
+      }
+    }
+
+    if (lookups.length === 0) {
+      return undefined;
+    }
+
+    const key = { source: request.source, symbol: request.symbol, timeframe: finest.code };
+    const perCandle = Math.min(Math.ceil(step / finest.seconds), 5000);
+    return (async () => {
+      const anchors = [...drawing.anchors];
+      for (const lookup of lookups) {
+        this.requests++;
+        const page = await fetchCandles(key, lookup.bar.time + step, perCandle, this.fetcher);
+        const time = madeAt(
+          page.bars.filter((candle) => candle.time >= lookup.bar.time),
+          lookup.extreme,
+          lookup.price,
+        );
+        if (time !== undefined) {
+          anchors[lookup.index] = { ...anchors[lookup.index]!, time };
+        }
+      }
+
+      return { ...drawing, anchors };
+    })();
   }
 
   /** The time mapping of the candles in memory; built again only when they or the timeframe change. */

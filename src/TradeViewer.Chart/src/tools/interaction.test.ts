@@ -423,3 +423,111 @@ describe("Fibonacci (DR4)", () => {
     expect(reported[0]!.style.color).toBe("#64B5F6"); // light blue (DR4)
   });
 });
+
+describe("exact times (step 9)", () => {
+  /** An interaction whose lookups the test answers: each call waits until `answer` is called. */
+  function withLookups() {
+    const calls: { drawing: Drawing; changed: readonly number[]; answer: (drawing: Drawing) => void }[] = [];
+    const created: Drawing[] = [];
+    const changed: Drawing[] = [];
+    const lookups = new DrawingInteraction(
+      surface,
+      {
+        drawingCreated: (drawing) => created.push(drawing),
+        drawingChanged: (drawing) => changed.push(drawing),
+        selectionChanged: () => {},
+        toolChanged: () => {},
+      },
+      () => "n" + calls.length,
+      (drawing, indices) => new Promise<Drawing>((resolve) => calls.push({ drawing, changed: indices, answer: resolve })),
+    );
+    lookups.setOptions({ magnet: false });
+    return { lookups, calls, created, changed };
+  }
+
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const exact = (drawing: Drawing, index: number, minutes: number): Drawing => ({
+    ...drawing,
+    anchors: drawing.anchors.map((anchor, at) => (at === index ? { ...anchor, time: anchor.time + minutes * 60 } : anchor)),
+  });
+
+  it("reports a new drawing once, with the exact times, after the lookup", async () => {
+    const { lookups, calls, created } = withLookups();
+    lookups.setTool("trendLine");
+    lookups.pointerDown(at(10, 400));
+    lookups.pointerDown(at(20, 450));
+
+    expect(created).toEqual([]);
+    expect(calls[0]!.changed).toEqual([0, 1]);
+
+    calls[0]!.answer(exact(calls[0]!.drawing, 1, 30));
+    await settle();
+
+    expect(created).toHaveLength(1);
+    expect(created[0]!.anchors[1]!.time).toBe(T0 + 20 * HOUR + 30 * 60);
+    expect(lookups.all()[0]!.anchors[1]!.time).toBe(T0 + 20 * HOUR + 30 * 60); // and shows it
+  });
+
+  it("looks up only the reshaped anchor, never for a drawing moved as a whole", async () => {
+    const { lookups, calls, changed } = withLookups();
+    lookups.setDrawings([line("a", [10, 400], [30, 500])]);
+    lookups.pointerDown(at(20, 450));
+    lookups.pointerMove(at(25, 450));
+    lookups.pointerUp();
+
+    expect(calls).toEqual([]);
+    expect(changed).toHaveLength(1);
+
+    lookups.select("a");
+    const end = FakeSurface.point(35, 500);
+    lookups.pointerDown(end);
+    lookups.pointerMove({ x: end.x + 50, y: end.y });
+    lookups.pointerUp();
+
+    expect(calls[0]!.changed).toEqual([1]);
+    calls[0]!.answer(calls[0]!.drawing);
+    await settle();
+    expect(changed).toHaveLength(2);
+  });
+
+  it("reports the latest state when the drawing changed during the lookup, and drops the lookup", async () => {
+    const { lookups, calls, created, changed } = withLookups();
+    lookups.setTool("trendLine");
+    lookups.pointerDown(at(10, 400));
+    lookups.pointerDown(at(20, 450));
+
+    // Moved before the lookup answered: the change goes with the creation.
+    lookups.pointerDown(at(15, 425));
+    lookups.pointerMove(at(18, 425));
+    lookups.pointerUp();
+    expect(changed).toEqual([]);
+
+    calls[0]!.answer(exact(calls[0]!.drawing, 1, 30));
+    await settle();
+
+    expect(created).toHaveLength(1);
+    expect(created[0]!.anchors).toEqual([anchor(13, 400), anchor(23, 450)]);
+  });
+
+  it("reports nothing for a drawing that was removed during the lookup, and keeps the times when it fails", async () => {
+    const { lookups, calls, created } = withLookups();
+    lookups.setTool("horizontalLine");
+    lookups.pointerDown(at(10, 400));
+    lookups.setDrawings([]);
+    calls[0]!.answer(calls[0]!.drawing);
+    await settle();
+    expect(created).toEqual([]);
+
+    const failing = new DrawingInteraction(
+      surface,
+      { drawingCreated: (drawing) => created.push(drawing), drawingChanged: () => {}, selectionChanged: () => {}, toolChanged: () => {} },
+      () => "f",
+      () => Promise.reject(new Error("offline")),
+    );
+    failing.setOptions({ magnet: false });
+    failing.setTool("horizontalLine");
+    failing.pointerDown(at(10, 400));
+    await settle();
+    expect(created).toEqual([expect.objectContaining({ id: "f", anchors: [anchor(10, 400)] })]);
+  });
+});

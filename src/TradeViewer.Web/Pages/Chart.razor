@@ -73,6 +73,7 @@
                            Symbol="@_shown.Symbol"
                            Timeframe="@_shown.Timeframe"
                            TickSize="@_shown.TickSize"
+                           Timeframes="@_shown.Timeframes"
                            LogScale="@_logScale"
                            OnReady="OnChartReadyAsync"
                            OnDrawingCreated="OnDrawingCreated"
@@ -184,7 +185,7 @@
             return;
         }
 
-        _shown = new ShownSeries(Source, Symbol, Timeframe, _asset.TickSize);
+        _shown = new ShownSeries(Source, Symbol, Timeframe, _asset.TickSize, _asset.Timeframes.Where(timeframe => timeframe.Chartable).Select(timeframe => timeframe.Timeframe).ToList());
         ShowDrawingsOf(Source, Symbol);
 
         var chart = Key(Source, Symbol) + "/" + Timeframe;
@@ -595,5 +596,5 @@
     }
 
     /// <summary>What the chart shows right now; it follows the address once the settings of the asset are read.</summary>
-    private sealed record ShownSeries(string Source, string Symbol, string Timeframe, double TickSize);
+    private sealed record ShownSeries(string Source, string Symbol, string Timeframe, double TickSize, IReadOnlyList<string> Timeframes);
 }

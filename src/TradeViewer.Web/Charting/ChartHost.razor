@@ -40,6 +40,10 @@
     [Parameter]
     public double TickSize { get; set; } = 0.01;
 
+    /// <summary>The timeframes of the asset with candles; the smallest gives anchors their exact times.</summary>
+    [Parameter]
+    public IReadOnlyList<string> Timeframes { get; set; } = Array.Empty<string>();
+
     /// <summary>Logarithmic price scale instead of the linear one (CH1).</summary>
     [Parameter]
     public bool LogScale { get; set; }
@@ -217,7 +221,7 @@
         if (_shownSeries != series && Source.Length > 0 && Symbol.Length > 0 && Timeframe.Length > 0)
         {
             _shownSeries = series;
-            await _pane.InvokeVoidAsync("setSeries", new { source = Source, symbol = Symbol, timeframe = Timeframe, tickSize = TickSize });
+            await _pane.InvokeVoidAsync("setSeries", new { source = Source, symbol = Symbol, timeframe = Timeframe, tickSize = TickSize, timeframes = Timeframes });
         }
     }
 }

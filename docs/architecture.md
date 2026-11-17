@@ -691,6 +691,14 @@ context menu; the bar of the selected drawing does what one would.
   scale linear in the logarithm of the price, which is what DR4 asks; the price shown is read
   back from the scale. A new drawing copies the levels of the preset chosen beside the tool rail;
   the presets are edited on the settings page.
+- Exact anchor times: an anchor that is placed or reshaped on the high or low of its candle, and a
+  wave label, gets the time of the candle of the asset's smallest timeframe that made that price
+  (Web passes the timeframes with candles in setSeries). The module reads that candle's period in
+  the smallest timeframe (one `/api/candles` request per anchor, never while dragging) and reports
+  the drawing once, with the exact times. On the timeframe it was drawn on nothing moves; on every
+  smaller one the point sits on the candle that made the extreme. A drawing moved as a whole keeps
+  the times it was moved to. If the drawing changes during the lookup, its latest state is
+  reported and the lookup is dropped; a failed lookup keeps the times.
 - Drawings and overlays are positioned by time and price. Switching the timeframe reloads
   candles and indicators only; a time between two candles is drawn at the candle that contains
   it.

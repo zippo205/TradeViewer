@@ -80,10 +80,18 @@ export class DrawingInteraction {
   private gesture: Gesture | undefined;
   private options: DrawingOptions = { magnet: true, hidden: false };
 
+  /** Drawings whose creation is not reported yet (their exact times are looked up): changes to them go with it. */
+  private readonly pendingCreation = new Set<string>();
+
+  /**
+   * @param refine gives the anchors of a new or reshaped drawing their exact times (step 9 of the plan); it
+   * returns undefined when there is nothing to look up, and the drawing is then reported at once
+   */
   constructor(
     private readonly surface: DrawingSurface,
     private readonly events: DrawingEvents,
     private readonly newId: () => string = () => crypto.randomUUID(),
+    private readonly refine: (drawing: Drawing, changed: readonly number[]) => Promise<Drawing> | undefined = () => undefined,
   ) {}
 
   /** The drawings to draw, in their order; none while hidden. */
@@ -293,10 +301,56 @@ export class DrawingInteraction {
     this.gesture = undefined;
     const result = this.find(gesture.original.id);
     if (gesture.moved && result !== undefined) {
-      this.events.drawingChanged(result);
+      // A reshaped anchor may get its exact time; a drawing moved as a whole keeps the times it was moved to.
+      const changed = gesture.kind === "reshape" ? changedAnchors(gesture.original, result) : [];
+      this.report("changed", result, changed);
     }
 
     return true;
+  }
+
+  /**
+   * Reports a new or changed drawing once (NF3): at once, or after its exact times were looked up. Whatever
+   * happened to the drawing meanwhile wins: then its latest state is reported and the lookup is dropped.
+   */
+  private report(kind: "created" | "changed", drawing: Drawing, changed: readonly number[]): void {
+    const tell = (reported: Drawing) => {
+      if (kind === "created") {
+        this.pendingCreation.delete(reported.id);
+        this.events.drawingCreated(reported);
+      } else if (!this.pendingCreation.has(reported.id)) {
+        this.events.drawingChanged(reported); // a drawing not reported as created yet goes with its creation
+      }
+    };
+
+    const lookup = changed.length === 0 ? undefined : this.refine(drawing, changed);
+    if (lookup === undefined) {
+      tell(drawing);
+      return;
+    }
+
+    if (kind === "created") {
+      this.pendingCreation.add(drawing.id);
+    }
+
+    void lookup
+      .catch(() => drawing)
+      .then((refined) => {
+        const current = this.find(drawing.id);
+        if (current === undefined) {
+          this.pendingCreation.delete(drawing.id); // gone meanwhile (Web deleted it)
+          return;
+        }
+
+        if (current === drawing && refined !== drawing) {
+          this.replace(refined);
+          this.surface.redraw();
+          tell(refined);
+          return;
+        }
+
+        tell(current);
+      });
   }
 
   /** Escape: a drag puts the drawing back, placing is given up and the pointer returns. True when there was something to cancel. */
@@ -364,7 +418,7 @@ export class DrawingInteraction {
   private complete(drawing: Drawing): void {
     this.placing = undefined;
     this.drawings.push(drawing);
-    this.events.drawingCreated(drawing);
+    this.report("created", drawing, drawing.anchors.map((_, index) => index));
     this.events.toolChanged(undefined);
     this.setSelected(drawing.id);
     this.surface.redraw();
@@ -381,7 +435,7 @@ export class DrawingInteraction {
     }
 
     this.drawings.push(drawing);
-    this.events.drawingCreated(drawing);
+    this.report("created", drawing, [0]);
     this.surface.redraw();
   }
 
@@ -497,4 +551,17 @@ export class DrawingInteraction {
       this.events.selectionChanged(id);
     }
   }
+}
+
+/** The indices of the anchors whose time or price differ between two states of a drawing. */
+function changedAnchors(before: Drawing, after: Drawing): number[] {
+  const changed: number[] = [];
+  after.anchors.forEach((anchor, index) => {
+    const old = before.anchors[index];
+    if (old === undefined || old.time !== anchor.time || old.price !== anchor.price) {
+      changed.push(index);
+    }
+  });
+
+  return changed;
 }

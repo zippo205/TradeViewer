@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-8 done (2026-11-17)
+Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-9 done (2026-11-17)
 Branch:   feature/drawing-tools
-Next:     step 9
+Next:     step 10
 Baseline: docs as of commit 50c0225 (main)
 ```
 
@@ -143,7 +143,7 @@ Out of scope:
 8  Chart module and Web: Fibonacci retracement and extension (linear and log), presets on the
    settings page                                                                                 done
 9  Exact anchor times across timeframes (see the proposal "Where a snapped anchor sits");
-   accepted by the owner                                                                         open
+   accepted by the owner                                                                         done
 10 Second window follows (DrawingsChanged); measurement of NF3 (frame times while dragging with
    200 drawings); checks in the headless browser; Docker; architecture, README and runbook
    updated                                                                                       open
@@ -311,6 +311,23 @@ headless browser for what only a browser shows (dragging, the bar, the keys).
   saved in order), refuses levels that are not numbers, keeps the last preset of a kind and adds
   one; drawings made before keep their levels; new drawings take the edited and the chosen
   preset. No console errors. The script puts the presets of the development workspace back.
+
+# Result of Step 9 (2026-11-17)
+
+- Chart module: `tools/exactTime.ts` (which extreme a price is, which candle made it, the smallest
+  timeframe); `ChartPane` looks the time up in the smallest timeframe when a drawing is placed or an
+  anchor reshaped on a high or low (wave labels always); the interaction reports a new or reshaped
+  drawing after the lookup, once, and never while dragging. `setSeries` takes the timeframes with
+  candles, which Web passes.
+- Decided while building: not only anchors snapped by the magnet are looked up, but every placed or
+  reshaped anchor whose price is the high or low of its candle (with the magnet off that is rare,
+  and then right too); a drawing moved as a whole keeps the times it was moved to, since its
+  prices are no longer the extremes they were.
+- 8 new Vitest tests (192 in all). Headless browser (`~/tools/browser/exact-check.mjs`, BTCUSDT
+  1d): a trend line from the high of 4 November to the low of 12 November got 15:15 and 23:15, the
+  times of the 15m candles that made them, in two lookups; a wave label above the candle of
+  8 November got 13:15, the 15m candle of that day's high; on 15m no lookup happens. No console
+  errors.
 
 ---
 
