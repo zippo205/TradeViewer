@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Step 1 done (2026-11-17)
+Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-2 done (2026-11-17)
 Branch:   feature/drawing-tools
-Next:     step 2
+Next:     step 3
 Baseline: docs as of commit 50c0225 (main)
 ```
 
@@ -126,7 +126,7 @@ Out of scope:
    (series primitive) that draws a trend line from data and reports a hit; pointer events taken
    before the chart so that dragging does not pan. Checked in the headless browser               done
 2  Domain and contracts: Drawing, Anchor, tool types with their rules (number of anchors, style,
-   payload version), FibonacciPreset with the defaults, wave degrees and labels; unit tests      open
+   payload version), FibonacciPreset with the defaults, wave degrees and labels; unit tests      done
 3  Workspace: script 0004 (drawings, fibonacci_presets), repositories; ChartSettings repository
    on the table of script 0003; tests with upgrade and restore                                   open
 4  Features Drawings and ChartSettings: queries, commands, validators, endpoints
@@ -176,6 +176,21 @@ headless browser for what only a browser shows (dragging, the bar, the keys).
   the line still pans; Escape restores the line and reports nothing; the line is drawn on 4h, 15m and
   1d; an anchor 6.5 h after the last candle sits 6 bars after it and stays on whole hours when dragged;
   on the log scale a vertical drag keeps the ratio of the two prices. No console errors.
+
+# Result of Step 2 (2026-11-17)
+
+- Domain `Drawings/`: `Drawing`, `Anchor` (Unix seconds, price null only for a wave label),
+  `DrawingStyle`, `WaveMark`, `PointLabel`, `FibonacciPreset`; `DrawingTools` (anchor counts,
+  payload version 1, which tools have an area, default styles), `DrawingRules` (field -> problems,
+  as the validators report them), `FibonacciPresets` (the two defaults with fixed ids, rules of
+  levels), `WaveNotation` (the accepted table; the chooser's next label: 1-5, A-E, W-Y, each run
+  starting again), `DrawingCodes` (camelCase codes as in the API).
+- Limits chosen: a polyline has 2 to 200 points; a text at most 2000 characters; at most 30
+  Fibonacci levels within ±100; anchor times 1970 to 2200; colours `#RRGGBB` or `#RRGGBBAA`.
+- Contracts `Drawings/`: `DrawingRecord` (also the record of the expert file later: nothing of the
+  workspace), `AnchorRecord` (ISO time), `DrawingStyleRecord`, `WaveMarkRecord`,
+  `PointLabelRecord`, `FibonacciPresetRecord`. The mapping to the Domain comes with step 4.
+- 83 new unit tests (328 in all); integration and architecture tests unchanged and passing.
 
 ---
 

@@ -227,9 +227,14 @@ IndicatorTemplate   name, indicator instances
 ChartSettings       asset, indicator instances, drawings hidden, selected EWTS instance, hidden groups
                     (the price scale mode is one setting for all charts, see chapter 9)
 
-Drawing             id, asset, tool type, locked, anchors, style, text, payload version
-Anchor              time (UTC) + price, never a bar index
-FibonacciPreset     name, kind (retracement, extension), levels (ratios)
+Drawing             id, asset, tool type, locked, anchors, style, text, payload version; what only
+                    some tools have: levels (Fibonacci, copied from the preset when drawn), wave mark
+                    (wave label), point labels and "line hidden" (polyline). DrawingRules refuses
+                    what could not be read again; DrawingTools holds the rules of each tool
+Anchor              time (UTC) + price, never a bar index; a wave label has no price (it sits at
+                    the high or low of the candle that contains its time)
+WaveMark            degree, label (1-5, A-E, W, X, Y) and side; WaveNotation gives the drawn form
+FibonacciPreset     name, kind (retracement, extension), levels (ratios); the two defaults of DR4
 
 EwtsInstance        id, name, base address
 ```
