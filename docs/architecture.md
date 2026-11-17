@@ -540,7 +540,8 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 - A ZIP and a backup download are file results: a handler returns `Result<FileContent>` (stream,
   name, media type) and the endpoint streams it; the ZIP is built in memory from the scenario
   files of the run.
-- No OpenAPI document; `src/TradeViewer.Api/TradeViewer.Api.http` holds example requests.
+- No OpenAPI document and no file of example requests: the routes are listed here, the records are
+  in `TradeViewer.Contracts`, and the integration tests call every endpoint.
 
 ### SignalR Hub `/hubs/workspace`
 
