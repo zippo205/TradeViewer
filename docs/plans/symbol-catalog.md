@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Symbol Catalog (P1 - Workstation)
-Status:   All 6 steps done (2026-11-17); waiting for the owner's approval and the go-ahead for the Pi
+Status:   Done: all 6 steps; approved by the owner 2026-11-17, merged into main, deployed on the Pi
 Branch:   feature/symbol-catalog
-Next:     approval, merge; Pi on the go-ahead (with Drawing Tools: workspace 3 -> 6)
+Next:     nothing; the next epic is Indicators
 Baseline: docs as of commit 1e299e7 (main)
 ```
 
