@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-2 done (2026-11-17)
+Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-3 done (2026-11-17)
 Branch:   feature/drawing-tools
-Next:     step 3
+Next:     step 4
 Baseline: docs as of commit 50c0225 (main)
 ```
 
@@ -128,7 +128,7 @@ Out of scope:
 2  Domain and contracts: Drawing, Anchor, tool types with their rules (number of anchors, style,
    payload version), FibonacciPreset with the defaults, wave degrees and labels; unit tests      done
 3  Workspace: script 0004 (drawings, fibonacci_presets), repositories; ChartSettings repository
-   on the table of script 0003; tests with upgrade and restore                                   open
+   on the table of script 0003; tests with upgrade and restore                                   done
 4  Features Drawings and ChartSettings: queries, commands, validators, endpoints
    (/api/drawings, /api/fibonacci-presets, /api/chart-settings), hub event DrawingsChanged;
    handler and endpoint tests                                                                    open
@@ -191,6 +191,22 @@ headless browser for what only a browser shows (dragging, the bar, the keys).
   workspace), `AnchorRecord` (ISO time), `DrawingStyleRecord`, `WaveMarkRecord`,
   `PointLabelRecord`, `FibonacciPresetRecord`. The mapping to the Domain comes with step 4.
 - 83 new unit tests (328 in all); integration and architecture tests unchanged and passing.
+
+# Result of Step 3 (2026-11-17)
+
+- Script 0004: `drawings` (id from the client, asset, tool, payload version, JSON payload, `seq`
+  for the order of making, cascade with the asset: AS5) and `fibonacci_presets` with the two
+  defaults (fixed ids; a test keeps them equal to the Domain's).
+- `DrawingRepository` (get by asset in order, get, idempotent save that answers `UnknownAsset` or
+  `OtherAsset` instead of storing, delete), `FibonacciPresetRepository`, `ChartSettingsRepository`
+  on table 0003 with a Domain `ChartSettings` (drawings hidden so far). Stored shapes are private
+  records of Infrastructure, apart from the Domain and the API.
+- A row this build cannot read (unknown tool, newer payload version, broken JSON) is skipped and
+  left untouched, never deleted or overwritten by a guess.
+- 13 new integration tests (177 in all): every tool read back exactly after a restart; last save
+  wins and keeps the place; repeated save; delete and undo by the same id; removing an asset takes
+  its drawings and chart settings only; unreadable rows; presets; Fibonacci levels kept when the
+  preset changes; a version 3 workspace upgraded with a before-v4 backup; restore.
 
 ---
 
