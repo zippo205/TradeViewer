@@ -63,6 +63,22 @@ public class SettingsApiTests : IDisposable
     }
 
     [Fact]
+    public async Task The_magnet_is_on_at_first_and_kept_when_switched_off()
+    {
+        var first = await _client.GetFromJsonAsync<SettingsResponse>("/api/settings");
+        var put = await _client.PutAsJsonAsync("/api/settings", new SettingsResponse(null, null, null, false));
+
+        using var restarted = _factory.Restart();
+        using var client = restarted.CreateClient();
+        var afterRestart = await client.GetFromJsonAsync<SettingsResponse>("/api/settings");
+
+        Assert.True(first!.Magnet);
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+        Assert.False(afterRestart!.Magnet);
+        Assert.Equal("linear", afterRestart.PriceScale); // the other parts stay
+    }
+
+    [Fact]
     public async Task Settings_without_content_or_with_a_wrong_part_are_refused_and_change_nothing()
     {
         await _client.PutAsJsonAsync("/api/settings", new SettingsResponse(null, new LastChartResponse("binance", "BTCUSDT", "1d"), "log"));

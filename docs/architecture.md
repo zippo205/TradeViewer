@@ -499,8 +499,8 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
                                               the list has other assets than the order names
 /api/chart-settings/{source}/{symbol}         get, put: the settings per asset (CP2); the defaults when never
                                               saved; 404 for an unknown asset
-/api/settings                                 default history, last chart, price scale mode of all charts
-                                              (AS3, CP3, CP2); get, put (a part that is null stays)
+/api/settings                                 default history, last chart, price scale mode and magnet of all
+                                              charts (AS3, CP3, CP2, DR2); get, put (a part that is null stays)
 /api/drawings/{source}/{symbol}               the drawings of an asset in the order they were made
 /api/drawings/{id}                            put stores (new or changed), delete; 400 with the fields when
                                               the record breaks the rules of its tool, 404 unknown asset,
@@ -606,7 +606,10 @@ context menu; the bar of the selected drawing does what one would.
 
 - `ChartHost` (Web) wraps the calls in typed C# methods; events return through a
   `DotNetObjectReference`. Built so far: createPane, setSeries (asset, timeframe, tick size),
-  setOptions (price scale mode), refresh, dispose; the other calls come with their epics.
+  setOptions (price scale mode), refresh, dispose, and the drawing calls and events; the calls for
+  indicators and overlays come with their epics. Three helpers of the module serve the page:
+  `bindDrawingEvents` (the events of a pane to ChartHost), `bindPageKeys` (Delete, Ctrl+Z, Ctrl+Y and
+  Ctrl+Shift+Z on the page, not while typing in a field) and `warnWhenLeaving`.
 - The chart page is `/chart/{source}/{symbol}/{timeframe}` (CP1); changing asset or timeframe
   changes the address without a page load. `/` opens the last chart (CP3), or the assets page when
   there is none. The chart stays alive across such changes: only the series is replaced.
@@ -650,6 +653,18 @@ context menu; the bar of the selected drawing does what one would.
   module fetches the column arrays itself.
 - Web owns the list of drawings and saves it; the module owns the geometry while the user drags
   and reports the result. Undo and redo are client state in Web (DR2).
+- Drawings in Web (`TradeViewer.Web/Drawings`, one of each per window): `DrawingSession` holds the
+  drawings of the asset shown, the selection and an undo history per asset; it refuses to change or
+  delete a locked drawing, apart from unlocking it. `DrawingSaveQueue` sends each change at once
+  in the background: one request per drawing at a time, only the newest of several changes, a
+  failed one tried again after 1, 2, 5 and then every 10 seconds; while a save fails or was refused
+  the tool rail shows "not saved", and while a change is unconfirmed closing the window asks first.
+  Saves go out with the browser's keep-alive flag, so a save that has started survives closing the
+  window. Reading the drawings again lays the unconfirmed changes over the answer of the server.
+- The chart page has a tool rail at the left (pointer, the tools, magnet, hide all, undo, redo)
+  and, while a drawing is selected, a bar above the chart (colour, width, line style, fill, text of
+  a note, lock, delete). Hide all is saved per asset in the chart settings, the magnet for all
+  charts in the settings.
 - Drawings in the module: one series primitive, the drawing layer, draws all drawings of the chart
   and the preview of the one being placed; each tool is one shape class in `primitives/shapes/`
   (geometry, drawing, hit test, handles, reshape). The state machine (`tools/interaction.ts`)

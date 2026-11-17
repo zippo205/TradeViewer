@@ -50,7 +50,8 @@ public static class ApiCalls
         }
     }
 
-    private static async Task<string> ReadProblemAsync(HttpResponseMessage response)
+    /// <summary>The message of a failed answer: its problem details, or the status.</summary>
+    public static async Task<string> ReadProblemAsync(HttpResponseMessage response)
     {
         try
         {

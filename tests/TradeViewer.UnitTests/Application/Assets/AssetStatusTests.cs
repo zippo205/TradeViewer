@@ -104,7 +104,7 @@ public class AssetStatusTests
     [Fact]
     public void The_default_history_is_mapped_and_checked()
     {
-        var response = SettingsMapping.ToResponse(HistorySettings.Initial, null, "linear");
+        var response = SettingsMapping.ToResponse(HistorySettings.Initial, null, "linear", true);
         var back = SettingsMapping.ToHistory(response.DefaultHistory!);
         var wrong = SettingsMapping.ToHistory(new Dictionary<string, int?> { ["15m"] = 0, ["1h"] = 40000, ["2h"] = 5, ["1d"] = null, ["4h"] = 30 });
         Assert.Equal(new int?[] { 90, 365, 730, null, null }, new[] { "15m", "1h", "4h", "1d", "1w" }.Select(code => response.DefaultHistory![code]));

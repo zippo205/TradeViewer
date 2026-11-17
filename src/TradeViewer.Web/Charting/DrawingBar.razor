@@ -1,0 +1,101 @@
+@* The bar of the selected drawing (DR2): colour, width, line style, fill, text, lock and delete. It does what a
+   context menu would. A locked drawing offers only to be unlocked. *@
+<div class="drawing-bar" role="toolbar" aria-label="Selected drawing">
+    <span class="drawing-bar-swatches">
+        @foreach (var color in Palette)
+        {
+            <button type="button" class="swatch @(Same(color, Drawing.Style.Color) ? "selected" : "")" style="background:@color"
+                    title="@color" disabled="@Drawing.Locked" @onclick="() => SetColor(color)"></button>
+        }
+
+        <input type="color" title="Another colour" value="@Rgb(Drawing.Style.Color)" disabled="@Drawing.Locked"
+               @onchange="e => SetColor(e.Value?.ToString() ?? Drawing.Style.Color)" />
+    </span>
+
+    <span class="segments" role="group" aria-label="Width">
+        @for (var width = 1; width <= 4; width++)
+        {
+            var value = width;
+            <button type="button" class="@(Drawing.Style.Width == value ? "selected" : "")" title="Width @value px" disabled="@Drawing.Locked"
+                    @onclick="() => Edit(Drawing with { Style = Drawing.Style with { Width = value } })">@value</button>
+        }
+    </span>
+
+    <select title="Line style" value="@Drawing.Style.LineStyle" disabled="@Drawing.Locked"
+            @onchange="e => Edit(Drawing with { Style = Drawing.Style with { LineStyle = e.Value?.ToString() ?? Drawing.Style.LineStyle } })">
+        <option value="solid">solid</option>
+        <option value="dashed">dashed</option>
+        <option value="dotted">dotted</option>
+    </select>
+
+    @if (Drawing.Tool == "rectangle" || Drawing.Tool == "parallelChannel")
+    {
+        <label title="Fill the area">
+            <input type="checkbox" checked="@(Drawing.Style.Fill != null)" disabled="@Drawing.Locked"
+                   @onchange="e => Edit(Drawing with { Style = Drawing.Style with { Fill = e.Value is true ? Pale(Drawing.Style.Color) : null } })" />
+            fill
+        </label>
+    }
+
+    @if (Drawing.Tool == "textNote")
+    {
+        <input type="text" class="drawing-bar-text" aria-label="Text" value="@Drawing.Text" maxlength="2000" disabled="@Drawing.Locked"
+               @onchange="e => SetText(e.Value?.ToString())" />
+    }
+
+    <button type="button" class="@(Drawing.Locked ? "selected" : "")" aria-pressed="@(Drawing.Locked ? "true" : "false")"
+            title="@(Drawing.Locked ? "Unlock" : "Lock: it can then not be moved, changed or deleted")"
+            @onclick="() => Edit(Drawing with { Locked = !Drawing.Locked })">
+        @(Drawing.Locked ? "locked" : "lock")
+    </button>
+    <button type="button" class="danger" title="Delete (Del)" disabled="@Drawing.Locked" @onclick="OnDelete">delete</button>
+</div>
+
+@code {
+    /// <summary>Blue of the lines, then the colours of the application and a neutral gray (OV6).</summary>
+    private static readonly string[] Palette = { "#2962FF", "#F23645", "#089981", "#FF9800", "#9C27B0", "#787B86" };
+
+    [Parameter, EditorRequired]
+    public DrawingRecord Drawing { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<DrawingRecord> OnEdit { get; set; }
+
+    [Parameter]
+    public EventCallback OnDelete { get; set; }
+
+    private Task Edit(DrawingRecord changed)
+    {
+        return OnEdit.InvokeAsync(changed);
+    }
+
+    /// <summary>A new colour also colours the fill of an area, which stays pale.</summary>
+    private Task SetColor(string color)
+    {
+        var fill = Drawing.Style.Fill == null ? null : Pale(color);
+        return Edit(Drawing with { Style = Drawing.Style with { Color = color.ToUpperInvariant(), Fill = fill } });
+    }
+
+    /// <summary>A text note keeps a text: an empty one would be refused by the server.</summary>
+    private Task SetText(string? text)
+    {
+        return string.IsNullOrWhiteSpace(text) ? Task.CompletedTask : Edit(Drawing with { Text = text });
+    }
+
+    /// <summary>The colour at about 10 % opacity, as rectangles and channels are filled by default.</summary>
+    private static string Pale(string color)
+    {
+        return Rgb(color).ToUpperInvariant() + "1A";
+    }
+
+    /// <summary>#RRGGBB of a colour that may have an alpha part; the colour input knows no alpha.</summary>
+    private static string Rgb(string color)
+    {
+        return color.Length >= 7 ? color.Substring(0, 7) : color;
+    }
+
+    private static bool Same(string a, string b)
+    {
+        return string.Equals(Rgb(a), Rgb(b), StringComparison.OrdinalIgnoreCase);
+    }
+}

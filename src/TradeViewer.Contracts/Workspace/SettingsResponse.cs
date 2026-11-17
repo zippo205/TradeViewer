@@ -6,11 +6,13 @@ namespace TradeViewer.Contracts.Workspace;
 /// DefaultHistory: days of history per timeframe code for a new asset, null for the complete history (AS3).
 /// LastChart: the chart last used (CP3), null before the first one.
 /// PriceScale: the price scale mode of all charts, linear or log (CP2).
+/// Magnet: the magnet of the drawing tools, one setting for all charts (DR2).
 /// </summary>
 public sealed record SettingsResponse(
     IReadOnlyDictionary<string, int?>? DefaultHistory,
     LastChartResponse? LastChart = null,
-    string? PriceScale = null);
+    string? PriceScale = null,
+    bool? Magnet = null);
 
 /// <summary>The price scale modes of a chart (CH1).</summary>
 public static class PriceScales

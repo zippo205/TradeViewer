@@ -348,8 +348,8 @@ export class ChartPane {
   }
 
   /** Chooses the tool to place next (undefined: the pointer); a style given replaces the default of the tool. */
-  setTool(tool: ToolCode | undefined, style?: DrawingStyle): void {
-    this.drawingInteraction.setTool(tool, style);
+  setTool(tool: ToolCode | null | undefined, style?: DrawingStyle | null): void {
+    this.drawingInteraction.setTool(tool ?? undefined, style ?? undefined);
   }
 
   /** The magnet and "all drawings hidden" (DR2, DR6). */
@@ -357,8 +357,8 @@ export class ChartPane {
     this.drawingInteraction.setOptions(options);
   }
 
-  selectDrawing(id: string | undefined): void {
-    this.drawingInteraction.select(id);
+  selectDrawing(id: string | null | undefined): void {
+    this.drawingInteraction.select(id ?? undefined);
   }
 
   /** Who hears what the user does with drawings; Web in step 6 of the plan. */

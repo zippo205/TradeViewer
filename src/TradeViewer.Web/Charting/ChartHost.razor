@@ -2,15 +2,28 @@
 @inject IJSRuntime JS
 
 @* The C# wrapper of the chart module (architecture, chapter 10). Candles never pass through here:
-   the module gets asset and timeframe and fetches the candles itself. *@
+   the module gets asset and timeframe and fetches the candles itself. Drawings pass as records with
+   Unix seconds; the module reports what the user did with them. *@
 <div class="chart-host" @ref="_element"></div>
 
 @code {
     private ElementReference _element;
     private IJSObjectReference? _module;
     private IJSObjectReference? _pane;
+    private IJSObjectReference? _keys;
+    private DotNetObjectReference<ChartHost>? _self;
     private string? _shownSeries;
     private bool _shownLogScale;
+    private bool? _warning;
+
+    /// <summary>
+    /// The selection the chart has (as it reported it or was told), and the newest one wanted (by the page or the
+    /// user in the chart). A selection is sent only when the newest wanted differs from the chart's: a push that
+    /// resumes after an await never sends an older selection back, so chart and page cannot toggle forever.
+    /// </summary>
+    private string? _chartSelection;
+
+    private string? _wantedSelection;
 
     /// <summary>The asset: source and symbol.</summary>
     [Parameter, EditorRequired]
@@ -31,6 +44,31 @@
     [Parameter]
     public bool LogScale { get; set; }
 
+    /// <summary>The chart is ready for drawings, tool and options.</summary>
+    [Parameter]
+    public EventCallback OnReady { get; set; }
+
+    /// <summary>The user finished a new drawing; it still lacks source, symbol and version.</summary>
+    [Parameter]
+    public EventCallback<ChartDrawing> OnDrawingCreated { get; set; }
+
+    /// <summary>The user moved or reshaped a drawing; reported once, when the pointer is let go (NF3).</summary>
+    [Parameter]
+    public EventCallback<ChartDrawing> OnDrawingChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> OnSelectionChanged { get; set; }
+
+    /// <summary>The tool in use; null is the pointer, to which the chart returns after a drawing.</summary>
+    [Parameter]
+    public EventCallback<string?> OnToolChanged { get; set; }
+
+    /// <summary>A key of the chart page: delete, undo or redo.</summary>
+    [Parameter]
+    public EventCallback<string> OnKey { get; set; }
+
+    public bool IsReady => _pane != null;
+
     /// <summary>New candles may exist: the chart reads its newest candles again and keeps its view (MD2).</summary>
     public async Task RefreshAsync()
     {
@@ -40,6 +78,79 @@
         }
     }
 
+    public async Task SetDrawingsAsync(IReadOnlyList<ChartDrawing> drawings, string? selected)
+    {
+        _wantedSelection = selected;
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("setDrawings", drawings);
+            if (_wantedSelection != _chartSelection)
+            {
+                _chartSelection = _wantedSelection;
+                await _pane.InvokeVoidAsync("selectDrawing", _wantedSelection);
+            }
+        }
+    }
+
+    /// <summary>The tool to place next; null for the pointer.</summary>
+    public async Task SetToolAsync(string? tool)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("setTool", tool);
+        }
+    }
+
+    public async Task SetDrawingOptionsAsync(bool magnet, bool hidden)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("setDrawingOptions", new { magnet, hidden });
+        }
+    }
+
+    /// <summary>While a change is not saved, closing or reloading the window asks first.</summary>
+    public async Task WarnWhenLeavingAsync(bool on)
+    {
+        if (_module != null && _warning != on)
+        {
+            _warning = on;
+            await _module.InvokeVoidAsync("warnWhenLeaving", on);
+        }
+    }
+
+    [JSInvokable]
+    public Task DrawingCreated(ChartDrawing drawing)
+    {
+        return OnDrawingCreated.InvokeAsync(drawing);
+    }
+
+    [JSInvokable]
+    public Task DrawingChanged(ChartDrawing drawing)
+    {
+        return OnDrawingChanged.InvokeAsync(drawing);
+    }
+
+    [JSInvokable]
+    public Task SelectionChanged(string? id)
+    {
+        _chartSelection = id;
+        _wantedSelection = id;
+        return OnSelectionChanged.InvokeAsync(id);
+    }
+
+    [JSInvokable]
+    public Task ToolChanged(string? tool)
+    {
+        return OnToolChanged.InvokeAsync(tool);
+    }
+
+    [JSInvokable]
+    public Task Key(string key)
+    {
+        return OnKey.InvokeAsync(key);
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -47,6 +158,12 @@
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./chart/index.js");
             _pane = await _module.InvokeAsync<IJSObjectReference>("createPane", _element, new { logScale = LogScale });
             _shownLogScale = LogScale;
+            _self = DotNetObjectReference.Create(this);
+            await _module.InvokeVoidAsync("bindDrawingEvents", _pane, _self);
+            _keys = await _module.InvokeAsync<IJSObjectReference>("bindPageKeys", _self);
+            await ApplyAsync();
+            await OnReady.InvokeAsync();
+            return;
         }
 
         await ApplyAsync();
@@ -56,6 +173,12 @@
     {
         try
         {
+            if (_keys != null)
+            {
+                await _keys.InvokeVoidAsync("dispose");
+                await _keys.DisposeAsync();
+            }
+
             if (_pane != null)
             {
                 await _pane.InvokeVoidAsync("dispose");
@@ -71,6 +194,8 @@
         {
             // the page is closing; there is nothing left to tidy up
         }
+
+        _self?.Dispose();
     }
 
     /// <summary>Tells the module what changed since the last render, and nothing when nothing did.</summary>

@@ -180,7 +180,7 @@ Every requirement has an id. The backlog refers to these ids.
   line style, text) and deleted. Undo and redo cover the actions of the current session. A
   drawing can be locked; a locked drawing cannot be moved, changed or deleted until it is
   unlocked. A magnet option (on by default) snaps anchors to the open, high, low or close of
-  the nearest candle.
+  the nearest candle; it is one setting for all charts and is kept, like the price scale mode.
 - **DR3** A drawing belongs to an asset, not to a timeframe: it stays on the chart
   when the timeframe is switched. Anchors may lie to the right of the last candle.
 - **DR4** Fibonacci tools take their levels from a preset the user can edit and add to. Default

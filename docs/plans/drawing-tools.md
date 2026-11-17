@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-5 done (2026-11-17)
+Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-6 done (2026-11-17)
 Branch:   feature/drawing-tools
-Next:     step 6
+Next:     step 7
 Baseline: docs as of commit 50c0225 (main)
 ```
 
@@ -137,7 +137,7 @@ Out of scope:
    arrow, text note, parallel channel; Vitest                                                    done
 6  Web: ChartHost calls and events, the list of drawings with saving in the background (queue,
    retry, "not saved" mark), undo and redo, tool rail, bar for the selected drawing (colour,
-   width, style, text, lock, delete), keys; hide all; unit tests for the client state            open
+   width, style, text, lock, delete), keys; hide all; unit tests for the client state            done
 7  Chart module and Web: polyline, wave label, labels on the points of a polyline, the chooser of
    degree and label                                                                              open
 8  Chart module and Web: Fibonacci retracement and extension (linear and log), presets on the
@@ -242,6 +242,34 @@ headless browser for what only a browser shows (dragging, the bar, the keys).
   Escape while dragging and while placing, the free corner of a rectangle, a drag on empty chart
   pans and clears the selection, a locked line neither moves nor pans, hidden drawings are not hit,
   the magnet puts a line on an OHLC value of its candle. `drawing-check.mjs` of step 1 passes too.
+
+# Result of Step 6 (2026-11-17)
+
+- Web `Drawings/`: `DrawingSession` (list of the asset shown, selection, undo and redo per asset,
+  lock rules), `DrawingSaveQueue` (background saves, newest change only, retry 1-2-5-10 s, "not
+  saved", unconfirmed changes laid over a fresh read), `ChartDrawing` (the record with Unix
+  seconds), `WindowIdentity` (header `X-TradeViewer-Window`); `Api/DrawingsApi`.
+- `ChartHost`: setDrawings with the selection, setTool, setDrawingOptions, warnWhenLeaving and the
+  events; the chart module got `blazorBridge.ts` (events to ChartHost, page keys, leave warning).
+- Chart page: tool rail at the left, bar of the selected drawing, keys Delete, Ctrl+Z, Ctrl+Y.
+- The magnet is a setting in `/api/settings` (`magnet`, on until switched off); DR2 says so now.
+- Changed against the proposal "Leaving the page with a save waiting sends it with keep-alive":
+  every save is sent with keep-alive (so one that started survives closing the window), and while
+  a change is unconfirmed closing or reloading the window asks first. A request that waits for its
+  retry cannot be sent after the page is gone, so asking is the safe way.
+- Found in the browser and fixed: chart and page toggled the selection forever (a push resuming
+  after an await sent an older selection back); ChartHost now sends a selection only when the
+  newest wanted one differs from the chart's. Blazor writes a bool attribute as present or absent,
+  so `aria-pressed` is written as text.
+- UnitTests reference Web for its client state (architecture chapter 14): 20 new tests; one
+  endpoint test for the magnet; 2 Vitest tests for the keys (366 unit, 186 integration, 145
+  Vitest in all). Headless browser (`~/tools/browser/web-drawings-check.mjs`), all through Blazor:
+  a line placed from the rail is saved; colour, width and style from the bar are saved; Ctrl+Z
+  three times and Ctrl+Y on the server; a drag sends one save with the window id; with PUTs
+  failing the rail says "not saved" and leaving asks, after the connection is back it is saved and
+  both go away; a locked line resists Delete and the bar offers only unlock; Delete and Ctrl+Z
+  bring it back with the same id; a text note gets its text; hidden and magnet survive a reload;
+  another asset has its own drawings. No console errors.
 
 ---
 

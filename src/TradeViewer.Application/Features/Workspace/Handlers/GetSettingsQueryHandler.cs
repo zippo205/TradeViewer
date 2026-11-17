@@ -22,6 +22,7 @@ public sealed class GetSettingsQueryHandler : IQueryHandler<GetSettingsQuery, Se
         var history = await _history.GetAsync(cancellationToken);
         var lastChart = await LastChartSetting.ReadAsync(_settings, cancellationToken);
         var priceScale = await PriceScaleSetting.ReadAsync(_settings, cancellationToken);
-        return Result.Success(SettingsMapping.ToResponse(history, lastChart, priceScale));
+        var magnet = await MagnetSetting.ReadAsync(_settings, cancellationToken);
+        return Result.Success(SettingsMapping.ToResponse(history, lastChart, priceScale, magnet));
     }
 }

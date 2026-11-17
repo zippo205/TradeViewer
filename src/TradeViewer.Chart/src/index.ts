@@ -22,3 +22,5 @@ export function createPane(element: HTMLElement, options?: PaneOptions): ChartPa
 export function panes(): ChartPane[] {
   return [...openPanes];
 }
+
+export { bindDrawingEvents, bindPageKeys, warnWhenLeaving } from "./blazorBridge";

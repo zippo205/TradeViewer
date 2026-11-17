@@ -1,0 +1,96 @@
+@* The tool rail at the left of the chart, as in TradingView (DR1, DR2, DR6): the pointer and the tools, then
+   magnet, hide all, undo and redo, and the mark of saves that did not reach the server. *@
+<nav class="tool-rail" aria-label="Drawing tools">
+    @foreach (var tool in Tools)
+    {
+        <button type="button"
+                class="@(Tool == tool.Code ? "selected" : "")"
+                title="@tool.Title"
+                aria-pressed="@(Tool == tool.Code ? "true" : "false")"
+                disabled="@(Hidden && tool.Code != null)"
+                @onclick="() => OnTool.InvokeAsync(tool.Code)">
+            <svg viewBox="0 0 20 20" aria-hidden="true">@((MarkupString)tool.Icon)</svg>
+        </button>
+    }
+
+    <span class="tool-rail-gap"></span>
+
+    <button type="button" class="@(Magnet ? "selected" : "")" aria-pressed="@(Magnet ? "true" : "false")"
+            title="@(Magnet ? "Magnet on: anchors snap to open, high, low or close" : "Magnet off")"
+            @onclick="() => OnMagnet.InvokeAsync(!Magnet)">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3v7a5 5 0 0 0 10 0V3h-3v7a2 2 0 0 1-4 0V3z" /></svg>
+    </button>
+    <button type="button" class="@(Hidden ? "selected" : "")" aria-pressed="@(Hidden ? "true" : "false")"
+            title="@(Hidden ? "Show the drawings" : "Hide all drawings")"
+            @onclick="() => OnHidden.InvokeAsync(!Hidden)">
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path class="line" d="M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5z" /><circle class="line" cx="10" cy="10" r="2.5" />
+            @if (Hidden)
+            {
+                <path class="line" d="M3 17L17 3" />
+            }
+        </svg>
+    </button>
+    <button type="button" title="Undo (Ctrl+Z)" disabled="@(!CanUndo)" @onclick="OnUndo">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path class="line" d="M7 5L3 9l4 4M3 9h9a5 5 0 0 1 0 10h-2" /></svg>
+    </button>
+    <button type="button" title="Redo (Ctrl+Y)" disabled="@(!CanRedo)" @onclick="OnRedo">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path class="line" d="M13 5l4 4-4 4M17 9H8a5 5 0 0 0 0 10h2" /></svg>
+    </button>
+
+    @if (Problem != null)
+    {
+        <span class="tool-rail-unsaved" role="status" title="@Problem">not saved</span>
+    }
+</nav>
+
+@code {
+    /// <summary>The pointer (code null) and the tools of this build; polyline, Fibonacci and wave labels follow.</summary>
+    private static readonly (string? Code, string Title, string Icon)[] Tools =
+    {
+        (null, "Pointer", "<path d=\"M5 2v14l3.5-3.5L11 18l2.2-1-2.5-5.5H15z\" />"),
+        ("trendLine", "Trend line", "<path class=\"line\" d=\"M4 16L16 4\" /><circle cx=\"4\" cy=\"16\" r=\"1.8\" /><circle cx=\"16\" cy=\"4\" r=\"1.8\" />"),
+        ("ray", "Ray", "<path class=\"line\" d=\"M4 15L19 5\" /><circle cx=\"4\" cy=\"15\" r=\"1.8\" /><circle cx=\"11\" cy=\"10.3\" r=\"1.8\" />"),
+        ("horizontalLine", "Horizontal line", "<path class=\"line\" d=\"M1 10h18\" /><circle cx=\"10\" cy=\"10\" r=\"1.8\" />"),
+        ("verticalLine", "Vertical line", "<path class=\"line\" d=\"M10 1v18\" /><circle cx=\"10\" cy=\"10\" r=\"1.8\" />"),
+        ("parallelChannel", "Parallel channel", "<path class=\"line\" d=\"M2 11L14 4M6 17L18 10\" />"),
+        ("rectangle", "Rectangle", "<rect class=\"line\" x=\"3\" y=\"5\" width=\"14\" height=\"10\" />"),
+        ("arrow", "Arrow", "<path class=\"line\" d=\"M4 16L15 5M9 5h6v6\" />"),
+        ("textNote", "Text note", "<path d=\"M4 4h12v3h-1.5V5.5h-3.5v10H13V17H7v-1.5h2v-10H5.5V7H4z\" />"),
+    };
+
+    /// <summary>The tool in use; null for the pointer.</summary>
+    [Parameter]
+    public string? Tool { get; set; }
+
+    [Parameter]
+    public bool Magnet { get; set; }
+
+    [Parameter]
+    public bool Hidden { get; set; }
+
+    [Parameter]
+    public bool CanUndo { get; set; }
+
+    [Parameter]
+    public bool CanRedo { get; set; }
+
+    /// <summary>Why a save did not reach the server; null while everything is saved or on its way.</summary>
+    [Parameter]
+    public string? Problem { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> OnTool { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnMagnet { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnHidden { get; set; }
+
+    [Parameter]
+    public EventCallback OnUndo { get; set; }
+
+    [Parameter]
+    public EventCallback OnRedo { get; set; }
+}

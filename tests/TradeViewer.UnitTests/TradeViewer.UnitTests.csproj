@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\TradeViewer.Application\TradeViewer.Application.csproj" />
     <ProjectReference Include="..\..\src\TradeViewer.Contracts\TradeViewer.Contracts.csproj" />
     <ProjectReference Include="..\..\src\TradeViewer.Infrastructure\TradeViewer.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\TradeViewer.Web\TradeViewer.Web.csproj" />
   </ItemGroup>
 
 </Project>
