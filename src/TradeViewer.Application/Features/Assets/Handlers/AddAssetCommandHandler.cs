@@ -82,7 +82,7 @@ public sealed class AddAssetCommandHandler : ICommandHandler<AddAssetCommand, As
         if (_downloader.Enabled)
         {
             // Nothing is stored unless the Downloader accepted the subscription.
-            var subscription = await _downloader.SubscribeAsync(info.Source, info.Symbol, history, cancellationToken);
+            var subscription = await _downloader.SubscribeAsync(info.Source, info.Symbol, info.Ticker, history, cancellationToken);
             if (subscription.IsFailure)
             {
                 return subscription.Error;

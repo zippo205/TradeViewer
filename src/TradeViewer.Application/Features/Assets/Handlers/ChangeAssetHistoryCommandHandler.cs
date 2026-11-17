@@ -47,7 +47,7 @@ public sealed class ChangeAssetHistoryCommandHandler : ICommandHandler<ChangeAss
         var sent = true;
         if (_downloader.Enabled)
         {
-            var subscription = await _downloader.SubscribeAsync(asset.Source, asset.Symbol, history.Value, cancellationToken);
+            var subscription = await _downloader.SubscribeAsync(asset.Source, asset.Symbol, asset.Info.Ticker, history.Value, cancellationToken);
             if (subscription.IsFailure && subscription.Error.Type != ErrorType.Unavailable)
             {
                 return subscription.Error;

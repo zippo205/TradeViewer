@@ -39,3 +39,16 @@ public sealed record CoverageGap(DateTimeOffset From, DateTimeOffset To, string 
 /// Downloader no longer knows all changes, so every file of the symbol counts as changed.
 /// </summary>
 public sealed record SymbolChanges(long LastChange, bool Complete, IReadOnlyList<string> Files);
+
+/// <summary>
+/// An answer of the Downloader's symbol catalog (AS2). RefreshedAt null: the source has no list yet. Total counts
+/// all matches; Truncated: more matched than Symbols holds, the user types more.
+/// </summary>
+public sealed record CatalogPage(DateTimeOffset? RefreshedAt, int Total, bool Truncated, IReadOnlyList<CatalogEntry> Symbols);
+
+/// <summary>
+/// A symbol of the catalog. SourceSymbol is the ticker for lookup and subscription; Symbol the folder name the
+/// Downloader suggests; AssetClass as the Downloader writes it (crypto, stock, etf, forex); Exchange null for crypto
+/// and forex. The catalog promises no candles: the lookup is the check.
+/// </summary>
+public sealed record CatalogEntry(string SourceSymbol, string Symbol, string DisplayName, string AssetClass, string? Exchange);
