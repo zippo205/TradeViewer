@@ -106,6 +106,21 @@ public sealed class WorkspaceFixture : IDisposable
         return Settings.SetAsync(key, json, CancellationToken.None);
     }
 
+    /// <summary>
+    /// Writes a binance asset with plain SQL in the columns of script 0002, as a build of schema 2 to 5 wrote it: for
+    /// workspaces of an older version, which the current repository cannot write.
+    /// </summary>
+    public void InsertOlderAsset(string symbol)
+    {
+        using var connection = WorkspaceDatabase.OpenFile(Locations.WorkspaceDatabasePath);
+        using var insert = connection.CreateCommand();
+        insert.CommandText = "INSERT INTO assets (source, symbol, display_name, asset_class, tick_size, session_type, session_time_zone, "
+            + "session_open, session_close, source_timeframes, position, subscription_sent, added_at) VALUES "
+            + "('binance', $symbol, $symbol, 'crypto', 0.01, 'continuous', 'UTC', NULL, NULL, '15m,1h,4h,1d,1w', 1, 1, '2026-11-17T00:00:00Z');";
+        insert.Parameters.AddWithValue("$symbol", symbol);
+        insert.ExecuteNonQuery();
+    }
+
     /// <summary>Reads one value straight from a SQLite file, e.g. a backup.</summary>
     public static string? Scalar(string filePath, string sql)
     {

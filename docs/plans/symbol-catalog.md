@@ -6,7 +6,7 @@
 Epic:     Symbol Catalog (P1 - Workstation)
 Status:   Plan approved by the owner 2026-11-17 (answers at the end)
 Branch:   feature/symbol-catalog
-Next:     step 3
+Next:     step 4
 Baseline: docs as of commit 1e299e7 (main)
 ```
 
@@ -102,7 +102,7 @@ of the catalog, paging.
    ticker (URL-encoded); SubscribeAsync sends SourceSymbol. Tests against recorded answers
    (binance, tradingview with NYSE:BRK.B, refreshedAt null, truncated, 404, 400, 503)            done
 3  Domain and workspace: SymbolInfo gets SourceSymbol (default: the symbol); script 0006 adds
-   assets.source_symbol (filled with the symbol for the assets there); repository, upgrade test  open
+   assets.source_symbol (filled with the symbol for the assets there); repository, upgrade test  done
 4  Application and Api: /api/symbols/{source}?q= searches the catalog when the Downloader is on,
    the fixed list when it is off, answering sourceSymbol, exchange, truncated, "not loaded yet";
    /api/symbols/{source}/{sourceSymbol} looks one up (tick size, session, earliest dates);

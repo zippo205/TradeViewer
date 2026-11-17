@@ -163,6 +163,38 @@ public class AssetRepositoryTests : IDisposable
         Assert.Equal("{\"15m\":30,\"1h\":null,\"4h\":100,\"1d\":null,\"1w\":null}", await _workspace.GetAsync(HistorySettingsRepository.Key));
     }
 
+    [Fact]
+    public async Task An_asset_keeps_its_ticker_when_it_differs_from_its_symbol()
+    {
+        var brk = new SymbolInfo("tradingview", "BRK-B", "Berkshire Hathaway", AssetClass.Stock, 0.01,
+            new Session(SessionType.Exchange, "America/New_York", "09:30", "16:00"), new[] { Timeframe.D1 }, "NYSE:BRK.B");
+        await _workspace.Assets.AddAsync(brk, History, CancellationToken.None);
+        await _workspace.Assets.AddAsync(Btc, History, CancellationToken.None);
+
+        _workspace.Start();
+        var stock = await _workspace.Assets.GetAsync("tradingview", "BRK-B", CancellationToken.None);
+        var crypto = await _workspace.Assets.GetAsync("binance", "BTCUSDT", CancellationToken.None);
+
+        Assert.Equal("NYSE:BRK.B", stock!.Info.Ticker);
+        Assert.Null(crypto!.Info.SourceSymbol);
+        Assert.Equal("BTCUSDT", crypto.Info.Ticker);
+    }
+
+    [Fact]
+    public async Task Assets_added_before_the_ticker_was_kept_use_their_symbol_as_ticker_after_the_upgrade()
+    {
+        _workspace.Dispose();
+        using var older = new WorkspaceFixture();
+        older.StartUpTo(5);
+        older.InsertOlderAsset("BTCUSDT"); // as the build of version 5 wrote it, without a ticker
+        older.Start();
+
+        var asset = await older.Assets.GetAsync("binance", "BTCUSDT", CancellationToken.None);
+
+        Assert.Equal("BTCUSDT", asset!.Info.Ticker);
+        Assert.Contains(older.Store.List(), backup => backup.Name.EndsWith("-before-v6.db", StringComparison.Ordinal));
+    }
+
     private static SymbolInfo Symbol(string symbol, string name, AssetClass assetClass, double tickSize)
     {
         return new SymbolInfo("binance", symbol, name, assetClass, tickSize, Session.ContinuousUtc, Timeframes.All);
