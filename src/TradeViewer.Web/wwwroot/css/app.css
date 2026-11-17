@@ -806,3 +806,9 @@ input:disabled {
     border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
+
+.tool-flyout-separator {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--border);
+}

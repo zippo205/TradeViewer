@@ -691,7 +691,8 @@ context menu; the bar of the selected drawing does what one would.
   (`primitives/waveNotation.ts`, for drawing) and in Web (`Drawings/WaveLabels`, for the chooser),
   both equal to `WaveNotation` in the Domain; tests keep them equal.
 - Wave patterns (DR5): one group button of the rail, as in TradingView, opens the five patterns
-  (`Drawings/WavePatterns` in Web); the button shows the one used last. A pattern is the polyline
+  (`Drawings/WavePatterns` in Web) and, at its bottom, the single wave label and the free polyline,
+  for counts that fit no pattern; the button shows the entry used last. A pattern is the polyline
   tool with the extras `pattern` (its labels) and `degree`: the module ends it after the start and
   one point per label, and gives the points their labels, highs above and lows below
   (`primitives/wavePatterns.ts`). The record is a plain polyline with point labels, so it is

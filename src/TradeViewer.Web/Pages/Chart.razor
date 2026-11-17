@@ -609,6 +609,11 @@
     private async Task ChooseToolAsync(string? tool)
     {
         _pattern = null; // a tool of the rail, also the free polyline, is not a pattern
+        if (tool == "waveLabel" || tool == "polyline")
+        {
+            _lastPattern = tool; // the Elliott group shows it next time
+        }
+
         if (_chart != null)
         {
             await _chart.SetToolAsync(tool, ToolExtras(tool)); // the chart answers with ToolChanged

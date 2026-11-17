@@ -198,8 +198,9 @@ Every requirement has an id. The backlog refers to these ids.
   under one button of the tool rail as in TradingView, place such a polyline with its labels in
   one go: impulse 1-2-3-4-5, correction A-B-C, triangle A-B-C-D-E, double combination W-X-Y and
   triple combination W-X-Y-X-Z, after a first click on the start of the move. Their labels are
-  on, their line can be switched off. TradeViewer does not check labels against any Elliott Wave
-  rule.
+  on, their line can be switched off. The single wave label and the polyline sit at the bottom of
+  the same group, for counts that fit no pattern, such as one still in progress. TradeViewer does
+  not check labels against any Elliott Wave rule.
 - **DR6** All drawings of a chart can be hidden and shown at once.
 
 ### 4.7 Downloader Monitoring

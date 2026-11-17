@@ -390,6 +390,11 @@ Done (DR4 and DR5 changed first, then architecture chapters 5 and 10):
   after a reshape, Z). Headless browser: `fib-check.mjs` rewritten for levels on and off,
   `elliott-check.mjs` new (the flyout, all five patterns, primary degree, line off, degree of a
   count, sides after a reshape, Enter does not end a pattern); all eight checks pass.
+- Then, at the owner's request: the single wave label and the polyline left the rail and sit at
+  the bottom of the Elliott group, below a line ("Single wave label", "Free count: polyline"), for
+  counts that fit no pattern, such as one still in progress; the group button shows them when
+  they were used last and is marked while one is in use (DR5 says so). waves-check, exact-check
+  and elliott-check open the group for them and pass.
 
 ---
 
