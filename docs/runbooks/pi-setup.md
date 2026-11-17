@@ -155,4 +155,12 @@ Rules for the agent:
              512 MB; the three assets (ADAUSDT, BTCUSDT, VIRTUALUSDT) are in the Crypto watchlist
              with their last prices. The Downloader reports no gaps for them, so the gap icons of
              the chart are still not seen with real data.
+
+2026-11-17   Epics Drawing Tools and Symbol Catalog deployed by the agent at the owner's request:
+             main at merge commit afc92d0, with DOWNLOADER_ENABLED=true (passed inline). The arm64
+             image built in 74 seconds. workspace.db was upgraded from schema version 3 to 6 with
+             the backup workspace-20261117-212235-before-v6.db. The container is healthy and uses
+             69 MB of 512 MB; the five assets (ADAUSDT, AVAXUSDT, BTCUSDT, DOGEUSDT, VIRTUALUSDT)
+             are there, the symbol picker searches the Downloader's catalog, the default Fibonacci
+             presets hold their levels that are switched off, and the log has no errors.
 ```
