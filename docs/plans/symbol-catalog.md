@@ -6,7 +6,7 @@
 Epic:     Symbol Catalog (P1 - Workstation)
 Status:   Plan approved by the owner 2026-11-17 (answers at the end)
 Branch:   feature/symbol-catalog
-Next:     step 5
+Next:     step 6
 Baseline: docs as of commit 1e299e7 (main)
 ```
 
@@ -109,7 +109,7 @@ of the catalog, paging.
    POST /api/assets takes the ticker; handler and endpoint tests with a fake Downloader           done
 5  Web: the picker on the assets page (debounce 250 ms, list, "type more", details of the entry
    picked, add); a check in the headless browser against a fake or the Pi's Downloader (see
-   question 2)                                                                                   open
+   question 2)                                                                                   done
 6  Docker, README, runbook; Pi on the owner's go-ahead                                            open
 ```
 

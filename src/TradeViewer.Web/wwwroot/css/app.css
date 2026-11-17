@@ -812,3 +812,27 @@ input:disabled {
     margin: 4px 0;
     background: var(--border);
 }
+
+/* The symbol chosen on the assets page: what the Downloader has of it, before it is added (AS2). */
+.symbol-details {
+    margin: 8px 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+}
+
+.symbol-details dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 2px 12px;
+    margin: 8px 0;
+}
+
+.symbol-details dt {
+    color: var(--muted);
+}
+
+.symbol-details dd {
+    margin: 0;
+}
