@@ -13,6 +13,7 @@ public sealed class DrawingSession
     private readonly DrawingSaveQueue _saves;
     private readonly Dictionary<string, DrawingHistory> _histories = new Dictionary<string, DrawingHistory>();
     private List<DrawingRecord> _drawings = new List<DrawingRecord>();
+    private Guid? _selectWhenCreated;
 
     public DrawingSession(DrawingSaveQueue saves)
     {
@@ -93,9 +94,15 @@ public sealed class DrawingSession
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// The chart selected a drawing (or none). A drawing the session does not know yet is selected when its creation
+    /// arrives: the chart selects a new drawing at once, but reports it only after its exact times are looked up.
+    /// </summary>
     public void Select(Guid? id)
     {
-        var selected = id != null && Find(id.Value) != null ? id : null;
+        var known = id != null && Find(id.Value) != null;
+        _selectWhenCreated = id != null && !known ? id : null;
+        var selected = known ? id : null;
         if (selected != SelectedId)
         {
             SelectedId = selected;
@@ -109,6 +116,12 @@ public sealed class DrawingSession
         if (drawing.Source != Source || drawing.Symbol != Symbol || Find(drawing.Id) != null)
         {
             return;
+        }
+
+        if (_selectWhenCreated == drawing.Id)
+        {
+            _selectWhenCreated = null;
+            SelectedId = drawing.Id;
         }
 
         Do(new DrawingEdit(null, drawing));

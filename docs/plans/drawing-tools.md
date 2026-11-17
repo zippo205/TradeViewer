@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-9 done (2026-11-17)
+Status:   Plan approved by the owner 2026-11-16, all proposals accepted. All 10 steps done (2026-11-17); waiting for the owner's look and approval
 Branch:   feature/drawing-tools
-Next:     step 10
+Next:     owner's look (Docker on WSL, localhost:8080), approval, merge; Pi on go-ahead
 Baseline: docs as of commit 50c0225 (main)
 ```
 
@@ -146,7 +146,7 @@ Out of scope:
    accepted by the owner                                                                         done
 10 Second window follows (DrawingsChanged); measurement of NF3 (frame times while dragging with
    200 drawings); checks in the headless browser; Docker; architecture, README and runbook
-   updated                                                                                       open
+   updated                                                                                       done
 ```
 
 Each step has its tests: Vitest for mapping, geometry, hit testing, the state machine, Fibonacci
@@ -328,6 +328,32 @@ headless browser for what only a browser shows (dragging, the bar, the keys).
   times of the 15m candles that made them, in two lookups; a wave label above the candle of
   8 November got 13:15, the 15m candle of that day's high; on 15m no lookup happens. No console
   errors.
+
+# Result of Step 10 (2026-11-17)
+
+- Other windows follow: Web's hub client hears `DrawingsChanged`; a chart page showing that asset
+  reads its drawings again unless it made the change. Headless browser
+  (`~/tools/browser/windows-check.mjs`, a 4h and a 1d window of BTCUSDT): a line drawn in the 4h
+  window appears in the 1d window, its delete and the undo follow; the 4h window reads nothing
+  again; a window showing ETHUSDT reads nothing.
+- Found and fixed: since step 9 the chart selects a new drawing before it reports it (after the
+  lookup of its exact times), so Web did not know the selected drawing and Delete did nothing;
+  `DrawingSession` now selects a drawing when its creation arrives if the chart selected it before
+  (two unit tests).
+- NF3 (`~/tools/browser/nf3-measure.mjs`, 1h, a line dragged by 90 pointer moves 16 ms apart):
+  with 200 drawings of all tools 187 frames, median and p95 16.7 ms, longest 16.8 ms, no long task;
+  the same as with no other drawing. Measured in a headless Chromium on WSL.
+- All checks of the epic run again and pass: tools-check, drawing-check, web-drawings-check,
+  waves-check, fib-check, exact-check, windows-check. The older two were adjusted: tools-check
+  starts from no saved drawings (since step 6 the page shows them), exact-check asks the pane for a
+  point (`pointOf`) instead of setting a probe drawing, which Web, owning the list, replaced.
+- Docker: the image builds (amd64, 23 s with cached layers); the container `tradeviewer` on WSL
+  (localhost:8080, data /home/admin/tradeviewer, frozen market data) runs this branch, healthy; its
+  workspace was upgraded to version 4 with the backup `workspace-20261117-153810-before-v4.db`.
+- Architecture chapter 10: NF3 measured, other windows follow. README and runbooks need no change;
+  the Pi's deployment log is written when the owner lets the epic go there.
+- In all: 372 unit, 19 architecture, 186 integration and 192 Vitest tests pass; `dotnet format`
+  clean.
 
 ---
 

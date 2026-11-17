@@ -22,6 +22,7 @@ public sealed class WorkspaceEvents : IAsyncDisposable
         _connection.On<string, string>("AssetStatusChanged", (source, symbol) => AssetStatusChanged?.Invoke(source, symbol));
         _connection.On<string, string, string[]>("CandlesUpdated", (source, symbol, timeframes) => CandlesUpdated?.Invoke(source, symbol, timeframes));
         _connection.On<bool>("DownloaderStatusChanged", reachable => DownloaderStatusChanged?.Invoke(reachable));
+        _connection.On<string, string, string>("DrawingsChanged", (source, symbol, window) => DrawingsChanged?.Invoke(source, symbol, window));
         _connection.Reconnected += _ =>
         {
             Reconnected?.Invoke();
@@ -34,6 +35,9 @@ public sealed class WorkspaceEvents : IAsyncDisposable
     public event Action<string, string, string[]>? CandlesUpdated;
 
     public event Action<bool>? DownloaderStatusChanged;
+
+    /// <summary>A drawing of the asset was saved or deleted by the window named (its <see cref="Drawings.WindowIdentity"/> id).</summary>
+    public event Action<string, string, string>? DrawingsChanged;
 
     public event Action? Reconnected;
 

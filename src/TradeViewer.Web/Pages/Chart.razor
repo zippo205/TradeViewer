@@ -7,6 +7,7 @@
 
 @inject WorkspaceApi Workspace
 @inject WorkspaceEvents Events
+@inject WindowIdentity Window
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -149,6 +150,7 @@
     protected override async Task OnInitializedAsync()
     {
         Events.CandlesUpdated += OnCandlesUpdated;
+        Events.DrawingsChanged += OnDrawingsChanged;
         Events.AssetStatusChanged += OnAssetStatusChanged;
         Events.Reconnected += OnReconnected;
         _ = Events.StartAsync();
@@ -200,6 +202,7 @@
     {
         _disposed = true;
         Events.CandlesUpdated -= OnCandlesUpdated;
+        Events.DrawingsChanged -= OnDrawingsChanged;
         Events.AssetStatusChanged -= OnAssetStatusChanged;
         Events.Reconnected -= OnReconnected;
         Session.Changed -= OnSessionChanged;
@@ -301,6 +304,20 @@
                 await _chart.RefreshAsync();
             }
         });
+    }
+
+    /// <summary>
+    /// Another window saved or deleted a drawing of the asset shown: this one reads the drawings again, so a line
+    /// drawn on 4h appears in the 1d window beside it (CP1). Its own changes it knows already.
+    /// </summary>
+    private void OnDrawingsChanged(string source, string symbol, string window)
+    {
+        if (source != Source || symbol != Symbol || window == Window.Id || _disposed)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() => LoadDrawingsAsync(source, symbol));
     }
 
     private void OnAssetStatusChanged(string source, string symbol)

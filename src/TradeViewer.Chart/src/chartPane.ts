@@ -374,6 +374,11 @@ export class ChartPane {
     this.drawingListener = listener;
   }
 
+  /** Where a time and price are drawn, in pixels of the pane, for checks in the browser; changes nothing. */
+  pointOf(time: number, price: number): Point | undefined {
+    return this.drawingLayer.pointOf({ time, price });
+  }
+
   /** Where the anchors of a drawing are drawn, in pixels of the pane, for checks in the browser. */
   drawingPoints(id: string): (Point | undefined)[] {
     const drawing = this.drawingInteraction.all().find((candidate) => candidate.id === id);

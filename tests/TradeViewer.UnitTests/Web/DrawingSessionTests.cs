@@ -156,6 +156,32 @@ public class DrawingSessionTests
     }
 
     [Fact]
+    public void A_new_drawing_the_chart_selected_before_reporting_it_is_selected_when_it_arrives()
+    {
+        // The chart selects a new drawing at once but reports it after its exact times are looked up.
+        var line = Line("BTCUSDT");
+        _session.Select(line.Id);
+        Assert.Null(_session.SelectedId);
+
+        _session.Created(line);
+
+        Assert.Equal(line.Id, _session.SelectedId);
+        Assert.True(_session.Delete(line.Id)); // what Delete on the keyboard does
+    }
+
+    [Fact]
+    public void A_selection_cleared_before_the_drawing_arrives_is_not_applied()
+    {
+        var line = Line("BTCUSDT");
+        _session.Select(line.Id);
+        _session.Select(null);
+
+        _session.Created(line);
+
+        Assert.Null(_session.SelectedId);
+    }
+
+    [Fact]
     public void A_drawing_of_another_asset_from_the_chart_is_ignored()
     {
         _session.Created(Line("ETHUSDT"));

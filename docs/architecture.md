@@ -649,6 +649,11 @@ context menu; the bar of the selected drawing does what one would.
   page does the same.
 - Measured on WSL in a headless Chromium: click to painted chart 112 to 123 ms at worst, median
   76 ms (NF1: 150 ms); zoom, pan and crosshair 60 frames per second with no request (NF2).
+  Dragging a line with 200 drawings of all tools on the chart: 60 frames per second, no frame
+  over 16.8 ms and no long task, the same as on an empty chart (NF3).
+- Other windows follow (CP1): a window that shows an asset reads its drawings again when the hub
+  reports `DrawingsChanged` for it from another window, so a line drawn on 4h appears in the 1d
+  window beside it. The window that made the change ignores its own event.
 - Candles and indicator values never go through interop: Blazor passes asset and timeframe, the
   module fetches the column arrays itself.
 - Web owns the list of drawings and saves it; the module owns the geometry while the user drags
