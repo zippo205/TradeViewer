@@ -1,0 +1,29 @@
+@* The chooser of degree and label for the wave label tool (DR5). After each label placed the page moves it on
+   to the next label, so a count is clicked label after label. *@
+<div class="wave-chooser" role="toolbar" aria-label="Wave label">
+    <select title="Degree" value="@Degree" @onchange="e => OnChanged.InvokeAsync((e.Value?.ToString() ?? Degree, Label))">
+        @foreach (var degree in WaveLabels.Degrees)
+        {
+            <option value="@degree.Code">@degree.Title</option>
+        }
+    </select>
+    <span class="wave-chooser-labels">
+        @foreach (var label in WaveLabels.Labels)
+        {
+            <button type="button" class="@(label == Label ? "selected" : "")" title="@label"
+                    @onclick="() => OnChanged.InvokeAsync((Degree, label))">@WaveLabels.Written(Degree, label)</button>
+        }
+    </span>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Degree { get; set; } = WaveLabels.FirstDegree;
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "1";
+
+    /// <summary>The degree and the label chosen.</summary>
+    [Parameter]
+    public EventCallback<(string Degree, string Label)> OnChanged { get; set; }
+}

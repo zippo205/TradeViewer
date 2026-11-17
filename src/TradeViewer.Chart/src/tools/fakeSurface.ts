@@ -25,7 +25,23 @@ export class FakeSurface implements DrawingSurface {
   }
 
   pointsOf(drawing: Drawing): Point[] | undefined {
-    return drawing.anchors.map((anchor) => FakeSurface.point(this.indexOf(anchor.time)!, anchor.price ?? 0));
+    if (drawing.tool === "waveLabel") {
+      // At the high (above) or low (below) of its candle.
+      const side = (drawing["wave"] as { side?: string } | undefined)?.side;
+      return [FakeSurface.point(this.indexOf(drawing.anchors[0]!.time), side === "above" ? BAR.high : BAR.low)];
+    }
+
+    return drawing.anchors.map((anchor) => this.pointOf(anchor));
+  }
+
+  pointOf(anchor: Anchor): Point {
+    return FakeSurface.point(this.indexOf(anchor.time), anchor.price ?? 0);
+  }
+
+  /** Above the middle of the candle (price 500) is above. */
+  sideAt(point: Point): "above" | "below" | undefined {
+    const index = Math.round(point.x / 10);
+    return index < 0 || index >= BARS ? undefined : this.priceAt(point.y) > (BAR.high + BAR.low) / 2 ? "above" : "below";
   }
 
   anchorAt(point: Point, magnet: boolean): Anchor | undefined {

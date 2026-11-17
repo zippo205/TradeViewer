@@ -43,6 +43,59 @@
                @onchange="e => SetText(e.Value?.ToString())" />
     }
 
+    @if (Drawing.Tool == "waveLabel" && Drawing.Wave != null)
+    {
+        var wave = Drawing.Wave;
+        <select title="Degree" value="@wave.Degree" disabled="@Drawing.Locked"
+                @onchange="e => Edit(Drawing with { Wave = wave with { Degree = e.Value?.ToString() ?? wave.Degree } })">
+            @foreach (var degree in WaveLabels.Degrees)
+            {
+                <option value="@degree.Code">@degree.Title</option>
+            }
+        </select>
+        <select title="Label" value="@wave.Label" disabled="@Drawing.Locked"
+                @onchange="e => Edit(Drawing with { Wave = wave with { Label = e.Value?.ToString() ?? wave.Label } })">
+            @foreach (var label in WaveLabels.Labels)
+            {
+                <option value="@label">@WaveLabels.Written(wave.Degree, label)</option>
+            }
+        </select>
+        <button type="button" title="Put the label on the other side of the candle" disabled="@Drawing.Locked"
+                @onclick="() => FlipSide(wave)">
+            @wave.Side
+        </button>
+    }
+
+    @if (Drawing.Tool == "polyline")
+    {
+        <label title="Show the line; without it only the labels show">
+            <input type="checkbox" checked="@(!Drawing.LineHidden)" disabled="@Drawing.Locked"
+                   @onchange="e => Edit(Drawing with { LineHidden = e.Value is not true })" />
+            line
+        </label>
+        <select title="Degree of the labels" @bind="_countDegree" disabled="@Drawing.Locked">
+            @foreach (var degree in WaveLabels.Degrees)
+            {
+                <option value="@degree.Code">@degree.Title</option>
+            }
+        </select>
+        <select title="Label of the second point" @bind="_countFirst" disabled="@Drawing.Locked">
+            @foreach (var label in WaveLabels.Labels)
+            {
+                <option value="@label">@WaveLabels.Written(_countDegree, label)</option>
+            }
+        </select>
+        <button type="button" title="Label the points after the first: highs above, lows below" disabled="@Drawing.Locked"
+                @onclick="() => Edit(Drawing with { PointLabels = WaveLabels.ForPoints(Drawing.Anchors, _countDegree, _countFirst) })">
+            label points
+        </button>
+        @if (Drawing.PointLabels?.Count > 0)
+        {
+            <button type="button" title="Remove the labels of the points" disabled="@Drawing.Locked"
+                    @onclick="() => Edit(Drawing with { PointLabels = null })">no labels</button>
+        }
+    }
+
     <button type="button" class="@(Drawing.Locked ? "selected" : "")" aria-pressed="@(Drawing.Locked ? "true" : "false")"
             title="@(Drawing.Locked ? "Unlock" : "Lock: it can then not be moved, changed or deleted")"
             @onclick="() => Edit(Drawing with { Locked = !Drawing.Locked })">
@@ -54,6 +107,28 @@
 @code {
     /// <summary>Blue of the lines, then the colours of the application and a neutral gray (OV6).</summary>
     private static readonly string[] Palette = { "#2962FF", "#F23645", "#089981", "#FF9800", "#9C27B0", "#787B86" };
+
+    /// <summary>Degree and first label for "label points" of a polyline; they start where the chooser is.</summary>
+    private string _countDegree = WaveLabels.FirstDegree;
+
+    private string _countFirst = "1";
+
+    /// <summary>The degree and label of the chooser, offered when the points of a polyline are labelled.</summary>
+    [Parameter]
+    public (string Degree, string Label) Wave { get; set; } = (WaveLabels.FirstDegree, "1");
+
+    private Guid _shownId;
+
+    protected override void OnParametersSet()
+    {
+        // Another drawing selected: the count starts where the chooser is.
+        if (Drawing.Id != _shownId)
+        {
+            _shownId = Drawing.Id;
+            _countDegree = Wave.Degree;
+            _countFirst = Wave.Label;
+        }
+    }
 
     [Parameter, EditorRequired]
     public DrawingRecord Drawing { get; set; } = null!;
@@ -74,6 +149,12 @@
     {
         var fill = Drawing.Style.Fill == null ? null : Pale(color);
         return Edit(Drawing with { Style = Drawing.Style with { Color = color.ToUpperInvariant(), Fill = fill } });
+    }
+
+    /// <summary>The label goes to the other side of its candle: from the high to the low, or back.</summary>
+    private Task FlipSide(WaveMarkRecord wave)
+    {
+        return Edit(Drawing with { Wave = wave with { Side = wave.Side == "above" ? "below" : "above" } });
     }
 
     /// <summary>A text note keeps a text: an empty one would be refused by the server.</summary>

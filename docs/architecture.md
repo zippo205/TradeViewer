@@ -675,6 +675,15 @@ context menu; the bar of the selected drawing does what one would.
   nearest in pixels. A press the module takes never reaches the library (`mousedown` in the
   capture phase on the element around the chart), so the chart does not pan; any other press
   goes to the chart. A horizontal line shows its price on the price scale.
+- A polyline takes points until a double-click on its last point or Enter (Escape drops it); it
+  can hide its line and show only the wave labels on its points. A wave label has one anchor
+  without a price: the layer draws it at the high (above) or the low (below) of the candle that
+  contains its time, so it follows the candle on every timeframe; it is placed on the side of the
+  candle the click is on and moved to another candle and side as a whole. The wave label tool
+  stays in use after each label, and Web moves its chooser on to the next label (1, 2, 3 ...), so a
+  count is clicked label after label. The notation is a small table in the module
+  (`primitives/waveNotation.ts`, for drawing) and in Web (`Drawings/WaveLabels`, for the chooser),
+  both equal to `WaveNotation` in the Domain; tests keep them equal.
 - Drawings and overlays are positioned by time and price. Switching the timeframe reloads
   candles and indicators only; a time between two candles is drawn at the candle that contains
   it.

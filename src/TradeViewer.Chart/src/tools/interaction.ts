@@ -2,12 +2,20 @@ import { defaultStyle, NEW_NOTE_TEXT, type Anchor, type Drawing, type DrawingSty
 import { HANDLE_HIT, type PaneSize } from "../primitives/shape";
 import { shapeOf } from "../primitives/shapes";
 import { hasDragged, movedAnchors, type AnchorStart } from "./drag";
+import type { WaveSide } from "../primitives/waveNotation";
 import type { Point } from "./geometry";
 
 /** What the interaction needs of the chart: conversions between pixels and anchors, and a new frame. */
 export interface DrawingSurface {
-  /** The anchors of the drawing in pixels of the pane; undefined when one of them cannot be placed. */
+  /**
+   * The anchors of the drawing in pixels of the pane; undefined when one of them cannot be placed. The point of a
+   * wave label is the high (above) or low (below) of the candle that contains its time.
+   */
   pointsOf(drawing: Drawing): Point[] | undefined;
+  /** One anchor with a price in pixels of the pane. */
+  pointOf(anchor: Anchor): Point | undefined;
+  /** Whether the point is above or below the middle of the candle under it; undefined beside the candles. */
+  sideAt(point: Point): WaveSide | undefined;
   /** The anchor at a point: the time of a whole bar and the price at the height, or the magnet's price. */
   anchorAt(point: Point, magnet: boolean): Anchor | undefined;
   /** The whole bars between two horizontal positions; undefined without candles. */
@@ -44,8 +52,11 @@ export interface Hit {
 interface Placing {
   readonly tool: ToolCode;
   readonly style: DrawingStyle;
+  /** Fields the new drawing gets as they are, e.g. the wave mark chosen for a wave label. */
+  readonly extras: Readonly<Record<string, unknown>>;
   readonly anchors: Anchor[];
-  pointer: Anchor | undefined;
+  /** Where the pointer is, for the preview. */
+  pointer: Point | undefined;
 }
 
 type Gesture =
@@ -53,6 +64,9 @@ type Gesture =
   | { readonly kind: "reshape"; readonly original: Drawing; readonly from: Point; readonly points: readonly Point[]; readonly handle: number; moved: boolean };
 
 const PREVIEW_ID = "preview";
+
+/** A press this close to the last point of a polyline is the second click of a double-click: it ends the line. */
+const DOUBLE_CLICK_REACH = 4;
 
 /**
  * The tool state machine of the chart module (DR2): place a drawing with click, move, click; select it; move
@@ -80,12 +94,17 @@ export class DrawingInteraction {
   /** The drawing being placed, with the pointer as its next anchor. */
   preview(): Drawing | undefined {
     const placing = this.placing;
-    if (placing === undefined || (placing.anchors.length === 0 && placing.pointer === undefined)) {
+    if (placing === undefined) {
       return undefined;
     }
 
-    const anchors = placing.pointer === undefined ? placing.anchors : [...placing.anchors, placing.pointer];
-    return this.newDrawing(PREVIEW_ID, placing, anchors);
+    if (placing.tool === "waveLabel") {
+      return placing.pointer === undefined ? undefined : this.newWaveLabel(PREVIEW_ID, placing, placing.pointer);
+    }
+
+    const pointer = placing.pointer === undefined ? undefined : this.surface.anchorAt(placing.pointer, this.options.magnet);
+    const anchors = pointer === undefined ? placing.anchors : [...placing.anchors, pointer];
+    return anchors.length === 0 ? undefined : this.newDrawing(PREVIEW_ID, placing, anchors);
   }
 
   selected(): string | undefined {
@@ -117,8 +136,11 @@ export class DrawingInteraction {
     this.surface.redraw();
   }
 
-  /** Chooses a tool to place, or the pointer (undefined). A style given replaces the default of the tool. */
-  setTool(tool: ToolCode | undefined, style?: DrawingStyle): void {
+  /**
+   * Chooses a tool to place, or the pointer (undefined). A style given replaces the default of the tool; extras
+   * are fields the new drawing gets, such as `wave` (degree and label) for a wave label.
+   */
+  setTool(tool: ToolCode | undefined, style?: DrawingStyle, extras: Readonly<Record<string, unknown>> = {}): void {
     this.cancelGesture();
     if (tool === undefined || this.options.hidden || shapeOf(tool) === undefined) {
       const wasPlacing = this.placing !== undefined;
@@ -127,7 +149,7 @@ export class DrawingInteraction {
         this.events.toolChanged(undefined);
       }
     } else {
-      this.placing = { tool, style: style ?? defaultStyle(tool), anchors: [], pointer: undefined };
+      this.placing = { tool, style: style ?? defaultStyle(tool), extras, anchors: [], pointer: this.placing?.pointer };
       this.setSelected(undefined);
       this.events.toolChanged(tool);
     }
@@ -238,7 +260,7 @@ export class DrawingInteraction {
 
   pointerMove(point: Point): boolean {
     if (this.placing !== undefined) {
-      this.placing.pointer = this.surface.anchorAt(point, this.options.magnet);
+      this.placing.pointer = point;
       this.surface.redraw();
       return true;
     }
@@ -293,32 +315,91 @@ export class DrawingInteraction {
     return false;
   }
 
+  /**
+   * Ends a drawing the user ends (a polyline): Enter. True when there was one with enough points; with fewer
+   * the placing goes on.
+   */
+  finish(): boolean {
+    const placing = this.placing;
+    const shape = placing === undefined ? undefined : shapeOf(placing.tool);
+    if (placing === undefined || shape?.minimum === undefined || placing.anchors.length < shape.minimum) {
+      return false;
+    }
+
+    this.complete(this.newDrawing(this.newId(), placing, placing.anchors));
+    return true;
+  }
+
   private place(point: Point): void {
     const placing = this.placing!;
+    if (placing.tool === "waveLabel") {
+      this.placeWaveLabel(placing, point);
+      return;
+    }
+
     const anchor = this.surface.anchorAt(point, this.options.magnet);
     if (anchor === undefined) {
       return;
     }
 
+    // A second click on the last point (a double-click) ends a polyline.
+    const shape = shapeOf(placing.tool)!;
+    const last = placing.anchors[placing.anchors.length - 1];
+    const lastPoint = last === undefined ? undefined : this.surface.pointOf(last);
+    if (shape.minimum !== undefined && lastPoint !== undefined && Math.hypot(lastPoint.x - point.x, lastPoint.y - point.y) <= DOUBLE_CLICK_REACH) {
+      this.finish();
+      return;
+    }
+
     placing.anchors.push(anchor);
-    placing.pointer = undefined;
-    if (placing.anchors.length < shapeOf(placing.tool)!.anchors) {
+    if (placing.anchors.length < shape.anchors) {
       this.surface.redraw();
       return;
     }
 
-    const drawing = this.newDrawing(this.newId(), placing, placing.anchors);
+    this.complete(this.newDrawing(this.newId(), placing, placing.anchors));
+  }
+
+  /** A finished drawing: reported, selected, and the pointer is back, as TradingView does by default. */
+  private complete(drawing: Drawing): void {
     this.placing = undefined;
     this.drawings.push(drawing);
     this.events.drawingCreated(drawing);
-    this.events.toolChanged(undefined); // back to the pointer, as TradingView does by default
+    this.events.toolChanged(undefined);
     this.setSelected(drawing.id);
     this.surface.redraw();
   }
 
+  /**
+   * A wave label is finished with one click; the tool stays, so that a count is placed label after label (Web moves
+   * the chooser on to the next label after each one).
+   */
+  private placeWaveLabel(placing: Placing, point: Point): void {
+    const drawing = this.newWaveLabel(this.newId(), placing, point);
+    if (drawing === undefined) {
+      return;
+    }
+
+    this.drawings.push(drawing);
+    this.events.drawingCreated(drawing);
+    this.surface.redraw();
+  }
+
   private newDrawing(id: string, placing: Placing, anchors: readonly Anchor[]): Drawing {
-    const drawing: Drawing = { id, tool: placing.tool, locked: false, anchors: [...anchors], style: placing.style };
+    const drawing: Drawing = { ...placing.extras, id, tool: placing.tool, locked: false, anchors: [...anchors], style: placing.style };
     return placing.tool === "textNote" ? { ...drawing, text: NEW_NOTE_TEXT } : drawing;
+  }
+
+  /** A wave label at the candle under the point: above it when the point is above the middle of the candle, else below. */
+  private newWaveLabel(id: string, placing: Placing, point: Point): Drawing | undefined {
+    const anchor = this.surface.anchorAt(point, false);
+    const side = this.surface.sideAt(point);
+    const mark = placing.extras["wave"] as Record<string, unknown> | undefined;
+    if (anchor === undefined || side === undefined || mark === undefined) {
+      return undefined;
+    }
+
+    return this.newDrawing(id, { ...placing, extras: { ...placing.extras, wave: { ...mark, side } } }, [{ time: anchor.time, price: null }]);
   }
 
   private startGesture(drawing: Drawing, point: Point, handle: number | undefined): void {
@@ -349,6 +430,14 @@ export class DrawingInteraction {
     const bars = this.surface.barsBetween(gesture.from.x, point.x);
     if (bars === undefined) {
       return undefined;
+    }
+
+    // A wave label moves to another candle and to the side of it the pointer is on; it has no price.
+    if (gesture.original.tool === "waveLabel") {
+      const time = this.surface.timeOf(gesture.starts[0]!.index + bars);
+      const side = this.surface.sideAt(point);
+      const mark = gesture.original["wave"] as Record<string, unknown> | undefined;
+      return time === undefined || side === undefined ? undefined : { ...gesture.original, anchors: [{ time, price: null }], wave: { ...mark, side } };
     }
 
     const anchors = movedAnchors(gesture.starts, bars, point.y - gesture.from.y, {

@@ -93,11 +93,12 @@
     }
 
     /// <summary>The tool to place next; null for the pointer.</summary>
-    public async Task SetToolAsync(string? tool)
+    /// <param name="extras">Fields the new drawing gets, e.g. <c>new { wave = new { degree, label } }</c> for a wave label.</param>
+    public async Task SetToolAsync(string? tool, object? extras = null)
     {
         if (_pane != null)
         {
-            await _pane.InvokeVoidAsync("setTool", tool);
+            await _pane.InvokeVoidAsync("setTool", tool, null, extras);
         }
     }
 

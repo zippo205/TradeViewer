@@ -665,3 +665,37 @@ input:disabled {
     background: var(--link);
     border-color: var(--link);
 }
+
+/* The chooser of degree and label of the wave label tool (DR5), where the bar of a selected drawing would be. */
+.wave-chooser {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    transform: translateX(-50%);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+}
+
+.wave-chooser-labels {
+    display: flex;
+    gap: 2px;
+}
+
+.wave-chooser-labels button {
+    min-width: 30px;
+    padding: 2px 4px;
+}
+
+.wave-chooser-labels button.selected {
+    color: #ffffff;
+    background: var(--link);
+    border-color: var(--link);
+}

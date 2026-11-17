@@ -19,6 +19,7 @@ import type { TimeMapping } from "../tools/timeMapping";
 import type { Anchor, Drawing } from "./drawing";
 import type { PaneSize } from "./shape";
 import { shapeOf } from "./shapes";
+import { waveMarkOf, type WaveSide } from "./waveNotation";
 
 type RenderTarget = Parameters<IPrimitivePaneRenderer["draw"]>[0];
 
@@ -71,6 +72,11 @@ export class DrawingLayer implements ISeriesPrimitive<Time>, DrawingSurface {
   // --- DrawingSurface ---
 
   pointsOf(drawing: Drawing): Point[] | undefined {
+    if (drawing.tool === "waveLabel") {
+      const at = this.wavePoint(drawing);
+      return at === undefined ? undefined : [at];
+    }
+
     const points: Point[] = [];
     for (const anchor of drawing.anchors) {
       const point = this.pointOf(anchor);
@@ -109,6 +115,29 @@ export class DrawingLayer implements ISeriesPrimitive<Time>, DrawingSurface {
       magnet && bar !== undefined ? snapPrice(bar, point.y, (value) => this.series?.priceToCoordinate(value) ?? undefined) : this.priceAt(point.y);
 
     return time === undefined || price === undefined ? undefined : { time, price };
+  }
+
+  sideAt(point: Point): WaveSide | undefined {
+    const logical = this.chart?.timeScale().coordinateToLogical(point.x);
+    const bar = logical === null || logical === undefined ? undefined : this.bars()[Math.round(logical)];
+    const high = bar === undefined ? null : (this.series?.priceToCoordinate(bar.high) ?? null);
+    const low = bar === undefined ? null : (this.series?.priceToCoordinate(bar.low) ?? null);
+    return high === null || low === null ? undefined : point.y < (high + low) / 2 ? "above" : "below";
+  }
+
+  /** The high (above) or low (below) of the candle that contains the time of a wave label: it follows the candle (DR5). */
+  private wavePoint(drawing: Drawing): Point | undefined {
+    const anchor = drawing.anchors[0];
+    const mark = waveMarkOf(drawing["wave"]);
+    const index = anchor === undefined ? undefined : this.mapping()?.indexOf(anchor.time);
+    const bar = index === undefined ? undefined : this.bars()[index];
+    if (bar === undefined || mark === undefined || this.chart === undefined || this.series === undefined) {
+      return undefined;
+    }
+
+    const x = this.chart.timeScale().logicalToCoordinate(index as Logical);
+    const y = this.series.priceToCoordinate(mark.side === "above" ? bar.high : bar.low);
+    return x === null || y === null ? undefined : { x, y };
   }
 
   barsBetween(fromX: number, toX: number): number | undefined {

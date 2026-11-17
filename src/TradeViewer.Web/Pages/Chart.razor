@@ -82,7 +82,11 @@
                            OnKey="OnKey" />
                 @if (Session.Selected != null && !_hidden)
                 {
-                    <DrawingBar Drawing="@Session.Selected" OnEdit="OnDrawingEdited" OnDelete="() => Session.Delete(Session.Selected.Id)" />
+                    <DrawingBar Drawing="@Session.Selected" Wave="@((_waveDegree, _waveLabel))" OnEdit="OnDrawingEdited" OnDelete="() => Session.Delete(Session.Selected.Id)" />
+                }
+                @if (_tool == "waveLabel" && !_hidden)
+                {
+                    <WaveChooser Degree="@_waveDegree" Label="@_waveLabel" OnChanged="OnWaveChosen" />
                 }
             </div>
         </div>
@@ -115,6 +119,8 @@
     private bool _hidden;
     private string? _drawingsAsset;
     private string? _drawingError;
+    private string _waveDegree = WaveLabels.FirstDegree;
+    private string _waveLabel = "1";
 
     [Parameter]
     public string Source { get; set; } = string.Empty;
@@ -412,13 +418,43 @@
         }
     }
 
-    private void OnDrawingCreated(ChartDrawing drawing)
+    private async Task OnDrawingCreated(ChartDrawing drawing)
     {
         var record = ChartDrawings.ToRecord(drawing, Source, Symbol);
-        if (record != null)
+        if (record == null)
         {
-            Session.Created(record);
+            return;
         }
+
+        Session.Created(record);
+
+        // A wave label placed: the chooser moves on to the next label, and the tool, still in use, places that one.
+        if (record.Tool == "waveLabel" && record.Wave != null)
+        {
+            _waveDegree = record.Wave.Degree;
+            _waveLabel = WaveLabels.Next(record.Wave.Label);
+            if (_tool == "waveLabel" && _chart != null)
+            {
+                await _chart.SetToolAsync("waveLabel", WaveExtras());
+            }
+        }
+    }
+
+    /// <summary>The chooser changed: the wave label tool, when in use, places the label chosen.</summary>
+    private async Task OnWaveChosen((string Degree, string Label) wave)
+    {
+        _waveDegree = wave.Degree;
+        _waveLabel = wave.Label;
+        if (_tool == "waveLabel" && _chart != null)
+        {
+            await _chart.SetToolAsync("waveLabel", WaveExtras());
+        }
+    }
+
+    /// <summary>What a new wave label gets: the degree and label of the chooser; the chart adds the side.</summary>
+    private object WaveExtras()
+    {
+        return new { wave = new { degree = _waveDegree, label = _waveLabel } };
     }
 
     private void OnDrawingChanged(ChartDrawing drawing)
@@ -470,7 +506,7 @@
     {
         if (_chart != null)
         {
-            await _chart.SetToolAsync(tool); // the chart answers with ToolChanged
+            await _chart.SetToolAsync(tool, tool == "waveLabel" ? WaveExtras() : null); // the chart answers with ToolChanged
         }
     }
 

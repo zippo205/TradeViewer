@@ -296,3 +296,107 @@ describe("hidden drawings (DR6)", () => {
     expect(interaction.visible()).toHaveLength(1);
   });
 });
+
+describe("polyline", () => {
+  it("takes points until a double-click on the last one ends it", () => {
+    interaction.setTool("polyline");
+    click(at(10, 400));
+    click(at(20, 450));
+    click(at(30, 420));
+    click(at(30, 420)); // the second click of the double-click
+
+    expect(reported).toHaveLength(1);
+    expect(reported[0]!.anchors).toEqual([anchor(10, 400), anchor(20, 450), anchor(30, 420)]);
+    expect(interaction.tool()).toBeUndefined();
+    expect(interaction.selected()).toBe("d1");
+  });
+
+  it("is ended by Enter once it has two points, and Enter before that does nothing", () => {
+    interaction.setTool("polyline");
+    click(at(10, 400));
+
+    expect(interaction.finish()).toBe(false);
+    expect(interaction.isBusy()).toBe(true);
+
+    click(at(20, 450));
+    expect(interaction.finish()).toBe(true);
+    expect(reported[0]!.anchors).toHaveLength(2);
+  });
+
+  it("is dropped by Escape", () => {
+    interaction.setTool("polyline");
+    click(at(10, 400));
+    click(at(20, 450));
+    interaction.cancel();
+
+    expect(reported).toEqual([]);
+    expect(interaction.tool()).toBeUndefined();
+  });
+
+  it("shows the pointer as its next point while placing", () => {
+    interaction.setTool("polyline");
+    click(at(10, 400));
+    click(at(20, 450));
+    interaction.pointerMove(at(35, 500));
+
+    expect(interaction.preview()?.anchors).toEqual([anchor(10, 400), anchor(20, 450), anchor(35, 500)]);
+  });
+});
+
+describe("wave labels (DR5)", () => {
+  const minor = (label: string) => ({ wave: { degree: "minor", label } });
+
+  it("are placed with one click, above or below the candle by the pointer, without a price", () => {
+    interaction.setTool("waveLabel", undefined, minor("1"));
+    click(at(10, 530)); // above the middle of the candle (500)
+    interaction.setTool("waveLabel", undefined, minor("2"));
+    click(at(12, 470));
+
+    expect(reported.map((drawing) => [drawing.anchors, drawing["wave"]])).toEqual([
+      [[{ time: T0 + 10 * HOUR, price: null }], { degree: "minor", label: "1", side: "above" }],
+      [[{ time: T0 + 12 * HOUR, price: null }], { degree: "minor", label: "2", side: "below" }],
+    ]);
+  });
+
+  it("keep the tool after each label, so a count is placed label after label", () => {
+    interaction.setTool("waveLabel", undefined, minor("1"));
+    click(at(10, 530));
+
+    expect(interaction.tool()).toBe("waveLabel");
+    expect(interaction.selected()).toBeUndefined();
+    expect(events).toEqual(["tool waveLabel", "created d1"]);
+  });
+
+  it("are not placed beside the candles, nor without a chosen label", () => {
+    interaction.setTool("waveLabel", undefined, minor("1"));
+    click({ x: 1500, y: 470 });
+    interaction.setTool("waveLabel");
+    click(at(10, 530));
+
+    expect(reported).toEqual([]);
+  });
+
+  it("show where the next label would go", () => {
+    interaction.setTool("waveLabel", undefined, minor("4"));
+    interaction.pointerMove(at(15, 460));
+
+    expect(interaction.preview()).toMatchObject({ tool: "waveLabel", anchors: [{ time: T0 + 15 * HOUR, price: null }], wave: { label: "4", side: "below" } });
+  });
+
+  it("move to another candle and to the side the pointer is on", () => {
+    const label: Drawing = {
+      id: "w",
+      tool: "waveLabel",
+      locked: false,
+      anchors: [{ time: T0 + 10 * HOUR, price: null }],
+      style: defaultStyle("waveLabel"),
+      wave: { degree: "minor", label: "3", side: "above" },
+    };
+    interaction.setDrawings([label]);
+
+    // The label sits above the high (520) of bar 10; drag it 3 bars on and below the candle.
+    drag({ x: 100, y: 1000 - 530 }, { x: 130, y: 1000 - 470 });
+
+    expect(reported).toEqual([{ ...label, anchors: [{ time: T0 + 13 * HOUR, price: null }], wave: { degree: "minor", label: "3", side: "below" } }]);
+  });
+});

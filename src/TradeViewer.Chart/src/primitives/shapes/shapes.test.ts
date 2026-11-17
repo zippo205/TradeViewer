@@ -165,18 +165,69 @@ describe("text note", () => {
 });
 
 describe("shapes", () => {
-  it("exist for the simple tools of this step and not yet for the others", () => {
-    for (const tool of ["trendLine", "ray", "horizontalLine", "verticalLine", "rectangle", "arrow", "textNote", "parallelChannel"] as const) {
+  it("exist for every tool but the Fibonacci ones, which come with step 8", () => {
+    const tools = ["trendLine", "ray", "horizontalLine", "verticalLine", "rectangle", "arrow", "textNote", "parallelChannel", "polyline", "waveLabel"] as const;
+    for (const tool of tools) {
       expect(shapeOf(tool)).toBeDefined();
     }
 
-    expect(shapeOf("polyline")).toBeUndefined();
-    expect(shapeOf("waveLabel")).toBeUndefined();
+    expect(shapeOf("fibonacciRetracement")).toBeUndefined();
+    expect(shapeOf("fibonacciExtension")).toBeUndefined();
   });
 
   it("number their anchors as the Domain does (DrawingTools.AnchorCount)", () => {
     expect(shapeOf("horizontalLine")!.anchors).toBe(1);
     expect(shapeOf("trendLine")!.anchors).toBe(2);
     expect(shapeOf("parallelChannel")!.anchors).toBe(3);
+  });
+});
+
+describe("polyline", () => {
+  const points = [
+    { x: 100, y: 300 },
+    { x: 200, y: 200 },
+    { x: 300, y: 260 },
+  ];
+  const mark = { degree: "minor", label: "1", side: "above" } as const;
+
+  it("is ended by the user and needs two points", () => {
+    expect(shapeOf("polyline")!.anchors).toBe(Number.POSITIVE_INFINITY);
+    expect(shapeOf("polyline")!.minimum).toBe(2);
+  });
+
+  it("is hit on every segment, not beside it", () => {
+    expect(hits("polyline", points, { x: 150, y: 252 })).toBe(true);
+    expect(hits("polyline", points, { x: 250, y: 230 })).toBe(true);
+    expect(hits("polyline", points, { x: 150, y: 200 })).toBe(false);
+  });
+
+  it("with its line hidden is hit only on its labels and points", () => {
+    const hidden = { lineHidden: true, pointLabels: [{ point: 1, mark }] };
+
+    expect(hits("polyline", points, { x: 150, y: 250 }, hidden)).toBe(false);
+    expect(hits("polyline", points, { x: 200, y: 184 }, hidden)).toBe(true); // the label above point 1
+    expect(hits("polyline", points, { x: 300, y: 262 }, hidden)).toBe(true); // point 2 itself
+  });
+
+  it("ignores labels it cannot read", () => {
+    const broken = { lineHidden: true, pointLabels: [{ point: 1, mark: { degree: "huge", label: "1", side: "above" } }] };
+
+    expect(hits("polyline", points, { x: 200, y: 184 }, broken)).toBe(false);
+  });
+});
+
+describe("wave label", () => {
+  const mark = (side: "above" | "below") => ({ wave: { degree: "intermediate", label: "3", side } });
+
+  it("is hit on its text above the high, or below the low", () => {
+    const high = [{ x: 200, y: 100 }];
+
+    expect(hits("waveLabel", high, { x: 200, y: 84 }, mark("above"))).toBe(true);
+    expect(hits("waveLabel", high, { x: 200, y: 116 }, mark("above"))).toBe(false);
+    expect(hits("waveLabel", high, { x: 200, y: 116 }, mark("below"))).toBe(true);
+  });
+
+  it("has no handles: it is moved as a whole", () => {
+    expect(shapeOf("waveLabel")!.handles([{ x: 1, y: 1 }], pane)).toEqual([]);
   });
 });

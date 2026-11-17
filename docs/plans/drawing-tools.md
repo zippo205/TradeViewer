@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-6 done (2026-11-17)
+Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-7 done (2026-11-17)
 Branch:   feature/drawing-tools
-Next:     step 7
+Next:     step 8
 Baseline: docs as of commit 50c0225 (main)
 ```
 
@@ -139,7 +139,7 @@ Out of scope:
    retry, "not saved" mark), undo and redo, tool rail, bar for the selected drawing (colour,
    width, style, text, lock, delete), keys; hide all; unit tests for the client state            done
 7  Chart module and Web: polyline, wave label, labels on the points of a polyline, the chooser of
-   degree and label                                                                              open
+   degree and label                                                                              done
 8  Chart module and Web: Fibonacci retracement and extension (linear and log), presets on the
    settings page                                                                                 open
 9  Exact anchor times across timeframes (see the proposal "Where a snapped anchor sits");
@@ -270,6 +270,29 @@ headless browser for what only a browser shows (dragging, the bar, the keys).
   both go away; a locked line resists Delete and the bar offers only unlock; Delete and Ctrl+Z
   bring it back with the same id; a text note gets its text; hidden and magnet survive a reload;
   another asset has its own drawings. No console errors.
+
+# Result of Step 7 (2026-11-17)
+
+- Chart module: `PolylineShape` (any number of points; double-click on the last point or Enter
+  ends it, Escape drops it; line hidden; wave labels on its points) and `WaveLabelShape` (no price:
+  drawn at the high or low of the candle that contains its time); `waveNotation.ts` and
+  `waveLabelDrawing.ts` (double brackets drawn as a circle). `setTool` takes extras: the wave mark
+  of the chooser. `DrawingSurface` got `pointOf` and `sideAt` (above or below the middle of the
+  candle under the pointer).
+- Web: `WaveLabels` (degrees, labels, next label, written form, labels for the points of a count),
+  the chooser `WaveChooser`, the rail with polyline and wave label, the bar with degree, label and
+  side of a wave label, and "line", "label points" and "no labels" for a polyline.
+- Decided while building: the wave label tool stays in use after each label (the other tools
+  return to the pointer), because the plan's chooser moves on to the next label after a click; a
+  count is clicked label after label, Escape or the pointer ends it. "Label points" labels the
+  points after the first (the start of the move) from the chosen label on: highs above, lows below.
+- 28 new Vitest tests (173), 4 new unit tests (370; one keeps Web's table equal to the Domain's).
+  Headless browser (`~/tools/browser/waves-check.mjs`): a polyline of five points ended by a
+  double-click, its points labelled (1) to (4) above highs and below lows, its line hidden; a
+  polyline ended by Enter; four primary labels placed one after another, numbered on, above or
+  below by the click, without a price, the chooser at ((5)) afterwards; Escape puts the tool away;
+  a label is selected by a click and put on the other side; on 4h all six drawings are there, the
+  labels on their candles. No console errors.
 
 ---
 

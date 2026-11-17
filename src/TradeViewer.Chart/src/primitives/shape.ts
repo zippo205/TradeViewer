@@ -17,8 +17,11 @@ export interface Look {
  * placed, `points` may hold fewer anchors than the finished drawing (the preview).
  */
 export interface Shape {
-  /** The number of anchors a finished drawing has. */
+  /** The number of anchors a finished drawing has; infinite for a polyline, which the user ends. */
   readonly anchors: number;
+
+  /** For a drawing the user ends (Enter, double-click): the fewest anchors it needs. */
+  readonly minimum?: number;
 
   draw(context: CanvasRenderingContext2D, points: readonly Point[], pane: PaneSize, drawing: Drawing, look: Look): void;
 

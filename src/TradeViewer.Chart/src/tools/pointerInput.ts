@@ -62,7 +62,8 @@ export class PointerInput {
   }
 
   private key(event: KeyboardEvent): void {
-    if (event.key === "Escape" && this.interaction.cancel()) {
+    const handled = (event.key === "Escape" && this.interaction.cancel()) || (event.key === "Enter" && this.interaction.finish());
+    if (handled) {
       event.stopPropagation();
       event.preventDefault();
     }
