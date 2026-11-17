@@ -84,6 +84,20 @@ Knowledge: docs/knowledge/ewts-interface.md (Drawings, Scenario Files)
 Outcome: a scenario is checked in TradeViewer instead of pasting a Pine script into
 TradingView.
 
+## Epic: Symbol Catalog
+
+Branch: `feature/symbol-catalog`
+
+- Symbol picker on the assets page backed by the Downloader's symbol catalog (search while
+  typing, lookup of the entry picked, then add); the fixed list stays for working without the
+  Downloader
+- The asset keeps its ticker at the source (`sourceSymbol`) and sends it with its subscription
+
+Requirements: AS2, AS7
+Depends on: Assets and Market Data; the Downloader's epic Symbol Catalog
+Knowledge: docs/knowledge/downloader-interface.md
+Outcome: any symbol of a source TradeViewer can chart is found by typing and added.
+
 ## Epic: Watchlists
 
 Branch: `feature/watchlists`

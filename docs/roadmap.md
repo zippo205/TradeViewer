@@ -18,6 +18,7 @@ of EWTS.
 | Scenario Viewer | open |
 | Watchlists | done (2026-11-16) |
 | Drawing Tools | done (2026-11-17) |
+| Symbol Catalog | in progress |
 | Scenario Analysis | open |
 | Indicators | open |
 | Downloader Monitoring | open |
