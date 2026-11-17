@@ -594,10 +594,14 @@ TradeViewer.Chart/src/
 
 ```text
 Blazor -> chart    createPane, setSeries(asset, timeframe), setIndicators, setDrawings,
-                   setOverlays, setTool, setOptions, refresh, dispose
-chart  -> Blazor   drawingCreated, drawingChanged, drawingDeleted, selectionChanged,
-                   contextMenuRequested
+                   setOverlays, setTool(tool, style), setDrawingOptions(magnet, hidden),
+                   selectDrawing, setOptions, refresh, dispose
+chart  -> Blazor   drawingCreated, drawingChanged, selectionChanged, toolChanged
 ```
+
+Deleting a drawing is an action of Web (the bar of the selected drawing, the Delete key): Web
+removes it from its list and calls setDrawings, so the module reports no deletion. There is no
+context menu; the bar of the selected drawing does what one would.
 
 - `ChartHost` (Web) wraps the calls in typed C# methods; events return through a
   `DotNetObjectReference`. Built so far: createPane, setSeries (asset, timeframe, tick size),
@@ -645,6 +649,16 @@ chart  -> Blazor   drawingCreated, drawingChanged, drawingDeleted, selectionChan
   module fetches the column arrays itself.
 - Web owns the list of drawings and saves it; the module owns the geometry while the user drags
   and reports the result. Undo and redo are client state in Web (DR2).
+- Drawings in the module: one series primitive, the drawing layer, draws all drawings of the chart
+  and the preview of the one being placed; each tool is one shape class in `primitives/shapes/`
+  (geometry, drawing, hit test, handles, reshape). The state machine (`tools/interaction.ts`)
+  places a drawing with click, move, click and then returns to the pointer; selects the topmost
+  drawing under the pointer; moves it by whole bars, reshapes it by a handle of the selected one;
+  Escape cancels. A locked drawing is selected but never moved or reshaped. The magnet (on by
+  default) snaps a placed or reshaped anchor to the open, high, low or close of its candle that is
+  nearest in pixels. A press the module takes never reaches the library (`mousedown` in the
+  capture phase on the element around the chart), so the chart does not pan; any other press
+  goes to the chart. A horizontal line shows its price on the price scale.
 - Drawings and overlays are positioned by time and price. Switching the timeframe reloads
   candles and indicators only; a time between two candles is drawn at the candle that contains
   it.

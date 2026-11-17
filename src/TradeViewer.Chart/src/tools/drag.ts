@@ -1,4 +1,4 @@
-import type { Anchor } from "../primitives/drawingLayer";
+import type { Anchor } from "../primitives/drawing";
 import type { Point } from "./geometry";
 
 /** Where an anchor was when dragging began: its whole bar index and its height in pixels. */

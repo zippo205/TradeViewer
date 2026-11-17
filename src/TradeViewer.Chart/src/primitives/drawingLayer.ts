@@ -4,56 +4,57 @@ import type {
   IPrimitivePaneView,
   ISeriesApi,
   ISeriesPrimitive,
+  ISeriesPrimitiveAxisView,
   Logical,
   PrimitiveHoveredItem,
   SeriesAttachedParameter,
   SeriesType,
   Time,
 } from "lightweight-charts";
-import { hitsSegment, type Point } from "../tools/geometry";
+import type { Bar } from "../data/bars";
+import type { Point } from "../tools/geometry";
+import type { DrawingInteraction, DrawingSurface } from "../tools/interaction";
+import { snapPrice } from "../tools/magnet";
 import type { TimeMapping } from "../tools/timeMapping";
+import type { Anchor, Drawing } from "./drawing";
+import type { PaneSize } from "./shape";
+import { shapeOf } from "./shapes";
 
 type RenderTarget = Parameters<IPrimitivePaneRenderer["draw"]>[0];
 
-/** A point of a drawing: a time (Unix seconds, UTC) and a price (DR3). */
-export interface Anchor {
-  readonly time: number;
-  readonly price: number;
-}
+/** The id the chart reports for a hovered drawing. */
+export const DRAWING_HOVER_ID = "drawing";
 
 /**
- * A trend line, the one drawing of the proof (plan step 1). Step 5 brings the tools of DR1 as one class
- * per tool on this layer.
+ * The drawing layer: one series primitive that draws all drawings of the chart, each by the shape of its tool,
+ * and the preview of the one being placed. It is also the surface of the interaction: it converts between
+ * pixels and anchors through the time mapping (whole bar indices) and the price scale.
  */
-export interface TrendLine {
-  readonly id: string;
-  readonly anchors: readonly [Anchor, Anchor];
-  readonly color: string;
-  /** Line width in pixels, 1 to 4. */
-  readonly width: number;
-}
-
-/** The prefix of the ids the chart reports for a hovered drawing; the id of the drawing follows. */
-export const DRAWING_ID_PREFIX = "drawing:";
-
-/**
- * The drawing layer: one series primitive that holds all drawings of a chart, draws them and says which
- * one is under the pointer. One layer, because the order of drawing and the question "what is under the
- * pointer" need one place. Anchors are placed on whole bar indices through the time mapping.
- */
-export class DrawingLayer implements ISeriesPrimitive<Time> {
+export class DrawingLayer implements ISeriesPrimitive<Time>, DrawingSurface {
   private chart: IChartApi | undefined;
   private series: ISeriesApi<SeriesType> | undefined;
   private requestUpdate: (() => void) | undefined;
-  private drawings: TrendLine[] = [];
+  private interaction: DrawingInteraction | undefined;
+  private size: PaneSize = { width: 0, height: 0 };
 
   private readonly view: IPrimitivePaneView = {
     zOrder: () => "normal",
     renderer: () => ({ draw: (target: RenderTarget) => this.draw(target) }),
   };
 
-  /** @param mapping the time mapping of the candles shown, undefined while there are none */
-  constructor(private readonly mapping: () => TimeMapping | undefined) {}
+  /**
+   * @param mapping the time mapping of the candles shown, undefined while there are none
+   * @param bars the candles in memory, index 0 the oldest, for the magnet
+   */
+  constructor(
+    private readonly mapping: () => TimeMapping | undefined,
+    private readonly bars: () => readonly Bar[],
+  ) {}
+
+  /** The interaction whose drawings, preview and selection this layer shows. */
+  bind(interaction: DrawingInteraction): void {
+    this.interaction = interaction;
+  }
 
   attached(parameters: SeriesAttachedParameter<Time>): void {
     this.chart = parameters.chart;
@@ -67,35 +68,25 @@ export class DrawingLayer implements ISeriesPrimitive<Time> {
     this.requestUpdate = undefined;
   }
 
-  /** Replaces all drawings. The last one is drawn on top and wins a hit. */
-  set(drawings: readonly TrendLine[]): void {
-    this.drawings = [...drawings];
-    this.requestUpdate?.();
-  }
+  // --- DrawingSurface ---
 
-  all(): readonly TrendLine[] {
-    return this.drawings;
-  }
+  pointsOf(drawing: Drawing): Point[] | undefined {
+    const points: Point[] = [];
+    for (const anchor of drawing.anchors) {
+      const point = this.pointOf(anchor);
+      if (point === undefined) {
+        return undefined;
+      }
 
-  get(id: string): TrendLine | undefined {
-    return this.drawings.find((drawing) => drawing.id === id);
-  }
-
-  /** Puts a changed drawing in place of the one with its id, as while it is dragged. */
-  replace(drawing: TrendLine): void {
-    const index = this.drawings.findIndex((existing) => existing.id === drawing.id);
-    if (index < 0) {
-      return;
+      points.push(point);
     }
 
-    this.drawings[index] = drawing;
-    this.requestUpdate?.();
+    return points;
   }
 
-  /** Where an anchor is drawn, in pixels of the pane; undefined without candles or price scale. */
   pointOf(anchor: Anchor): Point | undefined {
     const index = this.mapping()?.indexOf(anchor.time);
-    if (index === undefined || this.chart === undefined || this.series === undefined) {
+    if (index === undefined || this.chart === undefined || this.series === undefined || anchor.price === null) {
       return undefined;
     }
 
@@ -104,52 +95,122 @@ export class DrawingLayer implements ISeriesPrimitive<Time> {
     return x === null || y === null ? undefined : { x, y };
   }
 
-  /** The id of the topmost drawing under a point of the pane, or undefined. */
-  drawingAt(point: Point): string | undefined {
-    for (let index = this.drawings.length - 1; index >= 0; index--) {
-      const drawing = this.drawings[index]!;
-      const a = this.pointOf(drawing.anchors[0]);
-      const b = this.pointOf(drawing.anchors[1]);
-      if (a !== undefined && b !== undefined && hitsSegment(point, a, b, Math.max(drawing.width / 2 + 4, 6))) {
-        return drawing.id;
-      }
+  anchorAt(point: Point, magnet: boolean): Anchor | undefined {
+    const mapping = this.mapping();
+    const logical = this.chart?.timeScale().coordinateToLogical(point.x);
+    if (mapping === undefined || logical === null || logical === undefined) {
+      return undefined;
     }
 
-    return undefined;
+    const index = Math.round(logical);
+    const time = mapping.timeOf(index);
+    const bar = this.bars()[index];
+    const price =
+      magnet && bar !== undefined ? snapPrice(bar, point.y, (value) => this.series?.priceToCoordinate(value) ?? undefined) : this.priceAt(point.y);
+
+    return time === undefined || price === undefined ? undefined : { time, price };
   }
+
+  barsBetween(fromX: number, toX: number): number | undefined {
+    const timeScale = this.chart?.timeScale();
+    const from = timeScale?.coordinateToLogical(fromX);
+    const to = timeScale?.coordinateToLogical(toX);
+    return from === null || from === undefined || to === null || to === undefined ? undefined : Math.round(to - from);
+  }
+
+  indexOf(time: number): number | undefined {
+    return this.mapping()?.indexOf(time);
+  }
+
+  timeOf(index: number): number | undefined {
+    return this.mapping()?.timeOf(index);
+  }
+
+  priceAt(y: number): number | undefined {
+    const price = this.series?.coordinateToPrice(y);
+    return price === null || price === undefined || !Number.isFinite(price) ? undefined : price;
+  }
+
+  paneSize(): PaneSize {
+    return this.size.width > 0 ? this.size : { width: this.chart?.timeScale().width() ?? 0, height: this.chart?.paneSize().height ?? 0 };
+  }
+
+  redraw(): void {
+    this.requestUpdate?.();
+  }
+
+  // --- ISeriesPrimitive ---
 
   paneViews(): readonly IPrimitivePaneView[] {
     return [this.view];
   }
 
-  /** The library asks on every pointer move; a hit gives the "move" cursor and a hovered object id. */
+  /** The library asks on every pointer move; the answer sets the cursor. */
   hitTest(x: number, y: number): PrimitiveHoveredItem | null {
-    const id = this.drawingAt({ x, y });
-    return id === undefined ? null : { externalId: DRAWING_ID_PREFIX + id, zOrder: "normal", cursorStyle: "move" };
+    const cursor = this.interaction?.cursorAt({ x, y });
+    return cursor === undefined ? null : { externalId: DRAWING_HOVER_ID, zOrder: "normal", cursorStyle: cursor };
+  }
+
+  /** The price of every horizontal line on the price scale, in the colour of the line. */
+  priceAxisViews(): readonly ISeriesPrimitiveAxisView[] {
+    const interaction = this.interaction;
+    const series = this.series;
+    if (interaction === undefined || series === undefined) {
+      return [];
+    }
+
+    const lines = [...interaction.visible()];
+    const preview = interaction.preview();
+    if (preview !== undefined) {
+      lines.push(preview);
+    }
+
+    const views: ISeriesPrimitiveAxisView[] = [];
+    for (const drawing of lines) {
+      const price = drawing.anchors[0]?.price;
+      if (drawing.tool !== "horizontalLine" || price === null || price === undefined) {
+        continue;
+      }
+
+      const y = series.priceToCoordinate(price);
+      if (y === null) {
+        continue;
+      }
+
+      views.push({
+        coordinate: () => y,
+        text: () => series.priceFormatter().format(price),
+        textColor: () => "#ffffff",
+        backColor: () => drawing.style.color,
+      });
+    }
+
+    return views;
   }
 
   private draw(target: RenderTarget): void {
-    if (this.drawings.length === 0) {
-      return;
-    }
-
+    const interaction = this.interaction;
     target.useMediaCoordinateSpace((scope) => {
-      const context = scope.context;
-      context.lineCap = "round";
+      this.size = { width: scope.mediaSize.width, height: scope.mediaSize.height };
+      if (interaction === undefined) {
+        return;
+      }
 
-      for (const drawing of this.drawings) {
-        const a = this.pointOf(drawing.anchors[0]);
-        const b = this.pointOf(drawing.anchors[1]);
-        if (a === undefined || b === undefined) {
+      const context = scope.context;
+      const selected = interaction.selected();
+      const preview = interaction.preview();
+      const drawings = preview === undefined ? interaction.visible() : [...interaction.visible(), preview];
+
+      for (const drawing of drawings) {
+        const shape = shapeOf(drawing.tool);
+        const points = shape === undefined ? undefined : this.pointsOf(drawing);
+        if (points === undefined) {
           continue;
         }
 
-        context.beginPath();
-        context.moveTo(a.x, a.y);
-        context.lineTo(b.x, b.y);
-        context.strokeStyle = drawing.color;
-        context.lineWidth = drawing.width;
-        context.stroke();
+        context.save();
+        shape!.draw(context, points, this.size, drawing, { selected: drawing.id === selected });
+        context.restore();
       }
     });
   }

@@ -6,7 +6,8 @@ import { ChartPane, type PaneOptions } from "./chartPane";
 export { moduleInfo } from "./moduleInfo";
 export type { ModuleInfo } from "./moduleInfo";
 export type { PaneOptions, PaneStats, SeriesRequest } from "./chartPane";
-export type { Anchor, TrendLine } from "./primitives/drawingLayer";
+export type { Anchor, Drawing, DrawingStyle, LineStyle, ToolCode } from "./primitives/drawing";
+export type { DrawingEvents, DrawingOptions } from "./tools/interaction";
 
 const openPanes = new Set<ChartPane>();
 

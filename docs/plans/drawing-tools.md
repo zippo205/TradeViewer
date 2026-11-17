@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-4 done (2026-11-17)
+Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-5 done (2026-11-17)
 Branch:   feature/drawing-tools
-Next:     step 5
+Next:     step 6
 Baseline: docs as of commit 50c0225 (main)
 ```
 
@@ -134,7 +134,7 @@ Out of scope:
    handler and endpoint tests                                                                    done
 5  Chart module: tool state machine (place, select, move, reshape, cancel), hit testing, handles,
    magnet, lock; the simple tools: trend line, ray, horizontal line, vertical line, rectangle,
-   arrow, text note, parallel channel; Vitest                                                    open
+   arrow, text note, parallel channel; Vitest                                                    done
 6  Web: ChartHost calls and events, the list of drawings with saving in the background (queue,
    retry, "not saved" mark), undo and redo, tool rail, bar for the selected drawing (colour,
    width, style, text, lock, delete), keys; hide all; unit tests for the client state            open
@@ -222,6 +222,26 @@ headless browser for what only a browser shows (dragging, the bar, the keys).
   client coalesces changes ("unlock, then move" is one save); the last Fibonacci preset of a kind
   cannot be deleted or change its kind, so each Fibonacci tool always has levels.
 - 18 handler tests and 8 endpoint tests (346 unit, 185 integration in all).
+
+# Result of Step 5 (2026-11-17)
+
+- `primitives/drawing.ts`: the drawing as the module holds it (the record with Unix seconds;
+  unknown fields carried through) and the default styles of the Domain. `primitives/shapes/`: one
+  class per tool (trend line, ray, arrow, horizontal and vertical line, rectangle with four corner
+  handles, text note, parallel channel that keeps its distance when the line is reshaped).
+- `tools/interaction.ts`: the state machine (place, select, move, reshape, Escape, lock, hidden);
+  `tools/magnet.ts` (nearest open, high, low or close in pixels); the drawing layer is also the
+  surface that converts pixels and anchors; `tools/pointerInput.ts` routes the mouse to it.
+- `ChartPane`: `setDrawings`, `setTool`, `setDrawingOptions`, `selectDrawing`, `onDrawingEvents`.
+- Changed against the proposal: the module reports no deletion (Web deletes and calls
+  setDrawings) and reports `toolChanged`, so the tool rail of Web follows when the module returns
+  to the pointer. In the architecture, chapter 10.
+- 53 new Vitest tests (143 in all). Headless browser (`~/tools/browser/tools-check.mjs`): all
+  eight tools placed by clicks without the chart panning, each reported once with the pointer back
+  after it; select, move (whole hours, no pan), reshape by a handle (the other anchor unchanged),
+  Escape while dragging and while placing, the free corner of a rectangle, a drag on empty chart
+  pans and clears the selection, a locked line neither moves nor pans, hidden drawings are not hit,
+  the magnet puts a line on an OHLC value of its candle. `drawing-check.mjs` of step 1 passes too.
 
 ---
 

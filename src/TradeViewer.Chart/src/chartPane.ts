@@ -17,8 +17,10 @@ import { CandleRequestError, fetchCandles, type SeriesKey } from "./data/candleC
 import { fetchGaps, gapText, placeGaps, type Gap } from "./data/gaps";
 import { FIRST_PAGE_SIZE, OLDER_PAGE_SIZE, SeriesData, shouldLoadOlder } from "./data/seriesData";
 import { GAP_ID_PREFIX, GapMarkers } from "./gapMarkers";
-import { DrawingLayer, type TrendLine } from "./primitives/drawingLayer";
+import type { Drawing, DrawingStyle, ToolCode } from "./primitives/drawing";
+import { DrawingLayer } from "./primitives/drawingLayer";
 import type { Point } from "./tools/geometry";
+import { DrawingInteraction, type DrawingEvents, type DrawingOptions } from "./tools/interaction";
 import { PointerInput } from "./tools/pointerInput";
 import { TimeMapping, timeframeSeconds } from "./tools/timeMapping";
 import { formatPrice, formatTimeUtc, formatVolume, isIntraday, priceFormatOf, type PriceFormat } from "./format";
@@ -54,10 +56,12 @@ export interface PaneStats {
   readonly lastTime: number | undefined;
   /** True: the last candle is the current one, still in progress. */
   readonly partial: boolean;
-  /** Drawings on the chart, presses that hit one, and drags reported as finished. */
+  /** Drawings on the chart, those created and changed by the user, the selected one and the tool in use. */
   readonly drawings: number;
-  readonly drawingHits: number;
+  readonly drawingsCreated: number;
   readonly drawingChanges: number;
+  readonly selectedDrawing: string | undefined;
+  readonly tool: ToolCode | undefined;
 }
 
 /**
@@ -75,8 +79,14 @@ export class ChartPane {
   private readonly tooltip: HTMLDivElement;
   private readonly gapMarkers = new GapMarkers();
   private gaps: Gap[] = [];
-  private readonly drawingLayer = new DrawingLayer(() => this.timeMapping());
+  private readonly drawingLayer = new DrawingLayer(
+    () => this.timeMapping(),
+    () => this.data.bars,
+  );
+  private readonly drawingInteraction: DrawingInteraction;
   private readonly pointerInput: PointerInput;
+  private drawingListener: Partial<DrawingEvents> = {};
+  private drawingsCreated = 0;
   private mappingCache: { bars: readonly Bar[]; timeframe: string; mapping: TimeMapping | undefined } | undefined;
   private drawingChanges = 0;
   private readonly fetcher: typeof fetch;
@@ -154,9 +164,20 @@ export class ChartPane {
 
     // The drawings of the asset (DR3), on every timeframe; the pointer is taken before the chart gets it.
     this.candles.attachPrimitive(this.drawingLayer);
-    this.pointerInput = new PointerInput(canvasHost, this.chart, this.candles, this.drawingLayer, () => this.timeMapping(), () => {
-      this.drawingChanges++;
+    this.drawingInteraction = new DrawingInteraction(this.drawingLayer, {
+      drawingCreated: (drawing) => {
+        this.drawingsCreated++;
+        this.drawingListener.drawingCreated?.(drawing);
+      },
+      drawingChanged: (drawing) => {
+        this.drawingChanges++;
+        this.drawingListener.drawingChanged?.(drawing);
+      },
+      selectionChanged: (id) => this.drawingListener.selectionChanged?.(id),
+      toolChanged: (tool) => this.drawingListener.toolChanged?.(tool),
     });
+    this.drawingLayer.bind(this.drawingInteraction);
+    this.pointerInput = new PointerInput(canvasHost, this.chart, this.drawingInteraction);
     this.latestButton = document.createElement("button");
     this.latestButton.type = "button";
     this.latestButton.className = "tv-chart-latest";
@@ -316,19 +337,39 @@ export class ChartPane {
     this.chart.timeScale().setVisibleLogicalRange(latestRange(range.to - range.from, this.data.bars.length));
   }
 
-  /** Shows these drawings, placed by time and price on the candles of the timeframe shown. */
-  setDrawings(drawings: readonly TrendLine[]): void {
-    this.drawingLayer.set(drawings);
+  /** Shows these drawings of the asset (DR3), placed by time and price on the candles of the timeframe shown. */
+  setDrawings(drawings: readonly Drawing[]): void {
+    this.drawingInteraction.setDrawings(drawings);
   }
 
-  /** The drawings as the chart has them now, with what the user has dragged. */
-  drawings(): readonly TrendLine[] {
-    return this.drawingLayer.all();
+  /** The drawings as the chart has them now, with what the user has changed. */
+  drawings(): readonly Drawing[] {
+    return this.drawingInteraction.all();
+  }
+
+  /** Chooses the tool to place next (undefined: the pointer); a style given replaces the default of the tool. */
+  setTool(tool: ToolCode | undefined, style?: DrawingStyle): void {
+    this.drawingInteraction.setTool(tool, style);
+  }
+
+  /** The magnet and "all drawings hidden" (DR2, DR6). */
+  setDrawingOptions(options: Partial<DrawingOptions>): void {
+    this.drawingInteraction.setOptions(options);
+  }
+
+  selectDrawing(id: string | undefined): void {
+    this.drawingInteraction.select(id);
+  }
+
+  /** Who hears what the user does with drawings; Web in step 6 of the plan. */
+  onDrawingEvents(listener: Partial<DrawingEvents>): void {
+    this.drawingListener = listener;
   }
 
   /** Where the anchors of a drawing are drawn, in pixels of the pane, for checks in the browser. */
   drawingPoints(id: string): (Point | undefined)[] {
-    return this.drawingLayer.get(id)?.anchors.map((anchor) => this.drawingLayer.pointOf(anchor)) ?? [];
+    const drawing = this.drawingInteraction.all().find((candidate) => candidate.id === id);
+    return drawing?.anchors.map((anchor) => this.drawingLayer.pointOf(anchor)) ?? [];
   }
 
   stats(): PaneStats {
@@ -343,9 +384,11 @@ export class ChartPane {
       firstTime: bars[0]?.time,
       lastTime: bars[bars.length - 1]?.time,
       partial: this.data.partial,
-      drawings: this.drawingLayer.all().length,
-      drawingHits: this.pointerInput.hits,
+      drawings: this.drawingInteraction.all().length,
+      drawingsCreated: this.drawingsCreated,
       drawingChanges: this.drawingChanges,
+      selectedDrawing: this.drawingInteraction.selected(),
+      tool: this.drawingInteraction.tool(),
     };
   }
 

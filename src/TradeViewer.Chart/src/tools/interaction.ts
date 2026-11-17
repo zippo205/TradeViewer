@@ -1,0 +1,411 @@
+import { defaultStyle, NEW_NOTE_TEXT, type Anchor, type Drawing, type DrawingStyle, type ToolCode } from "../primitives/drawing";
+import { HANDLE_HIT, type PaneSize } from "../primitives/shape";
+import { shapeOf } from "../primitives/shapes";
+import { hasDragged, movedAnchors, type AnchorStart } from "./drag";
+import type { Point } from "./geometry";
+
+/** What the interaction needs of the chart: conversions between pixels and anchors, and a new frame. */
+export interface DrawingSurface {
+  /** The anchors of the drawing in pixels of the pane; undefined when one of them cannot be placed. */
+  pointsOf(drawing: Drawing): Point[] | undefined;
+  /** The anchor at a point: the time of a whole bar and the price at the height, or the magnet's price. */
+  anchorAt(point: Point, magnet: boolean): Anchor | undefined;
+  /** The whole bars between two horizontal positions; undefined without candles. */
+  barsBetween(fromX: number, toX: number): number | undefined;
+  indexOf(time: number): number | undefined;
+  timeOf(index: number): number | undefined;
+  priceAt(y: number): number | undefined;
+  paneSize(): PaneSize;
+  redraw(): void;
+}
+
+/** What the interaction reports. Created and changed are reported once, when the user lets go (NF3). */
+export interface DrawingEvents {
+  drawingCreated(drawing: Drawing): void;
+  drawingChanged(drawing: Drawing): void;
+  selectionChanged(id: string | undefined): void;
+  /** The tool in use; undefined is the pointer, to which the module returns after a drawing is finished. */
+  toolChanged(tool: ToolCode | undefined): void;
+}
+
+export interface DrawingOptions {
+  /** Snaps anchors to the open, high, low or close of their candle while placing and reshaping (DR2). */
+  readonly magnet: boolean;
+  /** All drawings hidden (DR6): nothing is drawn, hit or placed. */
+  readonly hidden: boolean;
+}
+
+/** What is under the pointer: a drawing, and the handle when it is the selected one's. */
+export interface Hit {
+  readonly id: string;
+  readonly handle?: number;
+}
+
+interface Placing {
+  readonly tool: ToolCode;
+  readonly style: DrawingStyle;
+  readonly anchors: Anchor[];
+  pointer: Anchor | undefined;
+}
+
+type Gesture =
+  | { readonly kind: "move"; readonly original: Drawing; readonly from: Point; readonly starts: readonly AnchorStart[]; moved: boolean }
+  | { readonly kind: "reshape"; readonly original: Drawing; readonly from: Point; readonly points: readonly Point[]; readonly handle: number; moved: boolean };
+
+const PREVIEW_ID = "preview";
+
+/**
+ * The tool state machine of the chart module (DR2): place a drawing with click, move, click; select it; move
+ * it; reshape it by its handles; cancel with Escape. A locked drawing can be selected, never moved or reshaped.
+ * It holds the drawings of the chart; Web gives them with setDrawings and hears every change through the events.
+ */
+export class DrawingInteraction {
+  private drawings: Drawing[] = [];
+  private selectedId: string | undefined;
+  private placing: Placing | undefined;
+  private gesture: Gesture | undefined;
+  private options: DrawingOptions = { magnet: true, hidden: false };
+
+  constructor(
+    private readonly surface: DrawingSurface,
+    private readonly events: DrawingEvents,
+    private readonly newId: () => string = () => crypto.randomUUID(),
+  ) {}
+
+  /** The drawings to draw, in their order; none while hidden. */
+  visible(): readonly Drawing[] {
+    return this.options.hidden ? [] : this.drawings;
+  }
+
+  /** The drawing being placed, with the pointer as its next anchor. */
+  preview(): Drawing | undefined {
+    const placing = this.placing;
+    if (placing === undefined || (placing.anchors.length === 0 && placing.pointer === undefined)) {
+      return undefined;
+    }
+
+    const anchors = placing.pointer === undefined ? placing.anchors : [...placing.anchors, placing.pointer];
+    return this.newDrawing(PREVIEW_ID, placing, anchors);
+  }
+
+  selected(): string | undefined {
+    return this.selectedId;
+  }
+
+  all(): readonly Drawing[] {
+    return this.drawings;
+  }
+
+  /** The tool being placed, undefined for the pointer. */
+  tool(): ToolCode | undefined {
+    return this.placing?.tool;
+  }
+
+  /** True while a drawing is placed or dragged: then the pointer belongs to the module. */
+  isBusy(): boolean {
+    return this.placing !== undefined || this.gesture !== undefined;
+  }
+
+  /** Replaces the drawings, e.g. after another window changed them. A drag in progress keeps its drawing. */
+  setDrawings(drawings: readonly Drawing[]): void {
+    const dragged = this.gesture === undefined ? undefined : this.find(this.gesture.original.id);
+    this.drawings = drawings.map((drawing) => (dragged !== undefined && drawing.id === dragged.id ? dragged : drawing));
+    if (this.selectedId !== undefined && this.find(this.selectedId) === undefined) {
+      this.setSelected(undefined);
+    }
+
+    this.surface.redraw();
+  }
+
+  /** Chooses a tool to place, or the pointer (undefined). A style given replaces the default of the tool. */
+  setTool(tool: ToolCode | undefined, style?: DrawingStyle): void {
+    this.cancelGesture();
+    if (tool === undefined || this.options.hidden || shapeOf(tool) === undefined) {
+      const wasPlacing = this.placing !== undefined;
+      this.placing = undefined;
+      if (wasPlacing || tool !== undefined) {
+        this.events.toolChanged(undefined);
+      }
+    } else {
+      this.placing = { tool, style: style ?? defaultStyle(tool), anchors: [], pointer: undefined };
+      this.setSelected(undefined);
+      this.events.toolChanged(tool);
+    }
+
+    this.surface.redraw();
+  }
+
+  setOptions(options: Partial<DrawingOptions>): void {
+    this.options = { ...this.options, ...options };
+    if (this.options.hidden) {
+      this.cancelGesture();
+      this.setSelected(undefined);
+      if (this.placing !== undefined) {
+        this.placing = undefined;
+        this.events.toolChanged(undefined);
+      }
+    }
+
+    this.surface.redraw();
+  }
+
+  /** Selects a drawing (or none) as if the user had clicked it. */
+  select(id: string | undefined): void {
+    this.setSelected(id !== undefined && this.find(id) !== undefined ? id : undefined);
+    this.surface.redraw();
+  }
+
+  /** The cursor the chart shows at a point, or undefined for its own. */
+  cursorAt(point: Point): string | undefined {
+    if (this.placing !== undefined) {
+      return "crosshair";
+    }
+
+    const hit = this.hitAt(point);
+    if (hit === undefined) {
+      return undefined;
+    }
+
+    if (this.find(hit.id)?.locked === true) {
+      return "default";
+    }
+
+    return hit.handle !== undefined ? "pointer" : "move";
+  }
+
+  /** The topmost drawing under the point; on the selected drawing its handles come first. */
+  hitAt(point: Point): Hit | undefined {
+    if (this.options.hidden) {
+      return undefined;
+    }
+
+    const pane = this.surface.paneSize();
+    const selected = this.selectedId === undefined ? undefined : this.find(this.selectedId);
+    if (selected !== undefined) {
+      const points = this.surface.pointsOf(selected);
+      const handles = points === undefined ? [] : (shapeOf(selected.tool)?.handles(points, pane) ?? []);
+      const handle = handles.findIndex((at) => Math.hypot(at.x - point.x, at.y - point.y) <= HANDLE_HIT);
+      if (handle >= 0) {
+        return { id: selected.id, handle };
+      }
+    }
+
+    for (let index = this.drawings.length - 1; index >= 0; index--) {
+      const drawing = this.drawings[index]!;
+      const shape = shapeOf(drawing.tool);
+      const points = shape === undefined ? undefined : this.surface.pointsOf(drawing);
+      if (points !== undefined && shape!.hits(point, points, pane, drawing)) {
+        return { id: drawing.id };
+      }
+    }
+
+    return undefined;
+  }
+
+  /** A press of the left button. True: the module takes it, the chart must not see it (no pan). */
+  pointerDown(point: Point): boolean {
+    if (this.gesture !== undefined) {
+      return true;
+    }
+
+    if (this.placing !== undefined) {
+      this.place(point);
+      return true;
+    }
+
+    const hit = this.hitAt(point);
+    if (hit === undefined) {
+      if (this.selectedId !== undefined) {
+        this.setSelected(undefined);
+        this.surface.redraw();
+      }
+
+      return false; // the chart pans as before (NF2)
+    }
+
+    const drawing = this.find(hit.id)!;
+    if (this.selectedId !== hit.id) {
+      this.setSelected(hit.id);
+      this.surface.redraw();
+    }
+
+    if (!drawing.locked) {
+      this.startGesture(drawing, point, hit.handle);
+    }
+
+    return true;
+  }
+
+  pointerMove(point: Point): boolean {
+    if (this.placing !== undefined) {
+      this.placing.pointer = this.surface.anchorAt(point, this.options.magnet);
+      this.surface.redraw();
+      return true;
+    }
+
+    const gesture = this.gesture;
+    if (gesture === undefined) {
+      return false;
+    }
+
+    if (!gesture.moved && !hasDragged(gesture.from, point)) {
+      return true;
+    }
+
+    const changed = gesture.kind === "move" ? this.moved(gesture, point) : this.reshaped(gesture, point);
+    if (changed !== undefined) {
+      gesture.moved = true;
+      this.replace(changed);
+      this.surface.redraw();
+    }
+
+    return true;
+  }
+
+  pointerUp(): boolean {
+    const gesture = this.gesture;
+    if (gesture === undefined) {
+      return this.placing !== undefined;
+    }
+
+    this.gesture = undefined;
+    const result = this.find(gesture.original.id);
+    if (gesture.moved && result !== undefined) {
+      this.events.drawingChanged(result);
+    }
+
+    return true;
+  }
+
+  /** Escape: a drag puts the drawing back, placing is given up and the pointer returns. True when there was something to cancel. */
+  cancel(): boolean {
+    if (this.gesture !== undefined) {
+      this.cancelGesture();
+      this.surface.redraw();
+      return true;
+    }
+
+    if (this.placing !== undefined) {
+      this.setTool(undefined);
+      return true;
+    }
+
+    return false;
+  }
+
+  private place(point: Point): void {
+    const placing = this.placing!;
+    const anchor = this.surface.anchorAt(point, this.options.magnet);
+    if (anchor === undefined) {
+      return;
+    }
+
+    placing.anchors.push(anchor);
+    placing.pointer = undefined;
+    if (placing.anchors.length < shapeOf(placing.tool)!.anchors) {
+      this.surface.redraw();
+      return;
+    }
+
+    const drawing = this.newDrawing(this.newId(), placing, placing.anchors);
+    this.placing = undefined;
+    this.drawings.push(drawing);
+    this.events.drawingCreated(drawing);
+    this.events.toolChanged(undefined); // back to the pointer, as TradingView does by default
+    this.setSelected(drawing.id);
+    this.surface.redraw();
+  }
+
+  private newDrawing(id: string, placing: Placing, anchors: readonly Anchor[]): Drawing {
+    const drawing: Drawing = { id, tool: placing.tool, locked: false, anchors: [...anchors], style: placing.style };
+    return placing.tool === "textNote" ? { ...drawing, text: NEW_NOTE_TEXT } : drawing;
+  }
+
+  private startGesture(drawing: Drawing, point: Point, handle: number | undefined): void {
+    const points = this.surface.pointsOf(drawing);
+    if (points === undefined) {
+      return;
+    }
+
+    if (handle !== undefined) {
+      this.gesture = { kind: "reshape", original: drawing, from: point, points, handle, moved: false };
+      return;
+    }
+
+    const starts: AnchorStart[] = [];
+    for (let index = 0; index < drawing.anchors.length; index++) {
+      const anchorIndex = this.surface.indexOf(drawing.anchors[index]!.time);
+      if (anchorIndex === undefined) {
+        return;
+      }
+
+      starts.push({ index: anchorIndex, y: points[index]!.y });
+    }
+
+    this.gesture = { kind: "move", original: drawing, from: point, starts, moved: false };
+  }
+
+  private moved(gesture: Extract<Gesture, { kind: "move" }>, point: Point): Drawing | undefined {
+    const bars = this.surface.barsBetween(gesture.from.x, point.x);
+    if (bars === undefined) {
+      return undefined;
+    }
+
+    const anchors = movedAnchors(gesture.starts, bars, point.y - gesture.from.y, {
+      timeOf: (index) => this.surface.timeOf(index),
+      priceOf: (y) => this.surface.priceAt(y),
+    });
+
+    return anchors === undefined ? undefined : { ...gesture.original, anchors };
+  }
+
+  private reshaped(gesture: Extract<Gesture, { kind: "reshape" }>, point: Point): Drawing | undefined {
+    const original = gesture.original;
+    const shape = shapeOf(original.tool)!;
+    const points = shape.reshape(gesture.points, gesture.handle, point);
+
+    // Only anchors whose point changed are converted; the magnet takes the anchor the handle stands for.
+    const anchors: Anchor[] = [];
+    for (let index = 0; index < original.anchors.length; index++) {
+      if (points[index] === gesture.points[index]) {
+        anchors.push(original.anchors[index]!);
+        continue;
+      }
+
+      const anchor = this.surface.anchorAt(points[index]!, this.options.magnet && index === gesture.handle);
+      if (anchor === undefined) {
+        return undefined;
+      }
+
+      anchors.push(anchor);
+    }
+
+    return { ...original, anchors };
+  }
+
+  private cancelGesture(): void {
+    const gesture = this.gesture;
+    if (gesture !== undefined) {
+      this.gesture = undefined;
+      this.replace(gesture.original);
+    }
+  }
+
+  private replace(drawing: Drawing): void {
+    const index = this.drawings.findIndex((existing) => existing.id === drawing.id);
+    if (index >= 0) {
+      this.drawings[index] = drawing;
+    }
+  }
+
+  private find(id: string): Drawing | undefined {
+    return this.drawings.find((drawing) => drawing.id === id);
+  }
+
+  private setSelected(id: string | undefined): void {
+    if (this.selectedId !== id) {
+      this.selectedId = id;
+      this.events.selectionChanged(id);
+    }
+  }
+}
