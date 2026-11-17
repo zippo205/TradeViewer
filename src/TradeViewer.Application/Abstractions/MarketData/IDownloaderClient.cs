@@ -13,10 +13,17 @@ public interface IDownloaderClient
     /// <summary>False: the Downloader is switched off in the configuration and must not be called.</summary>
     bool Enabled { get; }
 
-    Task<Result<SymbolLookup>> LookupAsync(string source, string symbol, CancellationToken cancellationToken);
+    /// <summary>Searches the symbol catalog of a source by the start of the ticker or any part of the name (AS2).</summary>
+    Task<Result<CatalogPage>> SearchAsync(string source, string text, int limit, CancellationToken cancellationToken);
 
-    /// <summary>Subscribes the asset with its history, replacing an earlier subscription of TradeViewer to it.</summary>
-    Task<Result<SubscriptionResult>> SubscribeAsync(string source, string symbol, AssetHistory history, CancellationToken cancellationToken);
+    /// <summary>Looks a symbol up at its source by its ticker, without subscribing it.</summary>
+    Task<Result<SymbolLookup>> LookupAsync(string source, string ticker, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Subscribes the asset with its history, replacing an earlier subscription of TradeViewer to it: the symbol (the
+    /// folder name) in the path, the ticker in the body.
+    /// </summary>
+    Task<Result<SubscriptionResult>> SubscribeAsync(string source, string symbol, string ticker, AssetHistory history, CancellationToken cancellationToken);
 
     /// <summary>Ends the subscription of TradeViewer. No subscription at the Downloader counts as done.</summary>
     Task<Result<Unit>> UnsubscribeAsync(string source, string symbol, CancellationToken cancellationToken);

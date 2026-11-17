@@ -1,0 +1,5 @@
+{ "source": "tradingview", "symbol": "BRK-B", "sourceSymbol": "NYSE:BRK.B", "assetClass": "stock",
+  "displayName": "Berkshire Hathaway Inc. New Common Stock", "tickSize": 0.01, "exchangeTimezone": "America/New_York",
+  "session": { "type": "exchange", "timeZone": "America/New_York", "open": "09:30", "close": "16:00" },
+  "sourceTimeframes": ["15m", "1h", "1d", "1w"],
+  "earliest": { "1d": "1996-05-09", "15m": "2026-08-19" } }

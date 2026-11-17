@@ -206,7 +206,7 @@ public class DrawingRepositoryTests : IDisposable
         _workspace.Dispose();
         using var older = new WorkspaceFixture();
         Assert.Equal(3, older.StartUpTo(3));
-        await older.Assets.AddAsync(new SymbolInfo("binance", "BTCUSDT", "BTC/USDT", AssetClass.Crypto, 0.01, Session.ContinuousUtc, Timeframes.All), History, CancellationToken.None);
+        older.InsertOlderAsset("BTCUSDT");
 
         var version = older.Start();
 

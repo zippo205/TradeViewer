@@ -13,10 +13,21 @@ public static class AssetEndpoints
         routes.MapGet("/api/symbols/{source}", async (
             string source,
             string? q,
-            IQueryHandler<GetSymbolsQuery, IReadOnlyList<SymbolResponse>> handler,
+            IQueryHandler<GetSymbolsQuery, SymbolSearchResponse> handler,
             CancellationToken cancellationToken) =>
         {
             var result = await handler.HandleAsync(new GetSymbolsQuery(source, q), cancellationToken);
+            return result.ToHttpResult();
+        });
+
+        // The ticker may hold characters such as ':' (NYSE:BRK.B); it comes URL-encoded.
+        routes.MapGet("/api/symbols/{source}/{sourceSymbol}", async (
+            string source,
+            string sourceSymbol,
+            IQueryHandler<GetSymbolDetailsQuery, SymbolDetailsResponse> handler,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await handler.HandleAsync(new GetSymbolDetailsQuery(source, sourceSymbol), cancellationToken);
             return result.ToHttpResult();
         });
 
@@ -35,7 +46,7 @@ public static class AssetEndpoints
             ICommandHandler<AddAssetCommand, AssetResponse> handler,
             CancellationToken cancellationToken) =>
         {
-            var result = await handler.HandleAsync(new AddAssetCommand(request.Source, request.Symbol), cancellationToken);
+            var result = await handler.HandleAsync(new AddAssetCommand(request.Source, request.Symbol, request.SourceSymbol), cancellationToken);
             return result.ToHttpResult();
         });
 

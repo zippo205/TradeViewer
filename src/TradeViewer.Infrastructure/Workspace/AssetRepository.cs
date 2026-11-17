@@ -9,7 +9,7 @@ namespace TradeViewer.Infrastructure.Workspace;
 public sealed class AssetRepository : IAssetRepository
 {
     private const string AssetColumns =
-        "source, symbol, display_name, asset_class, tick_size, session_type, session_time_zone, session_open, session_close, source_timeframes, position";
+        "source, symbol, display_name, asset_class, tick_size, session_type, session_time_zone, session_open, session_close, source_timeframes, position, source_symbol";
 
     private const string DateFormat = "yyyy-MM-dd";
 
@@ -42,12 +42,13 @@ public sealed class AssetRepository : IAssetRepository
         using (var insert = workspace.CreateCommand(
             "INSERT INTO assets (" + AssetColumns + ", subscription_sent, added_at) "
             + "SELECT $source, $symbol, $displayName, $assetClass, $tickSize, $sessionType, $timeZone, $open, $close, $timeframes, "
-            + "COALESCE((SELECT MAX(position) FROM assets WHERE asset_class = $assetClass), 0) + 1, 1, $addedAt "
+            + "COALESCE((SELECT MAX(position) FROM assets WHERE asset_class = $assetClass), 0) + 1, $sourceSymbol, 1, $addedAt "
             + "WHERE NOT EXISTS (SELECT 1 FROM assets WHERE source = $source AND symbol = $symbol);"))
         {
             insert.Transaction = transaction;
             insert.Parameters.AddWithValue("$source", info.Source);
             insert.Parameters.AddWithValue("$symbol", info.Symbol);
+            insert.Parameters.AddWithValue("$sourceSymbol", (object?)info.SourceSymbol ?? DBNull.Value);
             insert.Parameters.AddWithValue("$displayName", info.DisplayName);
             insert.Parameters.AddWithValue("$assetClass", AssetCodes.Code(info.AssetClass));
             insert.Parameters.AddWithValue("$tickSize", info.TickSize);
@@ -260,10 +261,11 @@ public sealed class AssetRepository : IAssetRepository
                     assetClass,
                     reader.GetDouble(4),
                     new Session(sessionType, reader.GetString(6), reader.IsDBNull(7) ? null : reader.GetString(7), reader.IsDBNull(8) ? null : reader.GetString(8)),
-                    timeframes);
+                    timeframes,
+                    reader.IsDBNull(11) ? null : reader.GetString(11));
 
                 histories.TryGetValue((source, symbol), out var starts);
-                assets.Add(new Asset(info, new AssetHistory(starts ?? new Dictionary<Timeframe, DateOnly?>()), reader.GetInt32(10), reader.GetInt64(11) != 0));
+                assets.Add(new Asset(info, new AssetHistory(starts ?? new Dictionary<Timeframe, DateOnly?>()), reader.GetInt32(10), reader.GetInt64(12) != 0));
             }
         }
 

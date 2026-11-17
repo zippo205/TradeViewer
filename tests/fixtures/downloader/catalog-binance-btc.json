@@ -1,0 +1,4 @@
+{ "source": "binance", "refreshedAt": "2026-11-17T07:29:48Z", "total": 112, "truncated": true,
+  "symbols": [
+    { "sourceSymbol": "BTCUSDT", "symbol": "BTCUSDT", "displayName": "BTC / USDT", "assetClass": "crypto", "exchange": null },
+    { "sourceSymbol": "BTCFDUSD", "symbol": "BTCFDUSD", "displayName": "BTC / FDUSD", "assetClass": "crypto", "exchange": null } ] }

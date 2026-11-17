@@ -16,8 +16,9 @@
 <section>
     <h2>Add an asset</h2>
     <p class="muted">
-        Choose the source and type a part of the symbol or its name. The asset gets the default history of the
-        settings; the Downloader loads it and TradeViewer imports it in the background.
+        Choose the source and type the start of the ticker or a part of the name, then choose a symbol to see what
+        the Downloader has of it. The asset gets the default history of the settings; the Downloader loads it and
+        TradeViewer imports it in the background. Stocks, ETFs and forex follow once TradeViewer can chart them.
     </p>
 
     <div class="toolbar">
@@ -27,27 +28,72 @@
                 <option value="@source">@source</option>
             }
         </select>
-        <input type="search" placeholder="Symbol or name" value="@_search" @oninput="OnSearchInput" />
+        <input type="search" placeholder="Ticker or name" maxlength="40" value="@_search" @oninput="OnSearchInput" />
     </div>
+
+    @if (_details != null)
+    {
+        <div class="symbol-details" role="region" aria-label="Chosen symbol">
+            <strong>@_details.DisplayName</strong>
+            <span class="muted">@_details.Source / @_details.SourceSymbol@(_details.SourceSymbol != _details.Symbol ? " (folder " + _details.Symbol + ")" : "") · @_details.AssetClass</span>
+            <dl>
+                <dt>Tick size</dt>
+                <dd>@_details.TickSize.ToString(CultureInfo.InvariantCulture)</dd>
+                <dt>Session</dt>
+                <dd>@SessionText(_details)</dd>
+                <dt>Timeframes</dt>
+                <dd>@string.Join(", ", _details.Timeframes)</dd>
+                @if (_details.Earliest.Count > 0)
+                {
+                    <dt>Earliest</dt>
+                    <dd>@string.Join(", ", _details.Earliest.Select(pair => pair.Key + " " + pair.Value))</dd>
+                }
+            </dl>
+            <div class="toolbar">
+                @if (_details.Added)
+                {
+                    <span class="muted">already one of your assets</span>
+                }
+                else
+                {
+                    <button type="button" disabled="@_busy" @onclick="AddChosenAsync">Add @_details.SourceSymbol</button>
+                }
+                <button type="button" disabled="@_busy" @onclick="() => _details = null">Cancel</button>
+            </div>
+        </div>
+    }
 
     @if (_symbols == null)
     {
         <p class="muted">Loading...</p>
     }
-    else if (_symbols.Count == 0)
+    else if (_symbols.FromCatalog && _symbols.RefreshedAt == null)
+    {
+        <p class="muted">The Downloader has no list of @_source yet; it loads it in the background. Try again in a minute.</p>
+    }
+    else if (_symbols.Symbols.Count == 0)
     {
         <p class="muted">No symbol of @_source matches.</p>
     }
     else
     {
+        @if (_symbols.Truncated)
+        {
+            <p class="muted">@_symbols.Symbols.Count of @_symbols.Total matches shown. Type more to narrow it down.</p>
+        }
+        else if (!_symbols.FromCatalog)
+        {
+            <p class="muted">The Downloader is switched off: the symbols come from the list that is part of TradeViewer.</p>
+        }
+
         <table class="list">
             <tbody>
-                @foreach (var symbol in _symbols)
+                @foreach (var symbol in _symbols.Symbols)
                 {
                     <tr @key="symbol.Symbol">
-                        <td>@symbol.Symbol</td>
+                        <td>@(symbol.SourceSymbol ?? symbol.Symbol)</td>
                         <td>@symbol.DisplayName</td>
-                        <td class="muted">@symbol.AssetClass</td>
+                        <td class="muted">@symbol.AssetClass@(symbol.Exchange == null ? "" : " · " + symbol.Exchange)</td>
                         <td class="actions">
                             @if (symbol.Added)
                             {
@@ -55,7 +101,7 @@
                             }
                             else
                             {
-                                <button type="button" disabled="@_busy" @onclick="() => AddAsync(symbol)">Add</button>
+                                <button type="button" disabled="@_busy" @onclick="() => ChooseAsync(symbol)">Choose</button>
                             }
                         </td>
                     </tr>
@@ -226,11 +272,16 @@
 </section>
 
 @code {
-    // Until the Downloader provides its symbol catalog there is one source with a fixed list (AS2).
+    // The sources TradeViewer can chart (AS2); yahoo and tradingview follow with stocks, ETFs and forex.
     private static readonly string[] Sources = { "binance" };
 
+    /// <summary>The search waits this long after the last key, so typing a word asks the server once (AS2).</summary>
+    private static readonly TimeSpan SearchDelay = TimeSpan.FromMilliseconds(250);
+
     private readonly Dictionary<string, HistoryEdit> _edit = new Dictionary<string, HistoryEdit>();
-    private List<SymbolResponse>? _symbols;
+    private SymbolSearchResponse? _symbols;
+    private SymbolDetailsResponse? _details;
+    private CancellationTokenSource? _typing;
     // The five fixed watchlists, one per asset class (AS1).
     private static readonly (string Code, string Title)[] Lists =
     {
@@ -302,17 +353,30 @@
         });
     }
 
+    /// <summary>Searches 250 ms after the last key; a key pressed meanwhile starts the wait again.</summary>
     private async Task OnSearchInput(ChangeEventArgs e)
     {
         _search = e.Value?.ToString() ?? string.Empty;
+        _typing?.Cancel();
+        _typing = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(SearchDelay, _typing.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            return; // the user typed on
+        }
+
         await SearchAsync();
     }
 
     private async Task SearchAsync()
     {
         var wanted = _search;
-        var result = await Api.GetSymbolsAsync(_source, wanted);
-        if (wanted != _search)
+        var source = _source;
+        var result = await Api.GetSymbolsAsync(source, wanted);
+        if (wanted != _search || source != _source)
         {
             return; // the user typed on; a newer search is on its way
         }
@@ -322,7 +386,52 @@
             Show(result.Error, true);
         }
 
-        _symbols = result.Value ?? new List<SymbolResponse>();
+        _symbols = result.Value ?? new SymbolSearchResponse(Array.Empty<SymbolResponse>(), 0, false, false);
+    }
+
+    /// <summary>A symbol chosen: the Downloader looks it up, which is the check that it can be added (AS2).</summary>
+    private async Task ChooseAsync(SymbolResponse symbol)
+    {
+        _busy = true;
+        var result = await Api.GetSymbolDetailsAsync(symbol.Source, symbol.SourceSymbol ?? symbol.Symbol);
+        _busy = false;
+        _details = result.Value;
+        if (result.Error != null)
+        {
+            Show(result.Error, true);
+        }
+        else
+        {
+            _message = null;
+        }
+    }
+
+    private async Task AddChosenAsync()
+    {
+        var chosen = _details!;
+        var added = await RunAsync(
+            async () => (await Api.AddAsync(chosen.Source, chosen.Symbol, chosen.SourceSymbol == chosen.Symbol ? null : chosen.SourceSymbol)).Error,
+            chosen.DisplayName + " added. Its history is loading.");
+        if (added)
+        {
+            _details = null;
+        }
+    }
+
+    /// <summary>The trading hours as the lookup gives them: around the clock, an exchange session, or forex.</summary>
+    private static string SessionText(SymbolDetailsResponse details)
+    {
+        switch (details.Session)
+        {
+            case "continuous":
+                return "around the clock (" + details.TimeZone + ")";
+            case "exchange":
+                return details.Open + " to " + details.Close + " " + details.TimeZone;
+            case "newYorkClose":
+                return "forex, the day ends 17:00 New York";
+            default:
+                return details.Session;
+        }
     }
 
     private async Task LoadAssetsAsync()
@@ -335,11 +444,6 @@
 
         // While the user edits, the rows keep their place; only the figures change.
         _assets = result.Value ?? _assets ?? new List<AssetResponse>();
-    }
-
-    private Task AddAsync(SymbolResponse symbol)
-    {
-        return RunAsync(async () => (await Api.AddAsync(symbol.Source, symbol.Symbol)).Error, symbol.DisplayName + " added. Its history is loading.");
     }
 
     private Task RescanAsync(AssetResponse asset)

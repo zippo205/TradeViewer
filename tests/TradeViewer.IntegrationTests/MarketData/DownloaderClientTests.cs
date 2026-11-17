@@ -34,6 +34,70 @@ public class DownloaderClientTests
     }
 
     [Fact]
+    public async Task A_search_of_the_catalog_returns_its_symbols_and_says_when_more_matched()
+    {
+        _downloader.Answer("GET /api/v1/sources/binance/symbols?q=btc&limit=50", HttpStatusCode.OK, "catalog-binance-btc.json");
+
+        var result = await _downloader.NewClient().SearchAsync("binance", "btc", 50, CancellationToken.None);
+
+        var page = result.Value;
+        Assert.Equal(new DateTimeOffset(2026, 11, 17, 7, 29, 48, TimeSpan.Zero), page.RefreshedAt);
+        Assert.Equal(112, page.Total);
+        Assert.True(page.Truncated);
+        Assert.Equal(new CatalogEntry("BTCUSDT", "BTCUSDT", "BTC / USDT", "crypto", null), page.Symbols[0]);
+        Assert.Equal(2, page.Symbols.Count);
+    }
+
+    [Fact]
+    public async Task A_search_text_is_sent_escaped_and_a_source_without_a_list_yet_says_so()
+    {
+        _downloader.Answer("GET /api/v1/sources/yahoo/symbols?q=s%26p%20500&limit=10", HttpStatusCode.OK, "catalog-not-loaded.json");
+
+        var result = await _downloader.NewClient().SearchAsync("yahoo", "s&p 500", 10, CancellationToken.None);
+
+        Assert.Null(result.Value.RefreshedAt);
+        Assert.Empty(result.Value.Symbols);
+    }
+
+    [Fact]
+    public async Task A_lookup_by_a_ticker_that_differs_from_the_folder_name_keeps_both()
+    {
+        _downloader.Answer("GET /api/v1/sources/tradingview/symbols/NYSE%3ABRK.B", HttpStatusCode.OK, "lookup-NYSE-BRK.B.json");
+
+        var result = await _downloader.NewClient().LookupAsync("tradingview", "NYSE:BRK.B", CancellationToken.None);
+
+        var info = result.Value.Info;
+        Assert.Equal("BRK-B", info.Symbol);
+        Assert.Equal("NYSE:BRK.B", info.SourceSymbol);
+        Assert.Equal("NYSE:BRK.B", info.Ticker);
+        Assert.Equal(new Session(SessionType.Exchange, "America/New_York", "09:30", "16:00"), info.Session);
+        Assert.Equal(AssetClass.Stock, info.AssetClass);
+    }
+
+    [Fact]
+    public async Task A_lookup_where_ticker_and_folder_name_are_the_same_keeps_no_separate_ticker()
+    {
+        _downloader.Answer("GET /api/v1/sources/binance/symbols/BTCUSDT", HttpStatusCode.OK, "lookup-BTCUSDT.json");
+
+        var info = (await _downloader.NewClient().LookupAsync("binance", "BTCUSDT", CancellationToken.None)).Value.Info;
+
+        Assert.Null(info.SourceSymbol);
+        Assert.Equal("BTCUSDT", info.Ticker);
+    }
+
+    [Fact]
+    public async Task A_subscription_has_the_folder_name_in_the_path_and_the_ticker_in_the_body()
+    {
+        _downloader.Answer("PUT /api/v1/clients/tradeviewer-test/subscriptions/tradingview/BRK-B", HttpStatusCode.OK, "subscription-BTCUSDT.json");
+
+        await _downloader.NewClient().SubscribeAsync("tradingview", "BRK-B", "NYSE:BRK.B", MarketDataFixture.Asset("BTCUSDT").History, CancellationToken.None);
+
+        using var body = JsonDocument.Parse(_downloader.LastBody!);
+        Assert.Equal("NYSE:BRK.B", body.RootElement.GetProperty("sourceSymbol").GetString());
+        Assert.Contains("PUT /api/v1/clients/tradeviewer-test/subscriptions/tradingview/BRK-B", _downloader.Requests);
+    }
+
+    [Fact]
     public async Task A_symbol_the_source_does_not_know_is_invalid_data_with_the_message_of_the_Downloader()
     {
         _downloader.Answer("GET /api/v1/sources/binance/symbols/NOPEUSDT", HttpStatusCode.UnprocessableEntity, "problem-unknown-symbol.json");
@@ -55,7 +119,7 @@ public class DownloaderClientTests
             [Timeframe.D1] = null
         });
 
-        var result = await _downloader.NewClient().SubscribeAsync("binance", "BTCUSDT", history, CancellationToken.None);
+        var result = await _downloader.NewClient().SubscribeAsync("binance", "BTCUSDT", "BTCUSDT", history, CancellationToken.None);
 
         using var body = JsonDocument.Parse(_downloader.LastBody!);
         Assert.Equal(new[] { "15m", "1h", "1d" }, body.RootElement.GetProperty("timeframes").EnumerateArray().Select(item => item.GetString()));
@@ -79,7 +143,7 @@ public class DownloaderClientTests
     {
         _downloader.Answer("PUT " + Subscription, HttpStatusCode.ServiceUnavailable, "problem-source-unreachable.json");
 
-        var result = await _downloader.NewClient().SubscribeAsync("binance", "BTCUSDT", MarketDataFixture.Asset("BTCUSDT").History, CancellationToken.None);
+        var result = await _downloader.NewClient().SubscribeAsync("binance", "BTCUSDT", "BTCUSDT", MarketDataFixture.Asset("BTCUSDT").History, CancellationToken.None);
 
         Assert.Equal(ErrorType.Unavailable, result.Error.Type);
         Assert.Equal("Source 'binance' is unreachable.", result.Error.Message);

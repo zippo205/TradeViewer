@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Downloader.Contracts.Catalog;
 using Downloader.Contracts.Lookup;
 using Downloader.Contracts.Status;
 using Downloader.Contracts.Subscriptions;
@@ -39,21 +40,39 @@ public sealed class DownloaderClient : IDownloaderClient
 
     public bool Enabled => _options.Enabled;
 
-    public async Task<Result<SymbolLookup>> LookupAsync(string source, string symbol, CancellationToken cancellationToken)
+    public async Task<Result<CatalogPage>> SearchAsync(string source, string text, int limit, CancellationToken cancellationToken)
+    {
+        // Without a text the Downloader lists the first symbols of the source.
+        var query = string.IsNullOrEmpty(text) ? string.Empty : "q=" + Uri.EscapeDataString(text) + "&";
+        var path = "api/v1/sources/" + Escape(source) + "/symbols?" + query + "limit=" + limit.ToString(CultureInfo.InvariantCulture);
+        var result = await SendAsync<CatalogResponse>(HttpMethod.Get, path, null, cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.Error;
+        }
+
+        var symbols = result.Value.Symbols
+            .Select(symbol => new CatalogEntry(symbol.SourceSymbol, symbol.Symbol, symbol.DisplayName, symbol.AssetClass, symbol.Exchange))
+            .ToList();
+        return Result.Success(new CatalogPage(Utc(result.Value.RefreshedAt), result.Value.Total, result.Value.Truncated, symbols));
+    }
+
+    public async Task<Result<SymbolLookup>> LookupAsync(string source, string ticker, CancellationToken cancellationToken)
     {
         var result = await SendAsync<SymbolLookupResponse>(
             HttpMethod.Get,
-            "api/v1/sources/" + Escape(source) + "/symbols/" + Escape(symbol),
+            "api/v1/sources/" + Escape(source) + "/symbols/" + Escape(ticker),
             null,
             cancellationToken);
 
         return result.IsFailure ? result.Error : ToLookup(result.Value);
     }
 
-    public async Task<Result<SubscriptionResult>> SubscribeAsync(string source, string symbol, AssetHistory history, CancellationToken cancellationToken)
+    public async Task<Result<SubscriptionResult>> SubscribeAsync(string source, string symbol, string ticker, AssetHistory history, CancellationToken cancellationToken)
     {
         var request = new SubscriptionRequest
         {
+            SourceSymbol = ticker,
             Timeframes = history.Timeframes.Select(Timeframes.Code).ToList(),
             HistoryFromByTimeframe = history.Timeframes.ToDictionary(Timeframes.Code, timeframe => history.StartOf(timeframe) ?? CompleteHistoryFrom)
         };
@@ -183,7 +202,8 @@ public sealed class DownloaderClient : IDownloaderClient
             assetClass,
             (double)(response.TickSize ?? 0.01m),
             new Session(sessionType, response.Session.TimeZone, response.Session.Open, response.Session.Close),
-            timeframes.OrderBy(Timeframes.Seconds).ToList());
+            timeframes.OrderBy(Timeframes.Seconds).ToList(),
+            string.IsNullOrEmpty(response.SourceSymbol) || response.SourceSymbol == response.Symbol ? null : response.SourceSymbol);
 
         return Result.Success(new SymbolLookup(info, earliest));
     }

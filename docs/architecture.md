@@ -206,8 +206,9 @@ The clock is the built-in `TimeProvider`.
 ## 5. Domain Model
 
 ```text
-SymbolInfo          source, symbol, display name, asset class, tick size, session,
-                    source timeframes: what a source says about a symbol
+SymbolInfo          source, symbol (the folder name), ticker at the source (sourceSymbol, for
+                    binance the same), display name, asset class, tick size, session, source
+                    timeframes: what a source says about a symbol
 Asset               SymbolInfo, AssetHistory, position in its watchlist, subscription sent
 AssetHistory        first day per timeframe, or none for the complete history (AS3)
 HistorySettings     default history per timeframe: complete or a number of days (AS3)
@@ -256,7 +257,8 @@ Decision 0003. Interface of the Downloader: docs/knowledge/downloader-interface.
 ### Flow
 
 ```text
-add asset     symbol from ISymbolCatalog -> lookup -> PUT subscription (client "tradeviewer") -> store asset -> first import
+add asset     ticker picked from the catalog -> lookup -> PUT subscription (client "tradeviewer",
+              folder name in the path, ticker in the body) -> store asset -> first import
               nothing is stored unless the Downloader accepted the subscription (AS2)
 sync          MarketDataSyncService, per asset, aligned to the clock (MD2):
                 due at every close of the asset's smallest timeframe + 30 s (the Downloader's
@@ -288,12 +290,16 @@ remove asset  switch off its analysis at EWTS if on -> DELETE subscription -> de
 - Only files from the asset's history start per timeframe are imported, although the folder
   can hold more (another client, e.g. EWTS, may have subscribed a longer history). Opening a
   scenario whose time span is not stored moves the history start back to it (SC8).
-- The symbols offered when adding an asset come from `ISymbolCatalog`: today a file per
-  source shipped with the application (embedded in Infrastructure,
-  `MarketData/Symbols/<source>.json`, the format of the Downloader's `symbols.json`, first
-  `binance.json` with the 13 symbols of `~/marketdata/binance/symbols.json`), later the
-  Downloader's symbol catalog. The default history is a user setting in the workspace (AS3): days
-  per timeframe or complete. The start days of an asset are fixed when it is added. A complete
+- The symbols offered when adding an asset come from the Downloader's symbol catalog
+  (`IDownloaderClient.SearchAsync`), searched while the user types (250 ms after the last key,
+  `limit` 50, "type more" when the answer is truncated); only the sources in
+  `SymbolSources.Chartable` are offered (binance, until the header format and trading sessions
+  can be read). Without the Downloader they come from `ISymbolCatalog`, a file per source shipped
+  with the application (embedded in Infrastructure, `MarketData/Symbols/<source>.json`, the
+  format of the Downloader's `symbols.json`, `binance.json` with the 13 symbols of the frozen
+  copy). Picking a symbol looks it up at the Downloader by its ticker before it is added. The
+  asset keeps the ticker (`assets.source_symbol`) and sends it with every subscription (AS7).
+- The default history is a user setting in the workspace (AS3): days per timeframe or complete. The start days of an asset are fixed when it is added. A complete
   history is sent to the Downloader as the start 1970-01-01, which it clips to the first day the
   source has (without a date its own defaults would apply).
 - All writes of candles are done by one background worker (`ImportService`) in the order they
@@ -487,7 +493,9 @@ Routes are grouped per feature. Request and response records are in `TradeViewer
 Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 
 ```text
-/api/symbols/{source}?q=                      symbols that can be added
+/api/symbols/{source}?q=                      symbols that can be added: the Downloader's catalog, or the
+                                              fixed list without the Downloader; answers truncated
+/api/symbols/{source}/{sourceSymbol}          look one up at the Downloader: tick size, session, earliest dates
 /api/assets                                   list, add
 /api/assets/{source}/{symbol}                 get (loading progress, available timeframes), remove; /history put changes the history
 /api/assets/{source}/{symbol}/rescan          reload the files; /rebuild deletes the candles and imports again (MD5)

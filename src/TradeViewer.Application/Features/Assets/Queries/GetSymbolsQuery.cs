@@ -3,5 +3,5 @@ using TradeViewer.Contracts.Assets;
 
 namespace TradeViewer.Application.Features.Assets.Queries;
 
-/// <summary>The symbols of a source that can be added, found by typing (AS2).</summary>
-public sealed record GetSymbolsQuery(string Source, string? Text) : IQuery<IReadOnlyList<SymbolResponse>>;
+/// <summary>The symbols of a source that can be added, found by typing (AS2): the Downloader's catalog, or the fixed list without it.</summary>
+public sealed record GetSymbolsQuery(string Source, string? Text) : IQuery<SymbolSearchResponse>;

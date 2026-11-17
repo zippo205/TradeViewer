@@ -18,6 +18,7 @@ of EWTS.
 | Scenario Viewer | open |
 | Watchlists | done (2026-11-16) |
 | Drawing Tools | done (2026-11-17) |
+| Symbol Catalog | done (2026-11-17) |
 | Scenario Analysis | open |
 | Indicators | open |
 | Downloader Monitoring | open |
@@ -37,8 +38,9 @@ Starts when EWTS provides its required interface.
 
 Not planned; each needs a specification change first.
 
-- Stocks, ETFs, Forex and commodities (when the Downloader provides the sources and the
-  asset class for commodities)
-- Symbol search from the Downloader's symbol catalog instead of the fixed list (AS2)
+- Stocks, ETFs, Forex and commodities: the Downloader provides yahoo and tradingview and lists
+  their symbols in its catalog; TradeViewer needs the header format, trading sessions and the
+  timeframes a source lacks (yahoo: 4h), and then offers these sources in the picker. Commodities
+  wait for their asset class at the Downloader
 - Walk Forward runs (when EWTS provides them)
 - Journal and trades of EWTS

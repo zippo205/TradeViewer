@@ -41,23 +41,18 @@ public sealed class AddAssetCommandHandler : ICommandHandler<AddAssetCommand, As
 
     public async Task<Result<AssetResponse>> HandleAsync(AddAssetCommand command, CancellationToken cancellationToken)
     {
-        // The user picks from the symbols of the source (AS2).
-        var listed = _catalog.Find(command.Source, command.Symbol);
-        if (listed == null)
+        // Only symbols of sources TradeViewer can chart are added (AS2).
+        if (!SymbolSources.IsChartable(command.Source))
         {
             return AssetErrors.UnknownSymbol(command.Source, command.Symbol);
-        }
-
-        if (await _assets.GetAsync(listed.Source, listed.Symbol, cancellationToken) != null)
-        {
-            return AssetErrors.AlreadyExists(listed.Source, listed.Symbol);
         }
 
         SymbolInfo info;
         if (_downloader.Enabled)
         {
-            // The Downloader confirms the symbol; its answer is the metadata of the asset.
-            var lookup = await _downloader.LookupAsync(listed.Source, listed.Symbol, cancellationToken);
+            // The user picked a symbol of the Downloader's catalog; the lookup by its ticker confirms it, and its
+            // answer, with the folder name and the ticker, is the metadata of the asset.
+            var lookup = await _downloader.LookupAsync(command.Source, command.SourceSymbol ?? command.Symbol, cancellationToken);
             if (lookup.IsFailure)
             {
                 return lookup.Error;
@@ -67,7 +62,13 @@ public sealed class AddAssetCommandHandler : ICommandHandler<AddAssetCommand, As
         }
         else
         {
-            // Without the Downloader TradeViewer works on the files alone.
+            // Without the Downloader the fixed list is the catalog, and TradeViewer works on the files alone.
+            var listed = _catalog.Find(command.Source, command.Symbol);
+            if (listed == null)
+            {
+                return AssetErrors.UnknownSymbol(command.Source, command.Symbol);
+            }
+
             if (!_folders.HasFolder(listed.Source, listed.Symbol))
             {
                 return AssetErrors.NoData(listed.Source, listed.Symbol);
@@ -76,13 +77,18 @@ public sealed class AddAssetCommandHandler : ICommandHandler<AddAssetCommand, As
             info = listed;
         }
 
+        if (await _assets.GetAsync(info.Source, info.Symbol, cancellationToken) != null)
+        {
+            return AssetErrors.AlreadyExists(info.Source, info.Symbol);
+        }
+
         var today = DateOnly.FromDateTime(_time.GetUtcNow().UtcDateTime);
         var history = (await _historySettings.GetAsync(cancellationToken)).StartingAt(today, info.SourceTimeframes);
 
         if (_downloader.Enabled)
         {
             // Nothing is stored unless the Downloader accepted the subscription.
-            var subscription = await _downloader.SubscribeAsync(info.Source, info.Symbol, history, cancellationToken);
+            var subscription = await _downloader.SubscribeAsync(info.Source, info.Symbol, info.Ticker, history, cancellationToken);
             if (subscription.IsFailure)
             {
                 return subscription.Error;

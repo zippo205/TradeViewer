@@ -109,6 +109,14 @@ internal sealed class FakeDownloader : IDownloaderClient
 
     public SymbolInfo? LookupInfo { get; set; }
 
+    /// <summary>The answer of the catalog; an empty page when not set.</summary>
+    public CatalogPage? Catalog { get; set; }
+
+    public Error? SearchError { get; set; }
+
+    /// <summary>The ticker of the last subscription.</summary>
+    public string? SubscribedTicker { get; private set; }
+
     public SymbolStatus Status { get; set; } = new SymbolStatus(0, true, Array.Empty<TimeframeStatus>());
 
     public SymbolChanges Changes { get; set; } = new SymbolChanges(0, true, Array.Empty<string>());
@@ -119,6 +127,14 @@ internal sealed class FakeDownloader : IDownloaderClient
     public AssetHistory? SubscribedHistory { get; private set; }
 
     public long? ChangesAfter { get; private set; }
+
+    public Task<Result<CatalogPage>> SearchAsync(string source, string text, int limit, CancellationToken cancellationToken)
+    {
+        Calls.Add("search " + source + " " + text + " " + limit);
+        return Task.FromResult(SearchError != null
+            ? Result.Failure<CatalogPage>(SearchError)
+            : Result.Success(Catalog ?? new CatalogPage(DateTimeOffset.UnixEpoch, 0, false, Array.Empty<CatalogEntry>())));
+    }
 
     public Task<Result<SymbolLookup>> LookupAsync(string source, string symbol, CancellationToken cancellationToken)
     {
@@ -132,9 +148,10 @@ internal sealed class FakeDownloader : IDownloaderClient
         return Task.FromResult(Result.Success(new SymbolLookup(info, new Dictionary<Timeframe, DateOnly>())));
     }
 
-    public Task<Result<SubscriptionResult>> SubscribeAsync(string source, string symbol, AssetHistory history, CancellationToken cancellationToken)
+    public Task<Result<SubscriptionResult>> SubscribeAsync(string source, string symbol, string ticker, AssetHistory history, CancellationToken cancellationToken)
     {
         Calls.Add("subscribe " + source + "/" + symbol);
+        SubscribedTicker = ticker;
         if (SubscribeError != null)
         {
             return Task.FromResult(Result.Failure<SubscriptionResult>(SubscribeError));

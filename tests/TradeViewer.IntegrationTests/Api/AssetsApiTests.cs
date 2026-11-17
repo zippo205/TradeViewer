@@ -44,13 +44,19 @@ public class AssetsApiTests : IDisposable
     [Fact]
     public async Task The_symbols_of_a_source_are_found_by_typing()
     {
-        var all = await _client.GetFromJsonAsync<List<SymbolResponse>>("/api/symbols/binance");
-        var found = await _client.GetFromJsonAsync<List<SymbolResponse>>("/api/symbols/binance?q=btc");
+        var all = await _client.GetFromJsonAsync<SymbolSearchResponse>("/api/symbols/binance");
+        var found = await _client.GetFromJsonAsync<SymbolSearchResponse>("/api/symbols/binance?q=btc");
+        var details = await _client.GetFromJsonAsync<SymbolDetailsResponse>("/api/symbols/binance/BTCUSDT");
         var unknown = await _client.GetAsync("/api/symbols/nasdaq");
+        var notChartable = await _client.GetAsync("/api/symbols/yahoo?q=spy");
 
-        Assert.Equal(13, all!.Count);
-        Assert.Equal(new SymbolResponse("binance", "BTCUSDT", "BTC/USDT", "crypto", false), Assert.Single(found!));
+        // Without the Downloader the fixed list answers (AS2).
+        Assert.Equal((13, false, false), (all!.Symbols.Count, all.Truncated, all.FromCatalog));
+        Assert.Equal(new SymbolResponse("binance", "BTCUSDT", "BTC/USDT", "crypto", false), Assert.Single(found!.Symbols));
+        Assert.Equal(("BTCUSDT", "BTCUSDT", "continuous"), (details!.Symbol, details.SourceSymbol, details.Session));
+        Assert.Empty(details.Earliest);
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, notChartable.StatusCode);
     }
 
     [Fact]
@@ -62,7 +68,7 @@ public class AssetsApiTests : IDisposable
         var added = await response.Content.ReadFromJsonAsync<AssetResponse>();
         var asset = await WaitUntilLoadedAsync("BTCUSDT");
         var list = await _client.GetFromJsonAsync<List<AssetResponse>>("/api/assets");
-        var symbols = await _client.GetFromJsonAsync<List<SymbolResponse>>("/api/symbols/binance?q=btc");
+        var symbols = (await _client.GetFromJsonAsync<SymbolSearchResponse>("/api/symbols/binance?q=btc"))!.Symbols;
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("BTC/USDT", added!.DisplayName);

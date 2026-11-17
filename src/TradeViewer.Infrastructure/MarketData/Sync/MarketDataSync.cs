@@ -282,7 +282,7 @@ public sealed class MarketDataSync
     {
         foreach (var asset in assets.Where(asset => !asset.SubscriptionSent))
         {
-            var result = await _downloader.SubscribeAsync(asset.Source, asset.Symbol, asset.History, cancellationToken);
+            var result = await _downloader.SubscribeAsync(asset.Source, asset.Symbol, asset.Info.Ticker, asset.History, cancellationToken);
             if (result.IsSuccess)
             {
                 await _assets.SetSubscriptionSentAsync(asset.Source, asset.Symbol, cancellationToken);

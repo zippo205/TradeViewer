@@ -34,7 +34,8 @@ public static class DependencyInjection
     {
         // Assets
         services.AddScoped<AssetStatusReader>();
-        services.AddScoped<IQueryHandler<GetSymbolsQuery, IReadOnlyList<SymbolResponse>>, GetSymbolsQueryHandler>();
+        services.AddScoped<IQueryHandler<GetSymbolsQuery, SymbolSearchResponse>, GetSymbolsQueryHandler>();
+        services.AddScoped<IQueryHandler<GetSymbolDetailsQuery, SymbolDetailsResponse>, GetSymbolDetailsQueryHandler>();
         services.AddScoped<IQueryHandler<GetAssetsQuery, IReadOnlyList<AssetResponse>>, GetAssetsQueryHandler>();
         services.AddScoped<IQueryHandler<GetAssetQuery, AssetResponse>, GetAssetQueryHandler>();
         services.AddScoped<ICommandHandler<AddAssetCommand, AssetResponse>, AddAssetCommandHandler>();
