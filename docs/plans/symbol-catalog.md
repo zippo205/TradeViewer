@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Symbol Catalog (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-17 (answers at the end)
+Status:   All 6 steps done (2026-11-17); waiting for the owner's approval and the go-ahead for the Pi
 Branch:   feature/symbol-catalog
-Next:     step 6
+Next:     approval, merge; Pi on the go-ahead (with Drawing Tools: workspace 3 -> 6)
 Baseline: docs as of commit 1e299e7 (main)
 ```
 
@@ -110,7 +110,7 @@ of the catalog, paging.
 5  Web: the picker on the assets page (debounce 250 ms, list, "type more", details of the entry
    picked, add); a check in the headless browser against a fake or the Pi's Downloader (see
    question 2)                                                                                   done
-6  Docker, README, runbook; Pi on the owner's go-ahead                                            open
+6  Docker, README, runbook; Pi on the owner's go-ahead                                            done (Pi open)
 ```
 
 Each step has its tests; tests never contact the Downloader (they use recorded answers).
@@ -139,3 +139,32 @@ Each step has its tests; tests never contact the Downloader (they use recorded a
 2. The development instance may use the Pi's Downloader for search and lookup, and add and remove
    one test asset under `tradeviewer-dev`.
 3. The fixed list `Symbols/binance.json` stays for working without the Downloader.
+
+---
+
+# Result (2026-11-17)
+
+- Step 1: AS2 and AS7 changed; downloader-interface.md compared on 2026-11-17 (catalog; the
+  subscription path takes the folder name, the ticker goes in the body); architecture chapters 5, 6
+  and 9; roadmap: the item for stocks, ETFs and forex says what TradeViewer still needs.
+- Step 2: `CatalogResponse.cs` copied unchanged; `IDownloaderClient.SearchAsync`, `LookupAsync` by
+  ticker (URL-encoded), `SubscribeAsync` with the ticker in the body; `SymbolInfo.SourceSymbol` and
+  `Ticker`. 5 client tests against recorded answers (catalog, not loaded, escaped text, NYSE:BRK.B,
+  folder name in the path).
+- Step 3: script 0006 adds `assets.source_symbol`; NULL means the same as the symbol, which every
+  asset added before is (the plan said "filled with the symbol": NULL says the same without
+  copying it). Upgrade tests insert their older rows with plain SQL (`InsertOlderAsset`).
+- Step 4: `/api/symbols/{source}?q=` answers `SymbolSearchResponse` (symbols with ticker and
+  exchange, total, truncated, from catalog, refreshed at), the fixed list without the Downloader;
+  `/api/symbols/{source}/{sourceSymbol}` answers `SymbolDetailsResponse`; `POST /api/assets` takes
+  the ticker, and with the Downloader the lookup, not the fixed list, is the check. Only
+  `SymbolSources.Chartable` (binance). The test factory can stand the stub in for the Downloader
+  (`TradeViewerFactory.WithDownloader`); 8 handler and 3 endpoint tests.
+- Step 5: the picker on the assets page. Headless browser against the Pi's catalog
+  (`~/tools/browser/catalog-check.mjs`, client `tradeviewer-dev`, empty workspace): four keys,
+  one request; "50 of 303 matches shown. Type more"; BTCUSDT with tick size, session, timeframes
+  and earliest dates; added and subscribed, removed and unsubscribed; nothing of
+  `tradeviewer-dev` left at the Downloader.
+- Step 6: README and runbooks need no change. Docker image built; the WSL container runs this
+  branch with the Downloader off (fixed list), its workspace upgraded to version 6 with a backup.
+- In all: 383 unit, 19 architecture, 198 integration tests pass; `dotnet format` clean.
