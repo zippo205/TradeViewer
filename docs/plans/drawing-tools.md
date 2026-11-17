@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Drawing Tools (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-3 done (2026-11-17)
+Status:   Plan approved by the owner 2026-11-16, all proposals accepted. Steps 1-4 done (2026-11-17)
 Branch:   feature/drawing-tools
-Next:     step 4
+Next:     step 5
 Baseline: docs as of commit 50c0225 (main)
 ```
 
@@ -131,7 +131,7 @@ Out of scope:
    on the table of script 0003; tests with upgrade and restore                                   done
 4  Features Drawings and ChartSettings: queries, commands, validators, endpoints
    (/api/drawings, /api/fibonacci-presets, /api/chart-settings), hub event DrawingsChanged;
-   handler and endpoint tests                                                                    open
+   handler and endpoint tests                                                                    done
 5  Chart module: tool state machine (place, select, move, reshape, cancel), hit testing, handles,
    magnet, lock; the simple tools: trend line, ray, horizontal line, vertical line, rectangle,
    arrow, text note, parallel channel; Vitest                                                    open
@@ -207,6 +207,21 @@ headless browser for what only a browser shows (dragging, the bar, the keys).
   wins and keeps the place; repeated save; delete and undo by the same id; removing an asset takes
   its drawings and chart settings only; unreadable rows; presets; Fibonacci levels kept when the
   preset changes; a version 3 workspace upgraded with a before-v4 backup; restore.
+
+# Result of Step 4 (2026-11-17)
+
+- Feature Drawings: GetDrawings, SaveDrawing, DeleteDrawing, GetFibonacciPresets,
+  SaveFibonacciPreset, DeleteFibonacciPreset; `DrawingMapping` between the records (codes, ISO
+  times) and the Domain; the validator applies `DrawingRules` and answers with the fields. Feature
+  ChartSettings: get (defaults when never saved), save.
+- Endpoints `/api/drawings/{source}/{symbol}`, `/api/drawings/{id}` (put, delete),
+  `/api/fibonacci-presets` (list, put, delete), `/api/chart-settings/{source}/{symbol}`.
+- Hub event `DrawingsChanged(source, symbol, window)`; the window comes from the header
+  `X-TradeViewer-Window`.
+- Decided while building (in the architecture): the lock is kept by the chart only, because the
+  client coalesces changes ("unlock, then move" is one save); the last Fibonacci preset of a kind
+  cannot be deleted or change its kind, so each Fibonacci tool always has levels.
+- 18 handler tests and 8 endpoint tests (346 unit, 185 integration in all).
 
 ---
 

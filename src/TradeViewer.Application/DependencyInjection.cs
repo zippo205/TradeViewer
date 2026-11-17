@@ -4,6 +4,12 @@ using TradeViewer.Application.Features.Assets.Commands;
 using TradeViewer.Application.Features.Assets.Handlers;
 using TradeViewer.Application.Features.Assets.Queries;
 using TradeViewer.Application.Features.Assets.Services;
+using TradeViewer.Application.Features.ChartSettings.Commands;
+using TradeViewer.Application.Features.ChartSettings.Handlers;
+using TradeViewer.Application.Features.ChartSettings.Queries;
+using TradeViewer.Application.Features.Drawings.Commands;
+using TradeViewer.Application.Features.Drawings.Handlers;
+using TradeViewer.Application.Features.Drawings.Queries;
 using TradeViewer.Application.Features.MarketData.Handlers;
 using TradeViewer.Application.Features.MarketData.Queries;
 using TradeViewer.Application.Features.Watchlists.Commands;
@@ -13,6 +19,8 @@ using TradeViewer.Application.Features.Workspace.Commands;
 using TradeViewer.Application.Features.Workspace.Handlers;
 using TradeViewer.Application.Features.Workspace.Queries;
 using TradeViewer.Contracts.Assets;
+using TradeViewer.Contracts.Charts;
+using TradeViewer.Contracts.Drawings;
 using TradeViewer.Contracts.MarketData;
 using TradeViewer.Contracts.Watchlists;
 using TradeViewer.Contracts.Workspace;
@@ -42,6 +50,18 @@ public static class DependencyInjection
         // Watchlists
         services.AddScoped<IQueryHandler<GetWatchlistsQuery, IReadOnlyList<WatchlistResponse>>, GetWatchlistsQueryHandler>();
         services.AddScoped<ICommandHandler<ReorderWatchlistCommand, Unit>, ReorderWatchlistCommandHandler>();
+
+        // Drawings
+        services.AddScoped<IQueryHandler<GetDrawingsQuery, IReadOnlyList<DrawingRecord>>, GetDrawingsQueryHandler>();
+        services.AddScoped<ICommandHandler<SaveDrawingCommand, Unit>, SaveDrawingCommandHandler>();
+        services.AddScoped<ICommandHandler<DeleteDrawingCommand, Unit>, DeleteDrawingCommandHandler>();
+        services.AddScoped<IQueryHandler<GetFibonacciPresetsQuery, IReadOnlyList<FibonacciPresetRecord>>, GetFibonacciPresetsQueryHandler>();
+        services.AddScoped<ICommandHandler<SaveFibonacciPresetCommand, FibonacciPresetRecord>, SaveFibonacciPresetCommandHandler>();
+        services.AddScoped<ICommandHandler<DeleteFibonacciPresetCommand, Unit>, DeleteFibonacciPresetCommandHandler>();
+
+        // ChartSettings
+        services.AddScoped<IQueryHandler<GetChartSettingsQuery, ChartSettingsResponse>, GetChartSettingsQueryHandler>();
+        services.AddScoped<ICommandHandler<SaveChartSettingsCommand, ChartSettingsResponse>, SaveChartSettingsCommandHandler>();
 
         // Workspace
         services.AddScoped<IQueryHandler<GetSettingsQuery, SettingsResponse>, GetSettingsQueryHandler>();

@@ -33,6 +33,11 @@ public sealed class RecordingNotifier : IWorkspaceNotifier
         return Add("DownloaderStatusChanged " + reachable);
     }
 
+    public Task DrawingsChangedAsync(string source, string symbol, string window)
+    {
+        return Add("DrawingsChanged " + source + "/" + symbol + " " + window);
+    }
+
     private Task Add(string text)
     {
         lock (_events)

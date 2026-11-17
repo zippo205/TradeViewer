@@ -124,7 +124,7 @@ Features/
 ├── Assets            symbol list, add, history, remove (AS2-AS5)
 ├── MarketData        candles, current candle, import, sync status, gaps (MD1-MD8)
 ├── Watchlists        the five fixed lists, order, row figures (AS1, AS6)
-├── ChartSettings     settings per asset (CP2); built with the first epic that has one (Indicators)
+├── ChartSettings     settings per asset (CP2): so far "drawings hidden" (DR6)
 ├── Indicators        calculation requests, indicator templates (IN1, IN2)
 ├── Drawings          drawings, Fibonacci presets (DR1-DR6)
 ├── Downloader        status and subscriptions for the monitoring page (DL1-DL4)
@@ -497,13 +497,16 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/watchlists                               the five lists with their rows and figures (AS6)
 /api/watchlists/{assetClass}/order            put: all assets of one list in their new order; 409 when
                                               the list has other assets than the order names
-/api/chart-settings/{source}/{symbol}         get, put: the settings per asset (CP2). Not built yet: no setting
-                                              per asset exists before the Indicators epic. The table
-                                              chart_settings (workspace script 0003) waits for it
+/api/chart-settings/{source}/{symbol}         get, put: the settings per asset (CP2); the defaults when never
+                                              saved; 404 for an unknown asset
 /api/settings                                 default history, last chart, price scale mode of all charts
                                               (AS3, CP3, CP2); get, put (a part that is null stays)
-/api/drawings                                 by asset
-/api/fibonacci-presets
+/api/drawings/{source}/{symbol}               the drawings of an asset in the order they were made
+/api/drawings/{id}                            put stores (new or changed), delete; 400 with the fields when
+                                              the record breaks the rules of its tool, 404 unknown asset,
+                                              409 when the id is a drawing of another asset
+/api/fibonacci-presets                        list; /{id} put (levels kept sorted), delete; 409 for the last
+                                              preset of a kind
 /api/downloader/status
 /api/downloader/subscriptions
 /api/downloader/assets/{source}/{symbol}      coverage, gaps, import errors
@@ -528,6 +531,12 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 - Drawings get their id (UUID) from the client and are written with an idempotent `PUT`, so the
   client can show a change at once and save it in the background (NF3, WS1). Chart settings,
   settings and the order of a watchlist are replaced as a whole.
+- A request that changes drawings names its window in the header `X-TradeViewer-Window` (a
+  UUID per browser window); the hub event `DrawingsChanged` carries it back, so that window
+  ignores its own change.
+- The lock of a drawing (DR2) is kept by the chart, not checked by the Api: the client sends only
+  the last of several changes of one drawing, so "unlock, then move" arrives as one save that must
+  not be refused.
 - A ZIP and a backup download are file results: a handler returns `Result<FileContent>` (stream,
   name, media type) and the endpoint streams it; the ZIP is built in memory from the scenario
   files of the run.
@@ -541,6 +550,7 @@ Server to client only; user actions go through REST.
 CandlesUpdated(source, symbol, timeframes)    timeframes as codes
 AssetStatusChanged(source, symbol)
 DownloaderStatusChanged(reachable)
+DrawingsChanged(source, symbol, window)        a drawing of the asset was saved or deleted by that window
 EwtsInstanceStatusChanged(instanceId, reachable)
 OverlaysChanged(instanceId, symbol)
 TestRunChanged(instanceId, testRunId, state)

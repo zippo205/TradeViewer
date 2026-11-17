@@ -356,4 +356,10 @@ internal sealed class FakeNotifier : TradeViewer.Application.Abstractions.Realti
         Events.Add("DownloaderStatusChanged " + reachable);
         return Task.CompletedTask;
     }
+
+    public Task DrawingsChangedAsync(string source, string symbol, string window)
+    {
+        Events.Add("DrawingsChanged " + source + "/" + symbol + " " + window);
+        return Task.CompletedTask;
+    }
 }

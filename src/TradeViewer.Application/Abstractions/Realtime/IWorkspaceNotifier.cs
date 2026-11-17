@@ -13,4 +13,10 @@ public interface IWorkspaceNotifier
     Task AssetStatusChangedAsync(string source, string symbol);
 
     Task DownloaderStatusChangedAsync(bool reachable);
+
+    /// <summary>
+    /// A drawing of the asset was saved or deleted. Window is the id of the window that made the change (empty
+    /// when unknown): it ignores the event, every other window showing the asset reads its drawings again.
+    /// </summary>
+    Task DrawingsChangedAsync(string source, string symbol, string window);
 }
