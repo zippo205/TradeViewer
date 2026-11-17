@@ -6,7 +6,7 @@
 Epic:     Symbol Catalog (P1 - Workstation)
 Status:   Plan approved by the owner 2026-11-17 (answers at the end)
 Branch:   feature/symbol-catalog
-Next:     step 1
+Next:     step 2
 Baseline: docs as of commit 1e299e7 (main)
 ```
 
@@ -97,7 +97,7 @@ of the catalog, paging.
 1  Documents: AS2 (the catalog, the fixed list only without the Downloader), AS7 (the ticker is
    sent with the subscription); downloader-interface.md (catalog, lookup by ticker, subscription
    path and body, compared on 2026-11-17); architecture (ports, /api/symbols, the asset's
-   ticker); backlog and roadmap                                                                  open
+   ticker); backlog and roadmap                                                                  done
 2  Downloader client: copy CatalogResponse.cs; SearchAsync(source, text, limit); LookupAsync by
    ticker (URL-encoded); SubscribeAsync sends SourceSymbol. Tests against recorded answers
    (binance, tradingview with NYSE:BRK.B, refreshedAt null, truncated, 404, 400, 503)            open

@@ -67,10 +67,14 @@ Every requirement has an id. The backlog refers to these ids.
   the watchlists. (The Downloader has no asset class for commodities yet; that watchlist stays
   empty until it has.)
 - **AS2** The user adds an asset to a watchlist by choosing the source and picking the symbol
-  from the symbols of that source, found by typing. Until the Downloader provides its symbol
-  catalog, the symbols come from a fixed list per source that is part of TradeViewer. At the
-  start there is one source, binance, with the symbols of the Downloader's frozen copy. The Downloader confirms the symbol; if it does not know it, the asset is
-  rejected with the Downloader's message.
+  from the symbols of that source, found by typing: TradeViewer searches the Downloader's symbol
+  catalog while the user types and says when more symbols match than are shown. The symbol
+  picked is looked up at the Downloader first, which shows its tick size, session and earliest
+  dates and confirms it; if the Downloader does not know it, the asset is rejected with the
+  Downloader's message. Only sources TradeViewer can chart are offered: binance, until stocks,
+  ETFs and forex can be charted. Without the Downloader, the symbols come from a fixed list per
+  source that is part of TradeViewer (binance, with the symbols of the Downloader's frozen copy).
+  An asset keeps its ticker at the source, which can differ from its symbol.
 - **AS3** Adding an asset subscribes it at the Downloader with all timeframes of the source
   and the default history, which the user sets once in the settings (initially: 1d and 1w
   complete, 4h two years, 1h one year, 15m 90 days). The source may provide less. The user can
@@ -90,7 +94,8 @@ Every requirement has an id. The backlog refers to these ids.
   the assets that have no subscription of TradeViewer and ends its subscriptions of symbols that
   are no asset any more; in the candle store it deletes the candles of such symbols and imports
   what is missing. After a restore every subscription is sent again, because the history of an
-  asset may have changed. Subscriptions of other clients are never touched.
+  asset may have changed. Subscriptions of other clients are never touched. A subscription
+  names the asset by its symbol and carries its ticker at the source.
 
 ### 4.2 Market Data
 

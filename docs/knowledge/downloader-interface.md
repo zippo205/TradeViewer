@@ -5,7 +5,7 @@ reads and the control API it calls. How TradeViewer uses them is in docs/archite
 chapters Market Data and Downloader Integration.
 
 The Downloader owns this interface. Its specification (../Downloader/docs/specification.md) is
-the original; this document is TradeViewer's view of it, last compared on 2026-11-11.
+the original; this document is TradeViewer's view of it, last compared on 2026-11-17.
 
 Scope today: crypto with Binance as the only source in use. A `yahoo` source exists for
 testing. Stocks, ETFs and Forex follow as further sources.
@@ -145,6 +145,7 @@ The request and response records are defined in the Downloader's `Downloader.Con
 project and copied unchanged into TradeViewer (architecture, Downloader Integration).
 
 ```text
+GET    /api/v1/sources/{source}/symbols?q=&assetClass=&limit=      search the symbol catalog of a source
 GET    /api/v1/sources/{source}/symbols/{sourceSymbol}            look up one symbol, without subscribing
 PUT    /api/v1/clients/{client}/subscriptions/{source}/{symbol}   subscribe or replace the subscription
 DELETE /api/v1/clients/{client}/subscriptions/{source}/{symbol}   unsubscribe: 204, 404 if not subscribed
@@ -157,8 +158,30 @@ GET    /api/v1/status/{source}/{symbol}/changes?after={n}         files changed 
 GET    /health                                                    liveness
 ```
 
-Planned by the Downloader, not available yet: `GET /api/v1/sources/{source}/symbols?q=...`
-(symbol catalog, for a symbol picker).
+## Symbol Catalog
+
+Since 2026-11-17 (the Downloader's decision 0008). `GET /api/v1/sources/binance/symbols?q=btc&limit=50`
+(`CatalogResponse`):
+
+```json
+{ "source": "binance", "refreshedAt": "2026-11-17T07:29:48Z", "total": 112, "truncated": true,
+  "symbols": [ { "sourceSymbol": "BTCUSDT", "symbol": "BTCUSDT", "displayName": "BTC / USDT",
+                 "assetClass": "crypto", "exchange": null } ] }
+```
+
+- Sources: `binance` (all spot symbols that trade, crypto), `yahoo` (US stocks and ETFs, share
+  classes with a dash such as `BRK-B`, and forex pairs such as `EURUSD=X`), `tradingview` (US
+  stocks with the exchange in front: `NASDAQ:AAPL`, `NYSE:BRK.B`). Test issues, preferred stock,
+  warrants, rights and units are left out.
+- `q`: the start of the ticker or any part of the name, up to 40 characters; `assetClass`
+  (optional): `crypto`, `stock`, `etf`, `forex`; `limit` 1 to 500, default 50.
+- `total` counts all matches; `truncated: true` means more matched than were returned.
+- An unknown source is 404; a source without a list yet (just started, first refresh failed)
+  answers 200 with an empty list and `refreshedAt: null`; invalid parameters are 400.
+- `sourceSymbol` is the ticker, for the lookup and the body of the subscription; `symbol` is the
+  folder name the Downloader suggests, for the path of the subscription and the status; `exchange`
+  is null for crypto and forex. The catalog does not promise candles: the lookup is the check.
+- The list is refreshed once a day; `/api/v1/status` reports it under `catalogs`.
 
 ## Lookup
 
@@ -196,6 +219,9 @@ Response 200 (`SubscriptionResponse`):
     { "timeframe": "1d",  "status": "accepted", "historyFrom": "2017-08-17", "clipped": true } ] }
 ```
 
+- The path takes the folder name (`symbol`); the ticker at the source goes in the body as
+  `sourceSymbol` (default: the symbol of the path). For binance both are the same; for
+  `NYSE:BRK.B` the path is `.../tradingview/BRK-B`.
 - Idempotent; replaces this client's subscription to the symbol completely. Other clients are
   not affected. A client needs no registration.
 - `historyFrom` applies to all timeframes, `historyFromByTimeframe` overrides it. Without a
