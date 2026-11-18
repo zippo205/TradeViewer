@@ -20,6 +20,7 @@ builder.Services.AddScoped<WorkspaceEvents>();
 // Drawings: one window id, one save queue and one session per window, so saves and undo survive moving between pages.
 builder.Services.AddScoped<WindowIdentity>();
 builder.Services.AddScoped<DrawingsApi>();
+builder.Services.AddScoped<IndicatorsApi>();
 builder.Services.AddScoped<DrawingSaveQueue>(services => new DrawingSaveQueue(services.GetRequiredService<DrawingsApi>()));
 builder.Services.AddScoped<DrawingSession>();
 

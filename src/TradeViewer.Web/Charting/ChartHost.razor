@@ -3,7 +3,8 @@
 
 @* The C# wrapper of the chart module (architecture, chapter 10). Candles never pass through here:
    the module gets asset and timeframe and fetches the candles itself. Drawings pass as records with
-   Unix seconds; the module reports what the user did with them. *@
+   Unix seconds; the module reports what the user did with them. Indicators pass as the records of the chart
+   settings; their values the module fetches itself. *@
 <div class="chart-host" @ref="_element"></div>
 
 @code {
@@ -67,6 +68,10 @@
     [Parameter]
     public EventCallback<string?> OnToolChanged { get; set; }
 
+    /// <summary>An action of the legend line of an indicator: its id and hide, settings or remove (IN1).</summary>
+    [Parameter]
+    public EventCallback<(string Id, string Action)> OnIndicatorAction { get; set; }
+
     /// <summary>A key of the chart page: delete, undo or redo.</summary>
     [Parameter]
     public EventCallback<string> OnKey { get; set; }
@@ -93,6 +98,18 @@
                 _chartSelection = _wantedSelection;
                 await _pane.InvokeVoidAsync("selectDrawing", _wantedSelection);
             }
+        }
+    }
+
+    /// <summary>
+    /// The indicators of the asset (IN1), as the chart settings hold them. The module fetches their values itself and
+    /// keeps the values of indicators whose parameters did not change.
+    /// </summary>
+    public async Task SetIndicatorsAsync(IReadOnlyList<IndicatorRecord> indicators)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("setIndicators", indicators);
         }
     }
 
@@ -151,6 +168,12 @@
     }
 
     [JSInvokable]
+    public Task IndicatorAction(string id, string action)
+    {
+        return OnIndicatorAction.InvokeAsync((id, action));
+    }
+
+    [JSInvokable]
     public Task Key(string key)
     {
         return OnKey.InvokeAsync(key);
@@ -165,6 +188,7 @@
             _shownLogScale = LogScale;
             _self = DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("bindDrawingEvents", _pane, _self);
+            await _module.InvokeVoidAsync("bindIndicatorActions", _pane, _self);
             _keys = await _module.InvokeAsync<IJSObjectReference>("bindPageKeys", _self);
             await ApplyAsync();
             await OnReady.InvokeAsync();

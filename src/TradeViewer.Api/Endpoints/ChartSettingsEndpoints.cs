@@ -36,6 +36,15 @@ public static class ChartSettingsEndpoints
             return result.ToHttpResult();
         });
 
+        // A new indicator of each kind with the defaults of IN1; the client adds them with ids of its own.
+        routes.MapGet("/api/indicator-defaults", async (
+            IQueryHandler<GetIndicatorDefaultsQuery, IReadOnlyList<IndicatorRecord>> handler,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await handler.HandleAsync(new GetIndicatorDefaultsQuery(), cancellationToken);
+            return result.ToHttpResult();
+        });
+
         // Indicator templates (IN2): applying one is done by the client, which puts copies of its indicators into the chart settings.
         var templates = routes.MapGroup("/api/indicator-templates");
 

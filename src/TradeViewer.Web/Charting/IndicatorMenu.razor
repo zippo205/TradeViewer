@@ -1,0 +1,36 @@
+@* "Indicators" in the bar above the chart (IN1), as in TradingView: one of the six kinds is added with its
+   defaults and shows on every timeframe of the asset. *@
+<div class="menu-anchor">
+    <button type="button" class="@(_open ? "selected" : "")" title="Add an indicator" disabled="@(!Enabled)" @onclick="() => _open = !_open">
+        ƒx Indicators
+    </button>
+    @if (_open)
+    {
+        @* A click anywhere else closes the menu, as in TradingView. *@
+        <div class="menu-backdrop" @onclick="() => _open = false"></div>
+        <div class="menu" role="menu">
+            @foreach (var (type, name) in IndicatorNames.Kinds)
+            {
+                <button type="button" role="menuitem" @onclick="() => AddAsync(type)">@name</button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool _open;
+
+    /// <summary>False until the defaults and the settings of the asset are read.</summary>
+    [Parameter]
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>The type code of the kind to add.</summary>
+    [Parameter]
+    public EventCallback<string> OnAdd { get; set; }
+
+    private async Task AddAsync(string type)
+    {
+        _open = false;
+        await OnAdd.InvokeAsync(type);
+    }
+}

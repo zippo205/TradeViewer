@@ -58,10 +58,21 @@ public sealed class DrawingsApi : IDrawingRemote
         return ApiCalls.SendAsync<ChartSettingsResponse>(() => _http.GetAsync(ChartSettings(source, symbol)));
     }
 
+    /// <summary>
+    /// Replaces the chart settings of the asset (CP2), indicators included. The window is named, so it ignores its own
+    /// ChartSettingsChanged event; the request is sent with the keep-alive flag, so a change made right before the
+    /// window is closed still arrives (WS1).
+    /// </summary>
     /// <returns>Null when the settings were saved, otherwise the message to show.</returns>
     public Task<string?> SaveChartSettingsAsync(string source, string symbol, ChartSettingsResponse settings)
     {
-        return ApiCalls.SendAsync(() => _http.PutAsJsonAsync(ChartSettings(source, symbol), settings));
+        return ApiCalls.SendAsync(() =>
+        {
+            var request = new HttpRequestMessage(HttpMethod.Put, ChartSettings(source, symbol)) { Content = JsonContent.Create(settings) };
+            request.Headers.Add(WindowIdentity.Header, _window.Id);
+            request.SetBrowserRequestOption("keepalive", true);
+            return _http.SendAsync(request);
+        });
     }
 
     /// <summary>

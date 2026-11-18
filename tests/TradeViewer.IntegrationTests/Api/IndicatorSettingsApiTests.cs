@@ -105,6 +105,28 @@ public class IndicatorSettingsApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
     }
 
+    [Fact]
+    public async Task The_defaults_are_those_of_IN1_and_can_be_saved_as_they_come()
+    {
+        var defaults = (await _client.GetFromJsonAsync<List<IndicatorRecord>>("/api/indicator-defaults"))!;
+
+        Assert.Equal(new[] { "sma", "ema", "bb", "rsi", "macd", "atr" }, defaults.Select(d => d.Type));
+        Assert.All(defaults, d => Assert.Equal(Guid.Empty, d.Id));
+        var bb = defaults.Single(d => d.Type == "bb");
+        Assert.Equal((20, 2.0, "close"), (bb.Length!.Value, bb.Deviation!.Value, bb.Price!));
+        var macd = defaults.Single(d => d.Type == "macd");
+        Assert.Equal((12, 26, 9, (int?)null), (macd.Fast!.Value, macd.Slow!.Value, macd.Signal!.Value, macd.Length));
+        Assert.Null(defaults.Single(d => d.Type == "atr").Price);
+        Assert.Equal("#7E57C2", defaults.Single(d => d.Type == "rsi").Styles.Single().Color);
+
+        var added = defaults.Select(d => d with { Id = Guid.NewGuid() }).ToList(); // as the chart page adds them
+        var put = await _client.PutAsJsonAsync(Settings, new ChartSettingsResponse(false, added));
+        var read = await _client.GetFromJsonAsync<ChartSettingsResponse>(Settings);
+
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+        Assert.Equal(JsonSerializer.Serialize(added), JsonSerializer.Serialize(read!.Indicators));
+    }
+
     private static IndicatorRecord Bollinger()
     {
         var styles = new[]

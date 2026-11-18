@@ -1,0 +1,173 @@
+@* The settings of one indicator (IN1), opened from its legend line: its parameters, the price it is calculated
+   from, and colour and width of each line. "Defaults" puts back what a new one starts with; nothing changes on the
+   chart until OK. *@
+<div class="indicator-dialog" role="dialog" aria-label="@IndicatorNames.Name(Indicator.Type)" @onkeydown="OnKey">
+    <h3>@IndicatorNames.Name(Indicator.Type)</h3>
+
+    <div class="indicator-dialog-grid">
+        @if (Has("length"))
+        {
+            <label>Length</label>
+            <input type="number" min="1" max="5000" step="1" @bind="_form.Length" />
+        }
+        @if (Has("deviation"))
+        {
+            <label>StdDev</label>
+            <input type="number" min="0.001" max="50" step="0.1" @bind="_form.Deviation" />
+        }
+        @if (Has("fast"))
+        {
+            <label>Fast length</label>
+            <input type="number" min="1" max="5000" step="1" @bind="_form.Fast" />
+            <label>Slow length</label>
+            <input type="number" min="1" max="5000" step="1" @bind="_form.Slow" />
+            <label>Signal smoothing</label>
+            <input type="number" min="1" max="5000" step="1" @bind="_form.Signal" />
+        }
+        @if (Has("price"))
+        {
+            <label>Source</label>
+            <select @bind="_form.Price">
+                @foreach (var price in IndicatorNames.Prices)
+                {
+                    <option value="@price">@price</option>
+                }
+            </select>
+        }
+
+        @foreach (var style in _form.Styles)
+        {
+            <label>@IndicatorNames.Line(Indicator.Type, style.Line)</label>
+            <span class="indicator-dialog-style">
+                <input type="color" aria-label="Colour" value="@ColourOf(style.Color)" @onchange="e => style.Color = e.Value?.ToString() ?? style.Color" />
+                <select aria-label="Width" @bind="style.Width">
+                    @for (var width = 1; width <= 4; width++)
+                    {
+                        <option value="@width">@width px</option>
+                    }
+                </select>
+            </span>
+        }
+    </div>
+
+    @if (Problem != null)
+    {
+        <p class="status-bad">@Problem</p>
+    }
+
+    <div class="toolbar">
+        <button type="button" @onclick="ResetToDefaults" disabled="@(Defaults == null)">Defaults</button>
+        <span class="spacer"></span>
+        <button type="button" @onclick="() => OnCancel.InvokeAsync()">Cancel</button>
+        <button type="button" class="primary" @onclick="SaveAsync">OK</button>
+    </div>
+</div>
+
+@code {
+    private Form _form = new Form();
+    private Guid _formOf;
+
+    [Parameter, EditorRequired]
+    public IndicatorRecord Indicator { get; set; } = null!;
+
+    /// <summary>A new indicator of the same kind, for "Defaults".</summary>
+    [Parameter]
+    public IndicatorRecord? Defaults { get; set; }
+
+    /// <summary>Why the last OK was refused (the Api names the field); the dialog stays open.</summary>
+    [Parameter]
+    public string? Problem { get; set; }
+
+    [Parameter]
+    public EventCallback<IndicatorRecord> OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (_formOf != Indicator.Id)
+        {
+            _formOf = Indicator.Id;
+            _form = Form.Of(Indicator);
+        }
+    }
+
+    private bool Has(string parameter) => parameter switch
+    {
+        "length" => Indicator.Type != "macd",
+        "deviation" => Indicator.Type == "bb",
+        "fast" => Indicator.Type == "macd",
+        "price" => Indicator.Type != "atr",
+        _ => false
+    };
+
+    private void ResetToDefaults()
+    {
+        if (Defaults != null)
+        {
+            _form = Form.Of(Defaults with { Id = Indicator.Id, Hidden = Indicator.Hidden });
+        }
+    }
+
+    private Task SaveAsync()
+    {
+        return OnSave.InvokeAsync(_form.ToRecord(Indicator));
+    }
+
+    private Task OnKey(KeyboardEventArgs e)
+    {
+        return e.Key == "Escape" ? OnCancel.InvokeAsync() : Task.CompletedTask;
+    }
+
+    /// <summary>The colour input knows #RRGGBB only: an opacity is not shown, and a new colour is opaque.</summary>
+    private static string ColourOf(string colour) => colour.Length >= 7 ? colour[..7] : colour;
+
+    private sealed class Form
+    {
+        public int? Length { get; set; }
+
+        public double? Deviation { get; set; }
+
+        public int? Fast { get; set; }
+
+        public int? Slow { get; set; }
+
+        public int? Signal { get; set; }
+
+        public string? Price { get; set; }
+
+        public List<StyleRow> Styles { get; set; } = new List<StyleRow>();
+
+        public static Form Of(IndicatorRecord record) => new Form
+        {
+            Length = record.Length,
+            Deviation = record.Deviation,
+            Fast = record.Fast,
+            Slow = record.Slow,
+            Signal = record.Signal,
+            Price = record.Price,
+            Styles = record.Styles.Select(style => new StyleRow { Line = style.Line, Color = style.Color, Width = style.Width }).ToList()
+        };
+
+        public IndicatorRecord ToRecord(IndicatorRecord original) => original with
+        {
+            Length = original.Length == null ? null : Length,
+            Deviation = original.Deviation == null ? null : Deviation,
+            Fast = original.Fast == null ? null : Fast,
+            Slow = original.Slow == null ? null : Slow,
+            Signal = original.Signal == null ? null : Signal,
+            Price = original.Price == null ? null : Price,
+            Styles = Styles.Select(style => new IndicatorStyleRecord(style.Line, style.Color, style.Width)).ToList()
+        };
+    }
+
+    private sealed class StyleRow
+    {
+        public string Line { get; set; } = string.Empty;
+
+        public string Color { get; set; } = string.Empty;
+
+        public int Width { get; set; } = 1;
+    }
+}

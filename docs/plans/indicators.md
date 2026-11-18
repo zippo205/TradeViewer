@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Indicators (P1 - Workstation)
-Status:   Steps 1 to 5 done 2026-11-18
+Status:   Steps 1 to 6 done 2026-11-18
 Branch:   feature/indicators
-Next:     step 6
+Next:     step 7
 Baseline: docs as of commit 30f5e68 (main)
 ```
 
@@ -183,7 +183,7 @@ TradeViewer.Chart/src/indicators/
    band fill, legends; setIndicators in the interop; Vitest                                      done
 6  Web: ChartHost.SetIndicatorsAsync, the bar with Indicators and Templates, the settings dialog,
    legend actions (hide, settings, remove), saving with the chart settings, other windows follow
-   on ChartSettingsChanged; browser checks                                                       open
+   on ChartSettingsChanged; browser checks                                                       done
 7  NF1 and NF2 with six indicators, browser checks, Docker image, architecture (chapters 4, 6, 9,
    10, 11), plan result; then the owner's look                                                    open
 ```
@@ -331,6 +331,34 @@ histogram) and ATR in panes 1 to 3. The proof page and its script stayed in the 
   costs no request, a length does; hidden and removed without a request; the settings action
   reported without moving the chart; 4h has one value per candle up to the current one; pan and zoom
   without a request; log scale only on the price pane; light and dark.
+
+---
+
+# Result of Step 6 (2026-11-18)
+
+- `GET /api/indicator-defaults` (feature ChartSettings): a new indicator of each kind built from the
+  Domain, ids empty. Web references only Contracts; this way the defaults of IN1 keep one home (the
+  Domain) instead of a copy in Web.
+- Web: `IndicatorsApi` (defaults, templates); `DrawingsApi.SaveChartSettingsAsync` names the window
+  and is sent with keep-alive; `WorkspaceEvents.ChartSettingsChanged`; `ChartHost.SetIndicatorsAsync`
+  and `OnIndicatorAction`; components `IndicatorMenu` ("ƒx Indicators"), `TemplateMenu`
+  ("Templates": apply, save under a name, delete after a second click), `IndicatorSettingsDialog`
+  (parameters, source, colour and width per line, Defaults, Cancel, OK), `IndicatorNames`.
+- Chart page: the indicators of the asset come with its chart settings; another asset drops them at
+  once, before its candles are read. Adding, the legend actions and OK in the dialog show at once and
+  save at once, one save at a time, each with what the window shows. Until the settings of the asset
+  are read, the menus are disabled and a save of "drawings hidden" leaves the indicators out (null),
+  which keeps the saved ones. A change the Api refuses keeps the dialog open with the reason and
+  changes nothing. Another window's ChartSettingsChanged reads the settings again.
+- Menus close on a click beside them, as in TradingView.
+- Not done: undo and redo for indicator changes (DR2's undo covers drawings; IN1 asks for none).
+- Tests: one API test (the defaults are IN1's and can be saved as they come). Browser check in two
+  windows on the local container (it restores the chart settings of BTCUSDT and deletes its template
+  afterwards): six added from the menu, saved, window B (4h) follows; the dialog changes RSI to 21
+  and green, B follows; a refused MACD (fast 30 > slow 26) stays in the dialog with the reason; EMA
+  hidden and ATR removed from the legend, B follows; a template saved, applied with new ids, the
+  template unchanged; "drawings hidden" keeps the indicators; a reload and another asset and back;
+  deleting a template asks once more.
 
 ---
 
