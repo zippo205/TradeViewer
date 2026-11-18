@@ -373,4 +373,43 @@ public class DownloaderClientTests
         Assert.Equal(new DateTimeOffset(2026, 11, 4, 15, 30, 31, TimeSpan.Zero), status.Timeframes[0].LastChangedAt);
         Assert.Null(status.Timeframes[1].LastChangedAt);
     }
+    [Fact]
+    public async Task The_service_status_recorded_from_the_real_Downloader_is_read_completely()
+    {
+        // Recorded on 2026-11-18 from the Downloader on the Pi (read only): an old error of a source that is ok again.
+        _downloader.Answer("GET /api/v1/status", HttpStatusCode.OK, "recorded-2026-11-18-service-status.json");
+
+        var status = (await _downloader.NewClient().GetServiceStatusAsync(CancellationToken.None)).Value;
+
+        Assert.Equal(("running", "0.1.0", "ok", 39), (status.State, status.Version, status.LastCycle!.Result, status.LastCycle.JobsPlanned));
+        Assert.Equal(new[] { "binance", "tradingview", "yahoo" }, status.Sources.Select(source => source.Source));
+        Assert.All(status.Sources, source => Assert.Equal("ok", source.State));
+        Assert.StartsWith("Name or service not known", status.Sources[0].LastError);
+        Assert.Equal(new[] { 1373, 6218, 12052 }, status.Catalogs.Select(catalog => catalog.SymbolCount));
+        Assert.Equal(30, status.ConsistencyCheck!.Problems);
+        Assert.Equal(DownloaderStatusRules.Green, DownloaderStatusRules.LightOf(true, true, status));
+    }
+
+    [Fact]
+    public async Task The_subscriptions_recorded_from_the_real_Downloader_are_read_completely()
+    {
+        _downloader.Answer("GET /api/v1/subscriptions", HttpStatusCode.OK, "recorded-2026-11-18-subscriptions.json");
+
+        var subscriptions = (await _downloader.NewClient().GetSubscriptionsAsync(CancellationToken.None)).Value;
+
+        Assert.Equal(13, subscriptions.Count);
+        Assert.All(subscriptions, subscription => Assert.Equal(5, subscription.Timeframes.Count));
+        Assert.Equal(new[] { "ewts", "ewts-dev", "tradeviewer" }, subscriptions.Single(item => item.Symbol == "BTCUSDT").SubscribedBy);
+    }
+
+    [Fact]
+    public async Task The_symbol_status_recorded_from_the_real_Downloader_has_its_confirmed_gaps()
+    {
+        _downloader.Answer("GET /api/v1/status/binance/BTCUSDT", HttpStatusCode.OK, "recorded-2026-11-18-status-BTCUSDT.json");
+
+        var status = (await _downloader.NewClient().GetSymbolStatusAsync("binance", "BTCUSDT", CancellationToken.None)).Value;
+
+        Assert.Equal(new[] { 21, 20, 4, 0, 0 }, status.Timeframes.Select(timeframe => timeframe.Gaps.Count));
+        Assert.All(status.Timeframes.SelectMany(timeframe => timeframe.Gaps), gap => Assert.Equal(DownloaderStatusRules.MissingUpstream, gap.Reason));
+    }
 }
