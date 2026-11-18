@@ -21,7 +21,7 @@ of EWTS.
 | Symbol Catalog | done (2026-11-17) |
 | Scenario Analysis | open |
 | Indicators | done (2026-11-18) |
-| Downloader Monitoring | in progress |
+| Downloader Monitoring | done (2026-11-18) |
 
 ## V2 - EWTS
 

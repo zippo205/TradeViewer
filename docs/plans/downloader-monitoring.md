@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Downloader Monitoring (P1 - Workstation)
-Status:   Steps 1 to 6 done 2026-11-18; waiting for the owner's look
+Status:   Done 2026-11-18, approved by the owner and merged into main
 Branch:   feature/downloader-monitoring
-Next:     the owner's approval, then merge into main
+Next:     -
 Baseline: docs as of commit db8d6db (main)
 ```
 
