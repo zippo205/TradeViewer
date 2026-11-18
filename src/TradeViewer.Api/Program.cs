@@ -24,6 +24,7 @@ app.MapWorkspaceEndpoints();
 app.MapAssetEndpoints();
 app.MapCandleEndpoints();
 app.MapIndicatorEndpoints();
+app.MapDownloaderEndpoints();
 app.MapWatchlistEndpoints();
 app.MapDrawingEndpoints();
 app.MapChartSettingsEndpoints();

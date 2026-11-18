@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Downloader Monitoring (P1 - Workstation)
-Status:   Steps 1 and 2 done 2026-11-18; real check when the Pi is reachable
+Status:   Steps 1 to 3 done 2026-11-18; real check when the Pi is reachable
 Branch:   feature/downloader-monitoring
-Next:     step 3
+Next:     step 4
 Baseline: docs as of commit db8d6db (main)
 ```
 
@@ -136,7 +136,7 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
    (from the Downloader's own tests and documentation, not from a live call); client tests       done
 2  Reachability since (DL4): the port, written by the sync and the status query; tests          done
 3  Feature Downloader: the three queries, contracts, endpoints, the light rule; unit and
-   integration tests with the stub Downloader (reachable, unreachable, switched off, 404)       open
+   integration tests with the stub Downloader (reachable, unreachable, switched off, 404)       done
 4  Web: the status page, the header dot, the gaps on the assets page; browser checks against
    the stub of the integration tests and the local container                                    open
 5  CP1: the timeframe on an asset change as a rule with unit tests (Web), used by the watchlist
@@ -178,6 +178,29 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
 - Tests: 5 unit tests of the port (nothing known before the first question, the first failure of a
   run, a failure right after the start, only changes sent, reports from 200 threads); the sync's
   test of an unreachable Downloader checks the time too.
+
+---
+
+# Result of Step 3 (2026-11-18)
+
+- Feature `Downloader`: `GetDownloaderStatusQuery`, `GetDownloaderSubscriptionsQuery`,
+  `GetDownloaderAssetQuery` with their handlers and `DownloaderMapping`; contracts in
+  `TradeViewer.Contracts/Downloader` (`DownloaderStatusResponse` with the service's parts,
+  `DownloaderSubscriptionsResponse`, `DownloaderAssetResponse`); endpoints `/api/downloader/status`,
+  `/subscriptions`, `/assets/{source}/{symbol}`. `IDownloaderClient.Client` names TradeViewer's client.
+- The light in `DownloaderStatusRules.LightOf`: off (switched off, or not asked yet), red (no
+  answer), yellow (a source not ok, the last cycle partial, failed or interrupted, or an answer that
+  could not be read), green. "running" and "skipped" cycles are no reason for yellow.
+- Every handler reports to the reachability: an answer of any kind (also 404 or one that could not
+  be read) counts as reachable, only a failure to reach it as unreachable.
+- Status: always 200, also when the Downloader does not answer (that is its state, DL4).
+  Subscriptions: 503 when it does not answer or is switched off (there is nothing to show without
+  it). Asset: 404 for an asset not in the workspace; without an answer the sync's last status with
+  `live: false` and the time it was read, or an empty coverage when none is known; a symbol the
+  Downloader has no subscription for is live with the Downloader's message.
+- Tests: 17 unit tests of the handlers and the light, 5 API tests with the stub (the fixture of step
+  1 is yellow: partial cycle, yahoo rate limited; unreachable is 200 and red; subscriptions with
+  TradeViewer marked; 503 and 404; switched off).
 
 ---
 

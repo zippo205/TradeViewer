@@ -10,6 +10,9 @@ namespace TradeViewer.Application.Abstractions.MarketData;
 /// </summary>
 public interface IDownloaderClient
 {
+    /// <summary>The name TradeViewer subscribes under (MarketData:Downloader:Client).</summary>
+    string Client { get; }
+
     /// <summary>False: the Downloader is switched off in the configuration and must not be called.</summary>
     bool Enabled { get; }
 

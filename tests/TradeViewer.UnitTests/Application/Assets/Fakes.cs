@@ -99,6 +99,8 @@ internal sealed class FakeDownloader : IDownloaderClient
 {
     public bool Enabled { get; set; } = true;
 
+    public string Client { get; set; } = "tradeviewer-test";
+
     public Error? LookupError { get; set; }
 
     public Error? SubscribeError { get; set; }

@@ -40,6 +40,8 @@ public sealed class DownloaderClient : IDownloaderClient
 
     public bool Enabled => _options.Enabled;
 
+    public string Client => _options.Client;
+
     public async Task<Result<CatalogPage>> SearchAsync(string source, string text, int limit, CancellationToken cancellationToken)
     {
         // Without a text the Downloader lists the first symbols of the source.

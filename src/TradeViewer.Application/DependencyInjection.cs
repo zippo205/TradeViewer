@@ -7,6 +7,8 @@ using TradeViewer.Application.Features.Assets.Services;
 using TradeViewer.Application.Features.ChartSettings.Commands;
 using TradeViewer.Application.Features.ChartSettings.Handlers;
 using TradeViewer.Application.Features.ChartSettings.Queries;
+using TradeViewer.Application.Features.Downloader.Handlers;
+using TradeViewer.Application.Features.Downloader.Queries;
 using TradeViewer.Application.Features.Drawings.Commands;
 using TradeViewer.Application.Features.Drawings.Handlers;
 using TradeViewer.Application.Features.Drawings.Queries;
@@ -22,6 +24,7 @@ using TradeViewer.Application.Features.Workspace.Handlers;
 using TradeViewer.Application.Features.Workspace.Queries;
 using TradeViewer.Contracts.Assets;
 using TradeViewer.Contracts.Charts;
+using TradeViewer.Contracts.Downloader;
 using TradeViewer.Contracts.Drawings;
 using TradeViewer.Contracts.Indicators;
 using TradeViewer.Contracts.MarketData;
@@ -53,6 +56,11 @@ public static class DependencyInjection
 
         // Indicators
         services.AddScoped<IQueryHandler<GetIndicatorQuery, IndicatorResponse>, GetIndicatorQueryHandler>();
+
+        // Downloader (DL1-DL4)
+        services.AddScoped<IQueryHandler<GetDownloaderStatusQuery, DownloaderStatusResponse>, GetDownloaderStatusQueryHandler>();
+        services.AddScoped<IQueryHandler<GetDownloaderSubscriptionsQuery, DownloaderSubscriptionsResponse>, GetDownloaderSubscriptionsQueryHandler>();
+        services.AddScoped<IQueryHandler<GetDownloaderAssetQuery, DownloaderAssetResponse>, GetDownloaderAssetQueryHandler>();
 
         // Watchlists
         services.AddScoped<IQueryHandler<GetWatchlistsQuery, IReadOnlyList<WatchlistResponse>>, GetWatchlistsQueryHandler>();
