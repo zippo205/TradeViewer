@@ -29,7 +29,7 @@ public sealed class MarketDataSync
     private readonly TimeSpan _window;
 
     private readonly Dictionary<(string Source, string Symbol), Plan> _plans = new Dictionary<(string, string), Plan>();
-    private bool? _reachable;
+    private readonly IDownloaderReachability _reachability;
 
     // 0: nothing to do; 1: compare the subscriptions with the assets (start); 2: and send every subscription again (restore).
     private int _reconcile = 1;
@@ -40,6 +40,7 @@ public sealed class MarketDataSync
         ICandleStore store,
         IImportQueue imports,
         IWorkspaceNotifier notifier,
+        IDownloaderReachability reachability,
         IOptions<MarketDataOptions> options,
         TimeProvider time,
         WorkspaceRestoreSignal restored,
@@ -51,14 +52,12 @@ public sealed class MarketDataSync
         _store = store;
         _imports = imports;
         _notifier = notifier;
+        _reachability = reachability;
         _time = time;
         _logger = logger;
         _poll = TimeSpan.FromSeconds(options.Value.Downloader.PollSeconds);
         _window = TimeSpan.FromMinutes(options.Value.Downloader.PollWindowMinutes);
     }
-
-    /// <summary>Null before the first answer or failure.</summary>
-    public bool? DownloaderReachable => _reachable;
 
     /// <summary>Does everything that is due now.</summary>
     /// <returns>When to run again.</returns>
@@ -102,7 +101,7 @@ public sealed class MarketDataSync
             }
         }
 
-        if (_reachable != false)
+        if (_reachability.Current.Reachable != false)
         {
             // Read again: a check above may have found a subscription missing.
             await SendAgainAsync(await _assets.GetAllAsync(cancellationToken), cancellationToken);
@@ -302,27 +301,10 @@ public sealed class MarketDataSync
         }
     }
 
-    private async Task SetReachableAsync(bool reachable, string? reason)
+    private Task SetReachableAsync(bool reachable, string? reason)
     {
-        if (_reachable == reachable)
-        {
-            return;
-        }
-
-        // Logged once per change, not with every poll.
-        if (reachable)
-        {
-            _logger.LogInformation("The Downloader is reachable.");
-        }
-        else
-        {
-            _logger.LogWarning("The Downloader is not reachable ({Reason}). Charts keep working with the stored candles.", reason);
-        }
-
-        _reachable = reachable;
-        await _notifier.DownloaderStatusChangedAsync(reachable);
+        return _reachability.ReportAsync(reachable, reason);
     }
-
 
     private sealed class Plan
     {

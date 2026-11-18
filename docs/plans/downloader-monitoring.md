@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Downloader Monitoring (P1 - Workstation)
-Status:   Step 1 done 2026-11-18; real check when the Pi is reachable
+Status:   Steps 1 and 2 done 2026-11-18; real check when the Pi is reachable
 Branch:   feature/downloader-monitoring
-Next:     step 2
+Next:     step 3
 Baseline: docs as of commit db8d6db (main)
 ```
 
@@ -134,7 +134,7 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
 1  Contracts and client: copy ServiceStatusResponse again (catalogs), interface document;
    GetServiceStatusAsync, GetSubscriptionsAsync with their models; recorded answers as fixtures
    (from the Downloader's own tests and documentation, not from a live call); client tests       done
-2  Reachability since (DL4): the port, written by the sync and the status query; tests          open
+2  Reachability since (DL4): the port, written by the sync and the status query; tests          done
 3  Feature Downloader: the three queries, contracts, endpoints, the light rule; unit and
    integration tests with the stub Downloader (reachable, unreachable, switched off, 404)       open
 4  Web: the status page, the header dot, the gaps on the assets page; browser checks against
@@ -162,6 +162,22 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
   written from its contract records (with a field it may add later, which is ignored); they are
   checked against the real Downloader in step 6.
 - Tests: 6 client tests, 1 store test.
+
+---
+
+# Result of Step 2 (2026-11-18)
+
+- Port `IDownloaderReachability` (Abstractions/MarketData) with `DownloaderReachabilityState`
+  (reachable or not or not asked yet, unreachable since, checked at, reason); implemented by
+  `Infrastructure/MarketData/Downloader/DownloaderReachability`, one per application, locked.
+- It took over what the sync did itself: a change is logged once and sent as
+  `DownloaderStatusChanged`. The sync reports every answer and failure to it; the status query of
+  step 3 will too, so the dot also learns of a change when no asset is polled.
+- "Unreachable since" is the first failure of a run of failures; an answer clears it.
+  `MarketDataSync.DownloaderReachable` is gone (only its tests read it).
+- Tests: 5 unit tests of the port (nothing known before the first question, the first failure of a
+  run, a failure right after the start, only changes sent, reports from 200 threads); the sync's
+  test of an unreachable Downloader checks the time too.
 
 ---
 
