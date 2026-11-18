@@ -171,5 +171,6 @@ Rules for the agent:
              backup workspace-20261118-165537-before-v7.db. The container is healthy and uses 79 MB of
              512 MB; /downloader shows the Downloader green with the 30 problems of its file check, 13
              subscriptions, 5 of them TradeViewer's; the five assets have no confirmed gaps within
-             their history. After the owner's approval: git checkout main on the Pi.
+             their history. After the owner's approval the same day the Pi was switched to main (merge
+             commit 295a9a5); the image was unchanged, so the container kept running.
 ```
