@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Indicators (P1 - Workstation)
-Status:   All steps done 2026-11-18; waiting for the owner's look and approval
+Status:   Completed and approved by the owner 2026-11-18
 Branch:   feature/indicators
-Next:     the owner's look; merge after approval; the Pi only with the owner's go-ahead
+Next:     merged into main; the Pi only with the owner's go-ahead
 Baseline: docs as of commit 30f5e68 (main)
 ```
 
