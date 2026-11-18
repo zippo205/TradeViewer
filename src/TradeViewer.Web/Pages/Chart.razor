@@ -269,9 +269,12 @@
             await LoadAssetsAsync();
         }
 
-        // The timeframe stays when the other asset has it with candles, otherwise its largest one with candles.
-        var timeframe = row.Timeframes.Contains(Timeframe) ? Timeframe : row.Timeframes[row.Timeframes.Count - 1];
-        Open(row.Source, row.Symbol, timeframe);
+        // The timeframe stays when the other asset has it with candles, otherwise the next larger one (decision 0008).
+        var timeframe = TimeframeChoice.For(Timeframe, row.Timeframes);
+        if (timeframe != null)
+        {
+            Open(row.Source, row.Symbol, timeframe);
+        }
     }
 
     private async Task TogglePanelAsync()

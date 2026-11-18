@@ -107,9 +107,11 @@ Every requirement has an id. The backlog refers to these ids.
   the asset's smallest timeframe) and repeats the check in short intervals until the data is
   there. There is no live price: a closed candle shows after the Downloader has written it, up
   to about one update cycle later (15 minutes).
-- **MD3** A chart offers the timeframes the Downloader holds for the asset. A timeframe the
-  source does not provide is built from the largest fitting one, aligned to the session of the
-  asset. When a timeframe can be neither read nor built, the chart shows an error instead of
+- **MD3** A chart offers the timeframes the Downloader holds for the asset. For an asset that
+  trades around the clock or through the week (crypto, Forex), a timeframe the source does not
+  provide is built from the largest fitting one, aligned to its trading week. An asset with
+  exchange hours (stocks, ETFs) has no 4h: it is not built and its button is disabled (decision
+  0008). When a timeframe can be neither read nor built, the chart shows an error instead of
   candles.
 - **MD4** Gaps the Downloader reports as `missingUpstream` are visible as a marker on the
   chart and in the asset's status. The marker is a small icon at the bottom of the chart, where
@@ -173,7 +175,9 @@ Every requirement has an id. The backlog refers to these ids.
 
 - **CP1** The chart page shows one chart. Its asset and timeframe are part of the address, so
   a window can be reloaded, bookmarked and duplicated. Several browser windows show several
-  charts independently. Selecting an asset in a watchlist shows it in the current window.
+  charts independently. Selecting an asset in a watchlist shows it in the current window, in the
+  same timeframe when the asset has it, otherwise in the next larger one it has, and without one
+  in the largest smaller one (decision 0008).
 - **CP2** The settings of a chart (indicators, drawings hidden, selected analysis instance, hidden
   analysis groups) are saved per asset and restored when the asset is opened, in any window. The
   price scale mode (linear or logarithmic) is one setting for all charts: it stays when the asset
@@ -235,7 +239,8 @@ Every requirement has an id. The backlog refers to these ids.
   on without it. An instance handles the sources it reports (today one), so only the instances that handle
   the asset's source are offered, and EWTS refuses a request for another source. The user
   switches the analysis of an asset on by choosing the instance, the context timeframe (1d or 4h,
-  which fixes the timeframes of the analysis), the history start (pre-filled with the default
+  which fixes the timeframes of the analysis; 1d only for an asset with exchange hours, decision
+  0008), the history start (pre-filled with the default
   of AS3, can be changed) and the parameter profile. The instance then analyses the asset on
   every new candle until the user switches the analysis off. Several instances can analyse the
   same asset; the watchlist row shows a mark for each. Switching analysis on or off is refused
@@ -290,7 +295,7 @@ Every requirement has an id. The backlog refers to these ids.
 ### 4.10 Test Runs
 
 - **BT1** The user starts a backtest at an instance: an asset of a source the instance handles,
-  timeframe, period, account size, risk per trade and the overrides the instance offers (shown
+  timeframe (1d only for an asset with exchange hours, decision 0008), period, account size, risk per trade and the overrides the instance offers (shown
   as generic fields). The asset need not be in a watchlist: EWTS subscribes to the Downloader
   itself and waits until the data is there.
 - **BT2** An instance runs one test at a time; a second start is refused with EWTS's message.

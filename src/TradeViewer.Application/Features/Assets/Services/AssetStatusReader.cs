@@ -1,6 +1,7 @@
 using System.Globalization;
 using TradeViewer.Application.Abstractions.MarketData;
 using TradeViewer.Contracts.Assets;
+using TradeViewer.Contracts.MarketData;
 using TradeViewer.Domain.Assets;
 using TradeViewer.Domain.MarketData;
 
@@ -8,7 +9,7 @@ namespace TradeViewer.Application.Features.Assets.Services;
 
 /// <summary>
 /// Puts the state of an asset together: what the candle store holds, how far the import is and, when the
-/// Downloader was asked, what it still downloads (AS4).
+/// Downloader was asked, what it still downloads (AS4) and the gaps the source confirmed (MD4).
 /// </summary>
 public sealed class AssetStatusReader
 {
@@ -57,7 +58,10 @@ public sealed class AssetStatusReader
                 progress?.FilesImported ?? 0,
                 progress?.FilesWanted ?? 0,
                 importing || DownloaderStatusRules.IsDownloading(status),
-                range != null));
+                range != null,
+                DownloaderStatusRules.ConfirmedGaps(status, asset.History.StartSecondsOf(timeframe))
+                    .Select(gap => new GapResponse(gap.From.ToUnixTimeSeconds(), gap.To.ToUnixTimeSeconds(), gap.Reason))
+                    .ToList()));
         }
 
         return new AssetResponse(

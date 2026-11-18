@@ -25,6 +25,25 @@ public sealed class ServiceStatusResponse
 
     /// <summary>The last weekly consistency check of the files (decision 0006); null before the first one.</summary>
     public ConsistencyCheckResponse? ConsistencyCheck { get; set; }
+
+    /// <summary>The symbol catalog per source (GET /api/v1/sources/{source}/symbols); sources without a list are not listed.</summary>
+    public List<CatalogStatusResponse> Catalogs { get; set; } = new List<CatalogStatusResponse>();
+}
+
+public sealed class CatalogStatusResponse
+{
+    public string Source { get; set; } = string.Empty;
+
+    /// <summary>UTC; null if no refresh has succeeded yet.</summary>
+    public DateTime? RefreshedAt { get; set; }
+
+    public int SymbolCount { get; set; }
+
+    /// <summary>The last failed refresh; cleared by the next successful one.</summary>
+    public string? LastError { get; set; }
+
+    /// <summary>UTC</summary>
+    public DateTime? LastErrorAt { get; set; }
 }
 
 public sealed class ConsistencyCheckResponse

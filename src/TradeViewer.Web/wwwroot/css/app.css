@@ -7,6 +7,7 @@
     --ok: #089981;
     --bad: #f23645;
     --link: #2962ff;
+    --warn: #e08600;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -17,6 +18,7 @@
         --muted: #9598a1;
         --border: #363a45;
         --link: #5b9cf6;
+        --warn: #f7a600;
     }
 }
 
@@ -1031,3 +1033,103 @@ input:disabled {
     border-color: var(--link);
 }
 
+
+/* Downloader monitoring (DL1): the dot in the header and on the status page. */
+.downloader-light {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.downloader-light.inline {
+    margin-left: 0;
+    vertical-align: middle;
+}
+
+.downloader-light .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--muted);
+}
+
+.downloader-light .dot.green {
+    background: var(--ok);
+}
+
+.downloader-light .dot.yellow {
+    background: var(--warn);
+}
+
+.downloader-light .dot.red {
+    background: var(--bad);
+}
+
+.status-warn {
+    color: var(--warn);
+}
+
+.badge.own {
+    color: var(--ok);
+    border-color: var(--ok);
+}
+
+dl.facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 16px;
+    max-width: 900px;
+}
+
+dl.facts dt {
+    color: var(--muted);
+}
+
+dl.facts dd {
+    margin: 0;
+}
+
+.table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+table.list td.wrap {
+    white-space: normal;
+    min-width: 220px;
+    max-width: 420px;
+    overflow-wrap: anywhere;
+}
+
+button.fold {
+    padding: 0;
+    border: none;
+    background: none;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.gap-list {
+    margin: 6px 0;
+}
+
+.gap-list ul {
+    margin: 4px 0;
+    max-height: 220px;
+    overflow-y: auto;
+    font-size: 13px;
+}
+
+@media (max-width: 600px) {
+    .downloader-light .label {
+        display: none;
+    }
+}
+
+.card.wide {
+    max-width: none;
+}

@@ -40,6 +40,8 @@ public sealed class DownloaderClient : IDownloaderClient
 
     public bool Enabled => _options.Enabled;
 
+    public string Client => _options.Client;
+
     public async Task<Result<CatalogPage>> SearchAsync(string source, string text, int limit, CancellationToken cancellationToken)
     {
         // Without a text the Downloader lists the first symbols of the source.
@@ -146,11 +148,65 @@ public sealed class DownloaderClient : IDownloaderClient
                 Utc(item.CoveredTo),
                 item.PendingJobs,
                 item.Gaps.Select(gap => new CoverageGap(Utc(gap.From)!.Value, Utc(gap.To)!.Value, gap.Reason)).ToList(),
-                item.LastError));
+                item.LastError,
+                Utc(item.LastChangedAt)));
         }
 
         var subscribed = result.Value.SubscribedBy.Contains(_options.Client, StringComparer.Ordinal);
         return Result.Success(new SymbolStatus(result.Value.LastChange, subscribed, timeframes));
+    }
+
+    public async Task<Result<DownloaderServiceStatus>> GetServiceStatusAsync(CancellationToken cancellationToken)
+    {
+        var result = await SendAsync<ServiceStatusResponse>(HttpMethod.Get, "api/v1/status", null, cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.Error;
+        }
+
+        var status = result.Value;
+        var cycle = status.LastCycle == null
+            ? null
+            : new UpdateCycle(Utc(status.LastCycle.StartedAt)!.Value, Utc(status.LastCycle.FinishedAt), status.LastCycle.Result, status.LastCycle.JobsPlanned, status.LastCycle.Message);
+        var queue = new DownloaderQueue(status.Queue.Recent, status.Queue.Backfill, status.Queue.RetryMissing, status.Queue.Running, status.Queue.Failed);
+        var sources = status.Sources
+            .Select(source => new SourceState(source.Source, source.State, Utc(source.LastSuccessAt), source.LastError, Utc(source.LastErrorAt), Utc(source.RetryAt)))
+            .ToList();
+        var catalogs = status.Catalogs
+            .Select(catalog => new CatalogState(catalog.Source, Utc(catalog.RefreshedAt), catalog.SymbolCount, catalog.LastError, Utc(catalog.LastErrorAt)))
+            .ToList();
+        var check = status.ConsistencyCheck == null ? null : new ConsistencyCheck(Utc(status.ConsistencyCheck.LastRunAt)!.Value, status.ConsistencyCheck.Problems);
+
+        return Result.Success(new DownloaderServiceStatus(
+            status.State, Utc(status.StartedAt)!.Value, status.Version, cycle, Utc(status.NextCycleAt), queue, sources, catalogs, check));
+    }
+
+    public async Task<Result<IReadOnlyList<MergedSubscription>>> GetSubscriptionsAsync(CancellationToken cancellationToken)
+    {
+        var result = await SendAsync<List<MergedSubscriptionResponse>>(HttpMethod.Get, "api/v1/subscriptions", null, cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.Error;
+        }
+
+        var subscriptions = new List<MergedSubscription>();
+        foreach (var item in result.Value)
+        {
+            var timeframes = new List<MergedTimeframe>();
+            foreach (var entry in item.Timeframes)
+            {
+                // A timeframe TradeViewer does not know yet (1m, 1M, ...) is left out.
+                if (Timeframes.TryParse(entry.Timeframe, out var timeframe))
+                {
+                    timeframes.Add(new MergedTimeframe(timeframe, entry.WantedFrom, entry.SubscribedBy));
+                }
+            }
+
+            subscriptions.Add(new MergedSubscription(
+                item.Source, item.Symbol, item.SourceSymbol, item.SubscribedBy, timeframes.OrderBy(timeframe => Timeframes.Seconds(timeframe.Timeframe)).ToList()));
+        }
+
+        return Result.Success<IReadOnlyList<MergedSubscription>>(subscriptions);
     }
 
     public async Task<Result<SymbolChanges>> GetChangesAsync(string source, string symbol, long after, CancellationToken cancellationToken)

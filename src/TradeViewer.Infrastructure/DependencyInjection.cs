@@ -80,6 +80,7 @@ public static class DependencyInjection
         services.AddSingleton<AssetImporter>();
         services.AddSingleton<ImportService>();
         services.AddSingleton<IImportQueue>(provider => provider.GetRequiredService<ImportService>());
+        services.AddSingleton<IDownloaderReachability, DownloaderReachability>();
         services.AddSingleton<MarketDataSync>();
 
         // Hosted services start in registration order: the folders first, then the workspace, then what uses it.

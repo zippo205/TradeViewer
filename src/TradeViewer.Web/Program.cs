@@ -15,6 +15,7 @@ builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.H
 builder.Services.AddScoped<WorkspaceApi>();
 builder.Services.AddScoped<AssetsApi>();
 builder.Services.AddScoped<WatchlistsApi>();
+builder.Services.AddScoped<DownloaderApi>();
 builder.Services.AddScoped<WorkspaceEvents>();
 
 // Drawings: one window id, one save queue and one session per window, so saves and undo survive moving between pages.

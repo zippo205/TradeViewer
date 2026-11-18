@@ -175,7 +175,12 @@ The same as the Downloader's control API, so TradeViewer handles both alike:
   which TradeViewer copies unchanged, as it does with `Downloader.Contracts`.
 - Timeframes are the Downloader's codes (`15m`, `1h`, `4h`, `1d`, `1w`) in the API and in the
   scenario files; EWTS converts to its own enumeration at that boundary. The setup and context
-  timeframes are `1d` or `4h`.
+  timeframes are `1d` or `4h`; for an asset with exchange hours (stocks, ETFs) only `1d`: EWTS
+  refuses `4h` there with 422 (the request is well formed, the asset cannot be analysed on 4h),
+  and its analysis never uses 4h for such an asset (TradeViewer's
+  decision 0008; agreed with EWTS on 2026-11-18). Such an asset keeps 1h as the source delivers it: the last
+  1h candle of a trading day covers half an hour (US exchanges 15:30 to 16:00 New York time), which
+  an analysis reading candle sizes on 1h has to know (decision 0009).
 - The existing unversioned routes are not used by TradeViewer and may stay as they are.
 
 ```text

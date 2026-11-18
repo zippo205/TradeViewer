@@ -5,6 +5,7 @@ using TradeViewer.Application.Abstractions.Messaging;
 using TradeViewer.Domain.Assets;
 using TradeViewer.Domain.MarketData;
 using TradeViewer.Infrastructure.Configuration;
+using TradeViewer.Infrastructure.MarketData.Downloader;
 using TradeViewer.Infrastructure.MarketData.Sync;
 using TradeViewer.UnitTests.Application.Assets;
 
@@ -22,6 +23,7 @@ public class MarketDataSyncTests
     private readonly FakeNotifier _notifier = new FakeNotifier();
     private readonly FixedClock _clock = new FixedClock { Now = At("15:15:40") };
     private readonly TradeViewer.Infrastructure.Workspace.WorkspaceRestoreSignal _restored = new TradeViewer.Infrastructure.Workspace.WorkspaceRestoreSignal();
+    private readonly DownloaderReachability _reachability;
     private readonly MarketDataSync _sync;
 
     public MarketDataSyncTests()
@@ -31,7 +33,8 @@ public class MarketDataSyncTests
         options.Downloader.PollSeconds = 20;
         options.Downloader.PollWindowMinutes = 10;
 
-        _sync = new MarketDataSync(_assets, _downloader, _store, _imports, _notifier, Options.Create(options), _clock, _restored, NullLogger<MarketDataSync>.Instance);
+        _reachability = new DownloaderReachability(_notifier, _clock, NullLogger<DownloaderReachability>.Instance);
+        _sync = new MarketDataSync(_assets, _downloader, _store, _imports, _notifier, _reachability, Options.Create(options), _clock, _restored, NullLogger<MarketDataSync>.Instance);
         AddAsset("BTCUSDT");
         _downloader.OwnSubscriptions.Add(("binance", "BTCUSDT"));
     }
@@ -50,7 +53,7 @@ public class MarketDataSyncTests
         Assert.Same(_downloader.Status, state.LastStatus);
         Assert.Equal(_clock.Now.ToUnixTimeSeconds(), state.CheckedAt);
         Assert.Equal(new[] { "DownloaderStatusChanged True", "AssetStatusChanged binance/BTCUSDT" }, _notifier.Events);
-        Assert.True(_sync.DownloaderReachable);
+        Assert.True(_reachability.Current.Reachable);
     }
 
     [Fact]
@@ -178,7 +181,9 @@ public class MarketDataSyncTests
         await RunAtAsync("15:31:10");
 
         Assert.Equal(new[] { "DownloaderStatusChanged False" }, _notifier.Events);
-        Assert.False(_sync.DownloaderReachable);
+        Assert.False(_reachability.Current.Reachable);
+        Assert.Equal(At("15:30:30"), _reachability.Current.UnreachableSince); // the first failure, not the last (DL4)
+        Assert.Equal(At("15:31:10"), _reachability.Current.CheckedAt);
         Assert.Same(known, _store.SyncStates[("binance", "BTCUSDT")]);
         Assert.Empty(_imports.Work);
 
@@ -189,6 +194,7 @@ public class MarketDataSyncTests
         await RunAtAsync("15:31:30");
 
         Assert.Equal(new[] { "DownloaderStatusChanged False", "DownloaderStatusChanged True", "AssetStatusChanged binance/BTCUSDT" }, _notifier.Events);
+        Assert.Null(_reachability.Current.UnreachableSince);
         Assert.Equal(100, _downloader.ChangesAfter);
         Assert.Equal(new[] { "files binance/BTCUSDT" }, _imports.Work);
     }
@@ -331,7 +337,7 @@ public class MarketDataSyncTests
 
         await RunAtAsync("15:30:30");
 
-        Assert.True(_sync.DownloaderReachable);
+        Assert.True(_reachability.Current.Reachable);
         Assert.DoesNotContain("DownloaderStatusChanged False", _notifier.Events);
         Assert.Equal(new[] { "status binance/BTCUSDT", "subscribe binance/BTCUSDT" }, _downloader.Calls);
         Assert.True(_assets.Assets[0].SubscriptionSent);

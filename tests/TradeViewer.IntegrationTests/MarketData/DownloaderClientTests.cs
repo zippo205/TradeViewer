@@ -298,4 +298,118 @@ public class DownloaderClientTests
         Assert.True(result.IsSuccess);
         Assert.Equal(new[] { "GET /api/v1/sources/yahoo/symbols/EURUSD%3DX" }, _downloader.Requests);
     }
+
+    [Fact]
+    public async Task The_service_status_carries_cycle_queue_sources_catalogs_and_the_check()
+    {
+        _downloader.Answer("GET /api/v1/status", HttpStatusCode.OK, "service-status.json");
+
+        var status = (await _downloader.NewClient().GetServiceStatusAsync(CancellationToken.None)).Value;
+
+        Assert.Equal(("running", "1.4.0"), (status.State, status.Version));
+        Assert.Equal(new DateTimeOffset(2026, 11, 17, 21, 5, 12, TimeSpan.Zero), status.StartedAt);
+        Assert.Equal(new UpdateCycle(
+            new DateTimeOffset(2026, 11, 18, 9, 30, 30, TimeSpan.Zero), new DateTimeOffset(2026, 11, 18, 9, 30, 41, TimeSpan.Zero),
+            "partial", 26, "yahoo: rate limited, 4 jobs postponed"), status.LastCycle);
+        Assert.Equal(new DateTimeOffset(2026, 11, 18, 9, 45, 30, TimeSpan.Zero), status.NextCycleAt);
+        Assert.Equal(new DownloaderQueue(0, 312, 2, 1, 0), status.Queue);
+        Assert.Equal(new[] { "ok", "rateLimited" }, status.Sources.Select(source => source.State));
+        Assert.Equal(new DateTimeOffset(2026, 11, 18, 9, 40, 33, TimeSpan.Zero), status.Sources[1].RetryAt);
+        Assert.Equal(TimeSpan.Zero, status.Sources[1].RetryAt!.Value.Offset); // UTC everywhere (MD7)
+        Assert.Equal(new CatalogState("binance", new DateTimeOffset(2026, 11, 18, 4, 0, 2, TimeSpan.Zero), 3412, null, null), status.Catalogs[0]);
+        Assert.Null(status.Catalogs[1].RefreshedAt);
+        Assert.Equal(new ConsistencyCheck(new DateTimeOffset(2026, 11, 16, 3, 0, 5, TimeSpan.Zero), 0), status.ConsistencyCheck);
+    }
+
+    [Fact]
+    public async Task A_Downloader_that_just_started_has_no_cycle_check_or_catalogs_yet()
+    {
+        _downloader.Answer("GET /api/v1/status", HttpStatusCode.OK, "service-status-first-start.json");
+
+        var status = (await _downloader.NewClient().GetServiceStatusAsync(CancellationToken.None)).Value;
+
+        Assert.Null(status.LastCycle);
+        Assert.Null(status.NextCycleAt);
+        Assert.Null(status.ConsistencyCheck);
+        Assert.Empty(status.Sources);
+        Assert.Empty(status.Catalogs); // an older Downloader without the field
+    }
+
+    [Fact]
+    public async Task All_subscriptions_come_merged_with_their_clients_and_the_timeframes_TradeViewer_knows()
+    {
+        _downloader.Answer("GET /api/v1/subscriptions", HttpStatusCode.OK, "subscriptions-all.json");
+
+        var subscriptions = (await _downloader.NewClient().GetSubscriptionsAsync(CancellationToken.None)).Value;
+
+        Assert.Equal(new[] { "BTCUSDT", "BRK-B" }, subscriptions.Select(subscription => subscription.Symbol));
+        Assert.Equal(new[] { "ewts", "tradeviewer-test" }, subscriptions[0].SubscribedBy);
+        Assert.Equal(new[] { Timeframe.M15, Timeframe.D1 }, subscriptions[0].Timeframes.Select(timeframe => timeframe.Timeframe)); // 1M left out, smallest first
+        Assert.Equal(new DateOnly(2026, 8, 18), subscriptions[0].Timeframes[0].WantedFrom);
+        Assert.Null(subscriptions[0].Timeframes[1].WantedFrom);
+        Assert.Equal("BRK.B", subscriptions[1].SourceSymbol);
+    }
+
+    [Fact]
+    public async Task The_status_calls_fail_as_results_when_the_Downloader_is_away_or_switched_off()
+    {
+        _downloader.Fail("GET /api/v1/status", new HttpRequestException("Connection refused"));
+
+        var away = await _downloader.NewClient().GetServiceStatusAsync(CancellationToken.None);
+        var off = await _downloader.NewClient(enabled: false).GetSubscriptionsAsync(CancellationToken.None);
+
+        Assert.Equal("downloader.unreachable", away.Error.Code);
+        Assert.Equal("downloader.disabled", off.Error.Code);
+        Assert.Equal(new[] { "GET /api/v1/status" }, _downloader.Requests); // switched off: nothing is asked
+    }
+
+    [Fact]
+    public async Task The_symbol_status_says_when_each_timeframe_last_changed()
+    {
+        _downloader.Answer("GET /api/v1/status/binance/BTCUSDT", HttpStatusCode.OK, "status-BTCUSDT.json");
+
+        var status = (await _downloader.NewClient().GetSymbolStatusAsync("binance", "BTCUSDT", CancellationToken.None)).Value;
+
+        Assert.Equal(new DateTimeOffset(2026, 11, 4, 15, 30, 31, TimeSpan.Zero), status.Timeframes[0].LastChangedAt);
+        Assert.Null(status.Timeframes[1].LastChangedAt);
+    }
+    [Fact]
+    public async Task The_service_status_recorded_from_the_real_Downloader_is_read_completely()
+    {
+        // Recorded on 2026-11-18 from the Downloader on the Pi (read only): an old error of a source that is ok again.
+        _downloader.Answer("GET /api/v1/status", HttpStatusCode.OK, "recorded-2026-11-18-service-status.json");
+
+        var status = (await _downloader.NewClient().GetServiceStatusAsync(CancellationToken.None)).Value;
+
+        Assert.Equal(("running", "0.1.0", "ok", 39), (status.State, status.Version, status.LastCycle!.Result, status.LastCycle.JobsPlanned));
+        Assert.Equal(new[] { "binance", "tradingview", "yahoo" }, status.Sources.Select(source => source.Source));
+        Assert.All(status.Sources, source => Assert.Equal("ok", source.State));
+        Assert.StartsWith("Name or service not known", status.Sources[0].LastError);
+        Assert.Equal(new[] { 1373, 6218, 12052 }, status.Catalogs.Select(catalog => catalog.SymbolCount));
+        Assert.Equal(30, status.ConsistencyCheck!.Problems);
+        Assert.Equal(DownloaderStatusRules.Green, DownloaderStatusRules.LightOf(true, true, status));
+    }
+
+    [Fact]
+    public async Task The_subscriptions_recorded_from_the_real_Downloader_are_read_completely()
+    {
+        _downloader.Answer("GET /api/v1/subscriptions", HttpStatusCode.OK, "recorded-2026-11-18-subscriptions.json");
+
+        var subscriptions = (await _downloader.NewClient().GetSubscriptionsAsync(CancellationToken.None)).Value;
+
+        Assert.Equal(13, subscriptions.Count);
+        Assert.All(subscriptions, subscription => Assert.Equal(5, subscription.Timeframes.Count));
+        Assert.Equal(new[] { "ewts", "ewts-dev", "tradeviewer" }, subscriptions.Single(item => item.Symbol == "BTCUSDT").SubscribedBy);
+    }
+
+    [Fact]
+    public async Task The_symbol_status_recorded_from_the_real_Downloader_has_its_confirmed_gaps()
+    {
+        _downloader.Answer("GET /api/v1/status/binance/BTCUSDT", HttpStatusCode.OK, "recorded-2026-11-18-status-BTCUSDT.json");
+
+        var status = (await _downloader.NewClient().GetSymbolStatusAsync("binance", "BTCUSDT", CancellationToken.None)).Value;
+
+        Assert.Equal(new[] { 21, 20, 4, 0, 0 }, status.Timeframes.Select(timeframe => timeframe.Gaps.Count));
+        Assert.All(status.Timeframes.SelectMany(timeframe => timeframe.Gaps), gap => Assert.Equal(DownloaderStatusRules.MissingUpstream, gap.Reason));
+    }
 }

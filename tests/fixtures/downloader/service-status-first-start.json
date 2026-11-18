@@ -1,0 +1,3 @@
+{ "state": "running", "startedAt": "2026-11-18T09:31:00Z", "version": "1.4.0", "lastCycle": null, "nextCycleAt": null,
+  "queue": { "recent": 0, "backfill": 0, "retryMissing": 0, "running": 0, "failed": 0 },
+  "sources": [], "consistencyCheck": null }

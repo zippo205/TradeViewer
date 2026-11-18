@@ -252,7 +252,23 @@ queue               recent, backfill, retryMissing, running, failed
 sources[]           source, state, lastSuccessAt, lastError, lastErrorAt, retryAt
                     state: ok, rateLimited (until retryAt), unavailable (after 3 failed requests)
 consistencyCheck    lastRunAt, problems (weekly file check; null before the first run)
+catalogs[]          source, refreshedAt, symbolCount, lastError, lastErrorAt (the symbol catalog per
+                    source; null refreshedAt before the first refresh; added 2026-11, missing in an
+                    older Downloader)
 ```
+
+## All Subscriptions
+
+`GET /api/v1/subscriptions` (list of `MergedSubscriptionResponse`): every subscribed symbol once,
+merged over all clients.
+
+```json
+[ { "source": "binance", "symbol": "BTCUSDT", "sourceSymbol": "BTCUSDT", "subscribedBy": ["ewts", "tradeviewer"],
+    "timeframes": [ { "timeframe": "1d", "wantedFrom": null, "subscribedBy": ["ewts", "tradeviewer"] } ] } ]
+```
+
+- `wantedFrom` is the earliest start any client wants; null from the first available day.
+- Only timeframes the source supports are listed.
 
 ## Symbol Status
 

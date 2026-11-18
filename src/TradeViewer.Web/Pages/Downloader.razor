@@ -1,0 +1,420 @@
+@page "/downloader"
+@implements IAsyncDisposable
+@inject DownloaderApi Api
+@inject AssetsApi AssetsClient
+@inject WorkspaceEvents Events
+
+<PageTitle>Downloader - TradeViewer</PageTitle>
+
+<h1>Downloader</h1>
+<p class="muted">
+    What the Downloader reports, read every 10 seconds while this page is open. The page only shows; it changes
+    nothing at the Downloader. Times are UTC.
+</p>
+
+<section>
+    <h2>Service</h2>
+
+    @if (_status == null)
+    {
+        <p class="muted">@(_statusError ?? "Loading...")</p>
+    }
+    else
+    {
+        <p>
+            <span class="downloader-light inline"><span class="dot @_status.Light"></span></span>
+            @DownloaderStatusText.Summary(_status)
+        </p>
+        @if (_statusError != null)
+        {
+            <p class="status-bad">@_statusError Shown: the state read at @DownloaderStatusText.Time(_statusReadAt).</p>
+        }
+        @if (_status.Reachable == false)
+        {
+            <p class="muted">
+                Charts keep working with the candles TradeViewer holds. @(_status.Problem == null ? "" : "Last problem: " + _status.Problem)
+            </p>
+        }
+
+        var service = _status.Service;
+        @if (service != null)
+        {
+            <dl class="facts">
+                <dt>Version</dt>
+                <dd>@service.Version (@service.State)</dd>
+                <dt>Started</dt>
+                <dd>@DownloaderStatusText.Time(service.StartedAt)</dd>
+                <dt>Last cycle</dt>
+                <dd>
+                    @if (service.LastCycle == null)
+                    {
+                        <span class="muted">none yet</span>
+                    }
+                    else
+                    {
+                        var cycle = service.LastCycle;
+                        <span class="@CycleClass(cycle.Result)">@cycle.Result</span>
+                        <span>
+                            @DownloaderStatusText.Time(cycle.StartedAt) to @(cycle.FinishedAt == null ? "now" : DownloaderStatusText.Time(cycle.FinishedAt)),
+                            @cycle.JobsPlanned jobs
+                        </span>
+                        @if (cycle.Message != null)
+                        {
+                            <span class="muted">· @cycle.Message</span>
+                        }
+                    }
+                </dd>
+                <dt>Next cycle</dt>
+                <dd>@(service.NextCycleAt == null ? "cycles are off" : DownloaderStatusText.Time(service.NextCycleAt))</dd>
+                <dt>Queue</dt>
+                <dd>
+                    @service.Queue.Recent recent · @service.Queue.Backfill history · @service.Queue.RetryMissing retry missing ·
+                    @service.Queue.Running running ·
+                    <span class="@(service.Queue.Failed > 0 ? "status-bad" : "")">@service.Queue.Failed failed</span>
+                </dd>
+                <dt>File check</dt>
+                <dd>
+                    @if (service.ConsistencyCheck == null)
+                    {
+                        <span class="muted">not run yet</span>
+                    }
+                    else
+                    {
+                        <span>@DownloaderStatusText.Time(service.ConsistencyCheck.LastRunAt),</span>
+                        <span class="@(service.ConsistencyCheck.Problems > 0 ? "status-bad" : "status-ok")">@service.ConsistencyCheck.Problems problem(s)</span>
+                    }
+                </dd>
+            </dl>
+
+            <h3>Sources</h3>
+            <div class="table-scroll">
+                <table class="list">
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>State</th>
+                            <th>Last success</th>
+                            <th>Last error</th>
+                            <th>Retry at</th>
+                            <th class="number">Symbols</th>
+                            <th>List refreshed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var source in service.Sources)
+                        {
+                            var catalog = service.Catalogs.FirstOrDefault(item => item.Source == source.Source);
+                            <tr @key="source.Source">
+                                <td>@source.Source</td>
+                                <td class="@(source.State == "ok" ? "status-ok" : "status-warn")">@DownloaderStatusText.StateText(source.State)</td>
+                                <td>@DownloaderStatusText.Time(source.LastSuccessAt)</td>
+                                <td class="wrap">
+                                    @if (source.LastError == null)
+                                    {
+                                        <span class="muted">-</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">@DownloaderStatusText.Time(source.LastErrorAt)</span><br />@source.LastError
+                                    }
+                                </td>
+                                <td>@(source.RetryAt == null ? "-" : DownloaderStatusText.Time(source.RetryAt))</td>
+                                <td class="number">@(catalog?.SymbolCount.ToString(CultureInfo.InvariantCulture) ?? "-")</td>
+                                <td>
+                                    @(catalog == null ? "-" : catalog.RefreshedAt == null ? "not yet" : DownloaderStatusText.Time(catalog.RefreshedAt))
+                                    @if (catalog?.LastError != null)
+                                    {
+                                        <span class="status-bad"> · @catalog.LastError</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</section>
+
+<section>
+    <h2>Your assets</h2>
+    <p class="muted">What the Downloader holds of each asset of the workspace. Open one to see its coverage, jobs and gaps: all
+    the Downloader holds, also history other clients wanted.</p>
+
+    @if (_assets == null)
+    {
+        <p class="muted">Loading...</p>
+    }
+    else if (_assets.Count == 0)
+    {
+        <p class="muted">No assets.</p>
+    }
+    else
+    {
+        @foreach (var asset in _assets)
+        {
+            var key = Key(asset.Source, asset.Symbol);
+            var gaps = asset.Timeframes.Sum(timeframe => timeframe.Gaps.Count);
+            <article class="card wide" @key="key">
+                <header>
+                    <button type="button" class="fold" aria-expanded="@(_open.Contains(key) ? "true" : "false")" @onclick="() => ToggleAsync(asset)">
+                        @(_open.Contains(key) ? "▾" : "▸") @asset.DisplayName
+                    </button>
+                    <span class="muted">@asset.Source / @asset.Symbol</span>
+                    @if (asset.Loading)
+                    {
+                        <span class="badge loading">loading</span>
+                    }
+                    @if (gaps > 0)
+                    {
+                        <span class="badge" title="Confirmed by the source within the asset's history; the chart marks them (MD4)">@DownloaderStatusText.GapCount(gaps) in the history</span>
+                    }
+                </header>
+
+                @if (_open.Contains(key))
+                {
+                    <DownloaderAssetDetail Detail="@(_details.GetValueOrDefault(key))" Error="@(_detailErrors.GetValueOrDefault(key))" />
+                }
+            </article>
+        }
+    }
+</section>
+
+<section>
+    <h2>Subscriptions</h2>
+    <p class="muted">
+        Every symbol the Downloader keeps, for all its clients. Those of TradeViewer@(_subscriptions == null ? "" : " (" + _subscriptions.OwnClient + ")")
+        are marked; the others belong to other clients and are read-only here.
+    </p>
+
+    @if (_status?.Enabled == false)
+    {
+        <p class="muted">The Downloader is switched off in the configuration.</p>
+    }
+    else if (_subscriptions == null)
+    {
+        <p class="muted">@(_subscriptionsError ?? "Loading...")</p>
+    }
+    else
+    {
+        @if (_subscriptionsError != null)
+        {
+            <p class="status-bad">@_subscriptionsError Shown: the list read at @DownloaderStatusText.Time(_subscriptionsReadAt).</p>
+        }
+        <div class="table-scroll">
+            <table class="list">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Clients</th>
+                        <th>Timeframes, wanted from</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var subscription in _subscriptions.Subscriptions)
+                    {
+                        <tr @key="Key(subscription.Source, subscription.Symbol)">
+                            <td>
+                                @subscription.Source / @subscription.SourceSymbol
+                                @if (subscription.SourceSymbol != subscription.Symbol)
+                                {
+                                    <span class="muted">(folder @subscription.Symbol)</span>
+                                }
+                            </td>
+                            <td>
+                                @foreach (var client in subscription.SubscribedBy)
+                                {
+                                    <span class="badge @(client == _subscriptions.OwnClient ? "own" : "")">@client</span>
+                                }
+                            </td>
+                            <td class="wrap">@string.Join(" · ", subscription.Timeframes.Select(timeframe => timeframe.Timeframe + " " + (timeframe.WantedFrom ?? "complete")))</td>
+                            <td>
+                                @if (subscription.Own)
+                                {
+                                    <span class="status-ok">TradeViewer@(subscription.InWorkspace ? "" : ", not in the workspace")</span>
+                                }
+                                else
+                                {
+                                    <span class="muted">other clients, read-only</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>The page is read again this often while it is open (plan, question 2).</summary>
+    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(10);
+
+    private readonly CancellationTokenSource _stop = new CancellationTokenSource();
+    private readonly HashSet<string> _open = new HashSet<string>();
+    private readonly Dictionary<string, DownloaderAssetResponse> _details = new Dictionary<string, DownloaderAssetResponse>();
+    private readonly Dictionary<string, string> _detailErrors = new Dictionary<string, string>();
+
+    private DownloaderStatusResponse? _status;
+    private DateTimeOffset? _statusReadAt;
+    private string? _statusError;
+    private DownloaderSubscriptionsResponse? _subscriptions;
+    private DateTimeOffset? _subscriptionsReadAt;
+    private string? _subscriptionsError;
+    private List<AssetResponse>? _assets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Events.DownloaderStatusChanged += OnStatusChanged;
+        Events.AssetStatusChanged += OnAssetStatusChanged;
+        _ = Events.StartAsync();
+
+        await ReadAllAsync();
+        _ = RefreshAsync();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Events.DownloaderStatusChanged -= OnStatusChanged;
+        Events.AssetStatusChanged -= OnAssetStatusChanged;
+        _stop.Cancel();
+        _stop.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    private void OnStatusChanged(bool reachable)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await ReadStatusAsync();
+            StateHasChanged();
+        });
+    }
+
+    private void OnAssetStatusChanged(string source, string symbol)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await ReadAssetsAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task RefreshAsync()
+    {
+        using var timer = new PeriodicTimer(Interval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_stop.Token))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await ReadAllAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // the page was left
+        }
+    }
+
+    private async Task ReadAllAsync()
+    {
+        await Task.WhenAll(ReadStatusAsync(), ReadAssetsAsync());
+
+        // Switched off, there are no subscriptions to ask for.
+        if (_status?.Enabled != false)
+        {
+            await ReadSubscriptionsAsync();
+        }
+        foreach (var key in _open.ToList())
+        {
+            var parts = key.Split('/', 2);
+            await ReadDetailAsync(parts[0], parts[1]);
+        }
+    }
+
+    /// <summary>A failed read keeps what was shown, marked with the time it was read (proposal 4).</summary>
+    private async Task ReadStatusAsync()
+    {
+        var result = await Api.GetStatusAsync();
+        _statusError = result.Error;
+        if (result.Value != null)
+        {
+            _status = result.Value;
+            _statusReadAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private async Task ReadSubscriptionsAsync()
+    {
+        var result = await Api.GetSubscriptionsAsync();
+        _subscriptionsError = result.Error;
+        if (result.Value != null)
+        {
+            _subscriptions = result.Value;
+            _subscriptionsReadAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private async Task ReadAssetsAsync()
+    {
+        var result = await AssetsClient.GetAssetsAsync();
+        if (result.Value != null)
+        {
+            _assets = result.Value.OrderBy(asset => asset.Source).ThenBy(asset => asset.Symbol).ToList();
+        }
+        else
+        {
+            _assets ??= new List<AssetResponse>();
+        }
+    }
+
+    private async Task ReadDetailAsync(string source, string symbol)
+    {
+        var key = Key(source, symbol);
+        var result = await Api.GetAssetAsync(source, symbol);
+        if (result.Value != null)
+        {
+            _details[key] = result.Value;
+            _detailErrors.Remove(key);
+        }
+        else
+        {
+            _detailErrors[key] = result.Error!;
+        }
+    }
+
+    private async Task ToggleAsync(AssetResponse asset)
+    {
+        var key = Key(asset.Source, asset.Symbol);
+        if (!_open.Remove(key))
+        {
+            _open.Add(key);
+            await ReadDetailAsync(asset.Source, asset.Symbol);
+        }
+    }
+
+    private static string CycleClass(string result)
+    {
+        switch (result)
+        {
+            case "ok":
+                return "status-ok";
+            case "partial":
+            case "failed":
+            case "interrupted":
+                return "status-warn";
+            default:
+                return string.Empty;
+        }
+    }
+
+    private static string Key(string source, string symbol)
+    {
+        return source + "/" + symbol;
+    }
+}

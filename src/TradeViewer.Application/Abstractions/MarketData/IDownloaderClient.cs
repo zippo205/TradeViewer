@@ -10,6 +10,9 @@ namespace TradeViewer.Application.Abstractions.MarketData;
 /// </summary>
 public interface IDownloaderClient
 {
+    /// <summary>The name TradeViewer subscribes under (MarketData:Downloader:Client).</summary>
+    string Client { get; }
+
     /// <summary>False: the Downloader is switched off in the configuration and must not be called.</summary>
     bool Enabled { get; }
 
@@ -30,6 +33,12 @@ public interface IDownloaderClient
 
     /// <summary>The symbols TradeViewer itself subscribes at the Downloader, as (source, symbol). Other clients are not in it.</summary>
     Task<Result<IReadOnlyList<(string Source, string Symbol)>>> GetOwnSubscriptionsAsync(CancellationToken cancellationToken);
+
+    /// <summary>The state of the Downloader: cycles, queue, sources, catalogs (DL1).</summary>
+    Task<Result<DownloaderServiceStatus>> GetServiceStatusAsync(CancellationToken cancellationToken);
+
+    /// <summary>The subscriptions of every client, merged per symbol (DL3).</summary>
+    Task<Result<IReadOnlyList<MergedSubscription>>> GetSubscriptionsAsync(CancellationToken cancellationToken);
 
     Task<Result<SymbolStatus>> GetSymbolStatusAsync(string source, string symbol, CancellationToken cancellationToken);
 
