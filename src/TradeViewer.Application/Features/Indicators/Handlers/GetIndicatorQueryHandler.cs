@@ -24,21 +24,21 @@ public sealed class GetIndicatorQueryHandler : IQueryHandler<GetIndicatorQuery, 
 
     public async Task<Result<IndicatorResponse>> HandleAsync(GetIndicatorQuery query, CancellationToken cancellationToken)
     {
-        var parameters = _validator.Validate(query);
-        if (!parameters.IsSuccess)
+        var invalid = _validator.Validate(query, out var parameters);
+        if (invalid != null)
         {
-            return parameters.Error;
+            return invalid;
         }
 
         var read = await _reader.ReadAsync(
-            query.Source, query.Symbol, query.Timeframe, query.To, query.Limit, WarmUp.Candles(parameters.Value), cancellationToken);
+            query.Source, query.Symbol, query.Timeframe, query.To, query.Limit, WarmUp.Candles(parameters!), cancellationToken);
         if (!read.IsSuccess)
         {
             return read.Error;
         }
 
         var page = read.Value;
-        var lines = Indicator.Calculate(page.Candles, parameters.Value);
+        var lines = Indicator.Calculate(page.Candles, parameters!);
 
         var times = page.Page.Select(candle => candle.Time).ToArray();
         var values = new Dictionary<string, double?[]>();

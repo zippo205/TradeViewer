@@ -6,9 +6,11 @@ namespace TradeViewer.Application.Features.Indicators.Validators;
 
 public sealed class GetIndicatorQueryValidator
 {
-    /// <returns>The parameters of the indicator, or the error naming the fields that are wrong.</returns>
-    public Result<IndicatorParameters> Validate(GetIndicatorQuery query)
+    /// <param name="parameters">The parameters of the indicator when the query is valid.</param>
+    /// <returns>Null when the indicator can be calculated, otherwise the error naming the fields.</returns>
+    public Error? Validate(GetIndicatorQuery query, out IndicatorParameters? parameters)
     {
+        parameters = null;
         var problems = new Dictionary<string, string[]>();
 
         if (!IndicatorCodes.TryParse(query.Type, out IndicatorType type))
@@ -38,13 +40,19 @@ public sealed class GetIndicatorQueryValidator
             return Invalid(problems);
         }
 
-        var parameters = Build(type, query, price);
-        foreach (var (field, messages) in IndicatorRules.Check(parameters))
+        var built = Build(type, query, price);
+        foreach (var (field, messages) in IndicatorRules.Check(built))
         {
             problems[field == "source" ? "price" : field] = messages;
         }
 
-        return problems.Count > 0 ? Invalid(problems) : Result.Success(parameters);
+        if (problems.Count > 0)
+        {
+            return Invalid(problems);
+        }
+
+        parameters = built;
+        return null;
     }
 
     private static IndicatorParameters Build(IndicatorType type, GetIndicatorQuery query, PriceSource price)

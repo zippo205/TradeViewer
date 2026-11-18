@@ -231,7 +231,7 @@ public class DrawingHandlersTests
     public async Task Chart_settings_start_with_the_defaults_and_are_saved_per_asset()
     {
         var get = new GetChartSettingsQueryHandler(_assets, _chartSettings);
-        var save = new SaveChartSettingsCommandHandler(_chartSettings);
+        var save = new SaveChartSettingsCommandHandler(_chartSettings, new FakeNotifier());
 
         var before = await get.HandleAsync(new GetChartSettingsQuery("binance", "BTCUSDT"), CancellationToken.None);
         var saved = await save.HandleAsync(new SaveChartSettingsCommand("binance", "BTCUSDT", new ChartSettingsResponse(true)), CancellationToken.None);
@@ -248,8 +248,8 @@ public class DrawingHandlersTests
     public async Task Chart_settings_need_a_known_asset_and_a_body()
     {
         var get = await new GetChartSettingsQueryHandler(_assets, _chartSettings).HandleAsync(new GetChartSettingsQuery("binance", "NOPEUSDT"), CancellationToken.None);
-        var save = await new SaveChartSettingsCommandHandler(_chartSettings).HandleAsync(new SaveChartSettingsCommand("binance", "NOPEUSDT", new ChartSettingsResponse(true)), CancellationToken.None);
-        var empty = await new SaveChartSettingsCommandHandler(_chartSettings).HandleAsync(new SaveChartSettingsCommand("binance", "BTCUSDT", null), CancellationToken.None);
+        var save = await new SaveChartSettingsCommandHandler(_chartSettings, new FakeNotifier()).HandleAsync(new SaveChartSettingsCommand("binance", "NOPEUSDT", new ChartSettingsResponse(true)), CancellationToken.None);
+        var empty = await new SaveChartSettingsCommandHandler(_chartSettings, new FakeNotifier()).HandleAsync(new SaveChartSettingsCommand("binance", "BTCUSDT", null), CancellationToken.None);
 
         Assert.Equal(ErrorType.NotFound, get.Error.Type);
         Assert.Equal(ErrorType.NotFound, save.Error.Type);

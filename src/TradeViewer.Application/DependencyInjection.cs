@@ -69,6 +69,9 @@ public static class DependencyInjection
         // ChartSettings
         services.AddScoped<IQueryHandler<GetChartSettingsQuery, ChartSettingsResponse>, GetChartSettingsQueryHandler>();
         services.AddScoped<ICommandHandler<SaveChartSettingsCommand, ChartSettingsResponse>, SaveChartSettingsCommandHandler>();
+        services.AddScoped<IQueryHandler<GetIndicatorTemplatesQuery, IReadOnlyList<IndicatorTemplateRecord>>, GetIndicatorTemplatesQueryHandler>();
+        services.AddScoped<ICommandHandler<SaveIndicatorTemplateCommand, IndicatorTemplateRecord>, SaveIndicatorTemplateCommandHandler>();
+        services.AddScoped<ICommandHandler<DeleteIndicatorTemplateCommand, Unit>, DeleteIndicatorTemplateCommandHandler>();
 
         // Workspace
         services.AddScoped<IQueryHandler<GetSettingsQuery, SettingsResponse>, GetSettingsQueryHandler>();

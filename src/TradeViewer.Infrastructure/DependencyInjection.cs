@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddSingleton<IChartSettingsRepository, ChartSettingsRepository>();
         services.AddSingleton<IDrawingRepository, DrawingRepository>();
         services.AddSingleton<IFibonacciPresetRepository, FibonacciPresetRepository>();
+        services.AddSingleton<IIndicatorTemplateRepository, IndicatorTemplateRepository>();
         services.AddSingleton<WorkspaceInitializer>();
 
         services.AddSingleton(MarketDataSchema.FromEmbeddedScripts());

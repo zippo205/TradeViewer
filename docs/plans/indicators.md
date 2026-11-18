@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Indicators (P1 - Workstation)
-Status:   Steps 1 to 3 done 2026-11-18
+Status:   Steps 1 to 4 done 2026-11-18
 Branch:   feature/indicators
-Next:     step 4
+Next:     step 5
 Baseline: docs as of commit 30f5e68 (main)
 ```
 
@@ -178,7 +178,7 @@ TradeViewer.Chart/src/indicators/
    tests (t equals the candle page, current candle included, seams, 400/404/422)                done
 4  Chart settings and templates: ChartSettings with indicator instances (Domain, contract,
    validator, stored payload), script 0007 and the template repository, template commands and
-   /api/indicator-templates, hub event ChartSettingsChanged; tests                              open
+   /api/indicator-templates, hub event ChartSettingsChanged; tests                              done
 5  Chart module indicators/: client, data with paging and refresh, set with panes and series,
    band fill, legends; setIndicators in the interop; Vitest                                      open
 6  Web: ChartHost.SetIndicatorsAsync, the bar with Indicators and Templates, the settings dialog,
@@ -261,6 +261,40 @@ histogram) and ATR in panes 1 to 3. The proof page and its script stayed in the 
   files, the current 1h candle, an older page, 400/404/422 as problem details).
 - Checked in the local container on the frozen data: all 22 values of TradingView come out of the
   endpoint; 2,000 RSI values of 15m in 14 ms.
+
+---
+
+# Result of Step 4 (2026-11-18)
+
+- Templates moved to the feature ChartSettings (architecture chapter 4 corrected): the indicators of
+  the chart settings and of the templates are converted between API and Domain by one mapping
+  (`IndicatorMapping`), and no feature may use another feature's code. Indicators keeps only the
+  calculation.
+- Domain: `ChartSettings(DrawingsHidden, Indicators)`. Contracts `Indicators/`: `IndicatorRecord`
+  (type code and the parameters by the names of /api/indicators, null where the type has none),
+  `IndicatorStyleRecord`, `IndicatorTemplateRecord`; `ChartSettingsResponse` gained `Indicators`.
+- A PUT without `indicators` (null) keeps the saved ones; only an empty list removes them. An open
+  window of the build before this epic sends only `drawingsHidden` and must not wipe indicators
+  (priority 1). Every answer names the indicators.
+- A request must give exactly the parameters of its type (missing or foreign ones are 400); the
+  problems name the fields as sent (`indicators[0].length`, `indicators[0].price`,
+  `indicators[0].styles.value.color`).
+- Storage: `IndicatorPayload` writes each indicator with its type code as discriminator and only its
+  parameters; the chart settings payload stays version 1 (an added field). An entry this build
+  cannot read is left out, the others stay. Script 0007: `indicator_templates` (name unique without
+  regard to case), payload version 1; templates belong to no asset.
+- `/api/indicator-templates`: GET (by name), PUT /{id} (create or replace; 409 for a name another
+  template has, whatever the case; the name is trimmed), DELETE /{id} (204, 404). Applying a template
+  is the client's work: copies with new ids into the chart settings (step 6).
+- Hub event `ChartSettingsChanged(source, symbol, window)`; the PUT of the chart settings reads the
+  window from `X-TradeViewer-Window`, as the drawings do. No event for templates: the list is read
+  when the menu opens.
+- The validator of step 3 now follows the pattern of the others (`Error? Validate(query, out ...)`).
+- Tests: 13 unit tests of the handlers, 7 storage tests (all six kinds back exactly after a restart,
+  a payload of the earlier build, an unreadable entry, the upgrade from version 6 with its backup,
+  templates by name, replaced, deleted, kept when every asset goes, the unique name), 4 API tests
+  (JSON shape, the hub event with the window, a client without indicators keeps them, problems by
+  field, templates 200/400/409/204/404). A test that named `before-v6` now takes the latest version.
 
 ---
 

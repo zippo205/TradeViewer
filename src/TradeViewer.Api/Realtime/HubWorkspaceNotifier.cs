@@ -35,6 +35,11 @@ public sealed class HubWorkspaceNotifier : IWorkspaceNotifier
         return SendAsync("DrawingsChanged", source, symbol, window);
     }
 
+    public Task ChartSettingsChangedAsync(string source, string symbol, string window)
+    {
+        return SendAsync("ChartSettingsChanged", source, symbol, window);
+    }
+
     private async Task SendAsync(string name, params object[] arguments)
     {
         try
