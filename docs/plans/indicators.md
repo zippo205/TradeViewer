@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Indicators (P1 - Workstation)
-Status:   Step 1 done 2026-11-18; reference values received (question 1)
+Status:   Steps 1 and 2 done 2026-11-18
 Branch:   feature/indicators
-Next:     step 2
+Next:     step 3
 Baseline: docs as of commit 30f5e68 (main)
 ```
 
@@ -172,7 +172,7 @@ TradeViewer.Chart/src/indicators/
    drawing tools ignore pointers outside the price pane; nothing stays that is not used later      done
 2  Domain: IndicatorType, PriceSource, parameters with defaults and rules, the six calculations
    and WarmUp, IndicatorInstance, IndicatorTemplate; unit tests against reference values
-   (question 1), at the start of the history and across a page seam                             open
+   (question 1), at the start of the history and across a page seam                             done
 3  Feature Indicators, calculation: one candle reader for /api/candles and /api/indicators
    (moved, not copied), GetIndicatorQuery with its validator, contract, endpoint; integration
    tests (t equals the candle page, current candle included, seams, 400/404/422)                open
@@ -211,6 +211,33 @@ histogram) and ATR in panes 1 to 3. The proof page and its script stayed in the 
   in the price pane. Fixed: a press below `paneSize(0)` goes to the library (`tools/pointerInput.ts`,
   kept); with a tool active it creates nothing there, without one a drag pans as on an empty chart.
   The fix stays because every later step needs it; nothing else of the proof is in the code.
+
+---
+
+# Result of Step 2 (2026-11-18)
+
+- Domain `Indicators/`: `IndicatorType`, `PriceSource`, `IndicatorParameters` (one record per type:
+  `SmaParameters`, `EmaParameters`, `BollingerBandsParameters` with `Deviation`, `RsiParameters`,
+  `MacdParameters`, `AtrParameters` without a source; `Default(type)` gives IN1), `Indicator`
+  (`Calculate` -> `IndicatorLine`s with one `double?` per candle; `Sma`, `Ema`, `Rma`, `Prices`),
+  `IndicatorLines` (line names: value; basis, upper, lower; macd, signal, histogram), `WarmUp`,
+  `IndicatorLineStyle` and `IndicatorStyles` (TradingView's colours, width 1), `IndicatorInstance`
+  (`New(id, type)`), `IndicatorTemplate`, `IndicatorRules` (problems by field, as `DrawingRules`),
+  `IndicatorCodes` (sma, ema, bb, rsi, macd, atr; open ... ohlc4).
+- Style entries: one per line, except MACD: macd, signal, `histogramAbove`, `histogramBelow`; the
+  chart draws falling columns in the lighter shade of each (step 5, the four shades of TradingView).
+- Rules chosen: lengths 1 to 5,000, MACD fast < slow, BB deviation 0.001 to 50 (TradingView's
+  range), at most 50 indicators per chart or template, template names 1 to 100 characters, ids
+  distinct, colours as drawings write them.
+- RSI is 100 without losses and 0 without gains, as TradingView's `ta.rsi`.
+- `WarmUp.Candles`: SMA 9 -> 8, BB 20 -> 19, EMA 9 -> 112, RSI 14 -> 325, MACD 12/26/9 -> 437. A
+  length of 5,000 on a smoothed indicator asks for about 63,000 (EMA) or 120,000 (RMA) candles;
+  the reader of step 3 gives what the history has.
+- Tests (80): the 20 values of TradingView to the cent on the whole fixture; the first value on
+  the candle TradingView shows it when starting from 2017-10-01; a page with its warm-up equals the
+  whole history (1e-8 relative) for twelve parameter sets at three seams; small series by hand;
+  rules and codes. Fixture `tests/fixtures/indicators/BTCUSDT-1d.csv` (2,695 candles, 112 KB, from
+  the frozen copy).
 
 ---
 
