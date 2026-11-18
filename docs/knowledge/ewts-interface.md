@@ -495,26 +495,3 @@ number.
   and the client reloads everything it shows.
 - There is no push; TradeViewer polls this endpoint. `lastChange` is also part of
   `GET /api/v1/status`.
-
----
-
-# State for EWTS (2026-11-18)
-
-Every V1 epic of TradeViewer that needs nothing from EWTS is done (docs/roadmap.md). What is left
-waits for EWTS (architecture, open point O1). In the order TradeViewer can use it:
-
-1. **Scenario drawing files** (Scenario Files, above): `expert/<id>.json` for the owner's expert
-   scenarios unblocks the epic Scenario Viewer (SC1-SC9). It needs no running instance and no API.
-2. **Reading the `*.expert.json` files** TradeViewer writes (Expert Analysis Files, above, decision
-   0007) unblocks the epic Scenario Analysis (SC10-SC13).
-3. **The API v1** (Required Interface) unblocks V2: EWTS Instances first (Status, Observed Assets),
-   then Analysis Overlays (Drawings, Changes), Test Runs and Alerts.
-
-Agreed with EWTS on 2026-11-18 and already written above: no 4h for an asset with exchange hours,
-refused with 422 (decision 0008); 1h stays as the source delivers it, the last candle of a day 30
-minutes (decision 0009).
-
-What the Downloader showed on 2026-11-18 that concerns EWTS too: its file check reports 30 problems
-(downloader-interface.md, Findings), and the clients `ewts` and `ewts-dev` subscribe the same 13
-binance symbols.
-

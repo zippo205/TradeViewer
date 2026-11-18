@@ -5,8 +5,7 @@ reads and the control API it calls. How TradeViewer uses them is in docs/archite
 chapters Market Data and Downloader Integration.
 
 The Downloader owns this interface. Its specification (../Downloader/docs/specification.md) is
-the original; this document is TradeViewer's view of it, last compared on 2026-11-17 and checked
-against the running Downloader on 2026-11-18 (Findings, at the end).
+the original; this document is TradeViewer's view of it, last compared on 2026-11-17.
 
 Scope today: crypto with Binance as the only source in use. A `yahoo` source exists for
 testing. Stocks, ETFs and Forex follow as further sources.
@@ -309,32 +308,3 @@ Every write that changes a file gets a service-wide, strictly increasing change 
 - Changes are kept 30 days. For an older `after` the response has `complete: false`: the client
   treats every file of the symbol as changed.
 - There are no notifications; clients poll.
-
----
-
-# Findings (2026-11-18)
-
-Read only from the Downloader on the Pi (version 0.1.0) while building Downloader Monitoring. The
-answers are kept as `tests/fixtures/downloader/recorded-2026-11-18-*.json`. For the owner of the
-Downloader; nothing here is a change of this interface yet.
-
-1. **The file check reports 30 problems** (`consistencyCheck`, run 2026-11-18 11:41 UTC). The status
-   gives only the number, so TradeViewer can show that there are problems but not which files. If
-   the owner wants to see them on TradeViewer's page, the Downloader needs to offer the list (for
-   example per symbol and file, with the kind of problem); until then they are only in the
-   Downloader itself.
-2. **A source that is `ok` keeps its last error.** binance was `ok`, with the error of 2026-11-17
-   18:45 UTC ("Name or service not known (api.binance.com:443)", a failed name lookup on the Pi).
-   TradeViewer reads `lastError` as the last error, not as the current one, and shows it with its
-   time. Worth confirming with the owner that this is intended.
-3. **The answers match the contract.** `status`, `subscriptions` and `status/{source}/{symbol}`
-   have exactly the fields of the copied records; the fixtures written from the contract before
-   were right.
-4. **No complete example answer is documented** for `GET status` and `GET subscriptions` in the
-   Downloader's documentation; TradeViewer recorded its own. An example in the Downloader's
-   specification would help every client.
-5. **Confirmed gaps of BTCUSDT**: 45 (`missingUpstream`; 15m 21, 1h 20, 4h 4), all 2019-2023 and so
-   outside the default history of TradeViewer's assets. The Downloader reports gaps of the whole
-   history it holds, also of history another client wanted; TradeViewer filters them by the
-   asset's history (architecture, chapter 10).
-
