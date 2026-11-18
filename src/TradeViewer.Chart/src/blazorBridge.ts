@@ -22,6 +22,11 @@ export function bindDrawingEvents(pane: ChartPane, target: DotNetTarget): void {
   });
 }
 
+/** Reports the actions of the indicator legends to ChartHost: IndicatorAction(id, "hide" | "settings" | "remove"). */
+export function bindIndicatorActions(pane: ChartPane, target: DotNetTarget): void {
+  pane.onIndicatorActions((id, action) => void target.invokeMethodAsync("IndicatorAction", id, action));
+}
+
 /** The keys of the chart page (DR2): delete, undo, redo. */
 export type PageKey = "delete" | "undo" | "redo";
 

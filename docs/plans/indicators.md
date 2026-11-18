@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Indicators (P1 - Workstation)
-Status:   Steps 1 to 4 done 2026-11-18
+Status:   Steps 1 to 5 done 2026-11-18
 Branch:   feature/indicators
-Next:     step 5
+Next:     step 6
 Baseline: docs as of commit 30f5e68 (main)
 ```
 
@@ -180,7 +180,7 @@ TradeViewer.Chart/src/indicators/
    validator, stored payload), script 0007 and the template repository, template commands and
    /api/indicator-templates, hub event ChartSettingsChanged; tests                              done
 5  Chart module indicators/: client, data with paging and refresh, set with panes and series,
-   band fill, legends; setIndicators in the interop; Vitest                                      open
+   band fill, legends; setIndicators in the interop; Vitest                                      done
 6  Web: ChartHost.SetIndicatorsAsync, the bar with Indicators and Templates, the settings dialog,
    legend actions (hide, settings, remove), saving with the chart settings, other windows follow
    on ChartSettingsChanged; browser checks                                                       open
@@ -295,6 +295,42 @@ histogram) and ATR in panes 1 to 3. The proof page and its script stayed in the 
   templates by name, replaced, deleted, kept when every asset goes, the unique name), 4 API tests
   (JSON shape, the hub event with the window, a client without indicators keeps them, problems by
   field, templates 200/400/409/204/404). A test that named `before-v6` now takes the latest version.
+
+---
+
+# Result of Step 5 (2026-11-18)
+
+- `indicators/`: `indicator.ts` (the instance as the Api's `IndicatorRecord`, so Blazor passes the
+  chart settings unchanged; lines, price or own pane, the key of the values, TradingView's titles,
+  MACD shades), `indicatorClient.ts`, `indicatorData.ts` (`IndicatorValues`: newest page, older pages
+  in front, refresh from its first time on, a gap reported), `bandFill.ts`, `legend.ts`,
+  `indicatorSet.ts` (series, panes, fills, legends, fetching).
+- `ChartPane`: `setIndicators`, `indicators`, `indicatorValues` (checks), `onIndicatorActions`; stats
+  `indicators` and `indicatorRequests` (apart from the candle requests NF2 counts). Bridge
+  `bindIndicatorActions` reports `IndicatorAction(id, action)` to ChartHost (step 6).
+- Fetching: a new series fetches the newest page of every indicator in parallel with the candles; what
+  arrives is drawn together with the candles, so the values of the new asset never stand beside the
+  old candles. Scrolling back fetches the same older page of every indicator in parallel with the
+  candles. A refresh asks for the newest 500 values (`REFRESH_PAGE_SIZE`); when they do not join
+  what is held (a window asleep), it reads back to the oldest candle again. A new indicator, or a new
+  parameter, on a chart scrolled back reads until it reaches the oldest candle.
+- Panes: a new oscillator pane gets a quarter of the price pane's stretch (proposal 5); the
+  histogram is added before the MACD lines so they are drawn over it. Oscillator panes stay linear
+  when the log scale is on (found in the browser: MACD below zero cannot be shown on a log scale).
+- Legends: price indicators in a column below the candle legend; each oscillator at the top of its
+  pane, placed from `paneSize` on every resize of a pane element (ResizeObserver, step 1). Values in
+  the line's colours, the MACD histogram in the colour of its column; actions shown on hover; a press
+  on them never reaches the chart.
+- MACD shades: TradingView's rule (a column grows only when the one before is smaller); the pale shade
+  mixes with white by 0.68, within 10 of 255 per channel of #B2DFDB and #FFCDD2.
+- RSI: lines at 70, 50, 30, fill between 70 and 30 in the line colour at 10 %; BB fill #2196F3 at 5 %.
+- Styles for the legend are in `app.css` with the other chart overlays.
+- Tests: 12 new Vitest (216 in all). Browser check on the local container with the bundle of the
+  working tree: six indicators in six requests; the values of TradingView for 2025-01-01 and, after
+  scrolling back to 2017, for 2020-03-12; every indicator reaches back to the oldest candle; a colour
+  costs no request, a length does; hidden and removed without a request; the settings action
+  reported without moving the chart; 4h has one value per candle up to the current one; pan and zoom
+  without a request; log scale only on the price pane; light and dark.
 
 ---
 
