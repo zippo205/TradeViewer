@@ -163,4 +163,13 @@ Rules for the agent:
              69 MB of 512 MB; the five assets (ADAUSDT, AVAXUSDT, BTCUSDT, DOGEUSDT, VIRTUALUSDT)
              are there, the symbol picker searches the Downloader's catalog, the default Fibonacci
              presets hold their levels that are switched off, and the log has no errors.
+
+2026-11-18   Epics Indicators and Downloader Monitoring deployed by the agent at the owner's request:
+             commit 4d482a3 of the branch feature/downloader-monitoring (main's Indicators merge
+             included), with DOWNLOADER_ENABLED=true (passed inline). The arm64 image built and
+             started in 78 seconds. workspace.db was upgraded from schema version 6 to 7 with the
+             backup workspace-20261118-165537-before-v7.db. The container is healthy and uses 79 MB of
+             512 MB; /downloader shows the Downloader green with the 30 problems of its file check, 13
+             subscriptions, 5 of them TradeViewer's; the five assets have no confirmed gaps within
+             their history. After the owner's approval: git checkout main on the Pi.
 ```
