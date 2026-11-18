@@ -17,6 +17,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\fixtures\indicators\**\*" Link="fixtures\indicators\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\TradeViewer.Domain\TradeViewer.Domain.csproj" />
     <ProjectReference Include="..\..\src\TradeViewer.Application\TradeViewer.Application.csproj" />
     <ProjectReference Include="..\..\src\TradeViewer.Contracts\TradeViewer.Contracts.csproj" />

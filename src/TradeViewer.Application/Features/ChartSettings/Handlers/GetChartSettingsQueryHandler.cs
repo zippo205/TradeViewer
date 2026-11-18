@@ -1,6 +1,7 @@
 using TradeViewer.Application.Abstractions.Messaging;
 using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Application.Features.ChartSettings.Queries;
+using TradeViewer.Application.Features.ChartSettings.Services;
 using TradeViewer.Contracts.Charts;
 using Settings = TradeViewer.Domain.Charts.ChartSettings;
 
@@ -25,6 +26,6 @@ public sealed class GetChartSettingsQueryHandler : IQueryHandler<GetChartSetting
         }
 
         var settings = await _settings.GetAsync(query.Source, query.Symbol, cancellationToken) ?? Settings.Default;
-        return Result.Success(new ChartSettingsResponse(settings.DrawingsHidden));
+        return Result.Success(ChartSettingsMapping.ToResponse(settings));
     }
 }

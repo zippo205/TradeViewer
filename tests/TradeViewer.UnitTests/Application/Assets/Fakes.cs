@@ -379,4 +379,10 @@ internal sealed class FakeNotifier : TradeViewer.Application.Abstractions.Realti
         Events.Add("DrawingsChanged " + source + "/" + symbol + " " + window);
         return Task.CompletedTask;
     }
+
+    public Task ChartSettingsChangedAsync(string source, string symbol, string window)
+    {
+        Events.Add("ChartSettingsChanged " + source + "/" + symbol + " " + window);
+        return Task.CompletedTask;
+    }
 }

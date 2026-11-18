@@ -148,8 +148,9 @@ Every requirement has an id. The backlog refers to these ids.
 ### 4.4 Indicators
 
 - **IN1** Indicators, calculated by TradeViewer: SMA, EMA and Bollinger Bands on the price;
-  RSI, MACD and ATR in their own panes below. The user sets their parameters and colours per
-  asset. An indicator is added once and shows on every timeframe of the asset, always
+  RSI, MACD and ATR in their own panes below. The user sets their parameters, the price they
+  are calculated from (open, high, low, close, hl2, hlc3, ohlc4; ATR has none) and their colours
+  per asset; an asset can have several indicators of one kind. An indicator is added once and shows on every timeframe of the asset, always
   calculated from the candles of the timeframe shown (an SMA on 1d is never the SMA of 15m).
   A new indicator starts with the defaults of TradingView:
 
@@ -161,8 +162,11 @@ Every requirement has an id. The backlog refers to these ids.
   | MACD            | fast 12, slow 26, signal 9, source close    |
   | ATR             | length 14                                   |
 
-  Colours follow TradingView's defaults too: blue lines (SMA, EMA, MACD line), orange for the
-  Bollinger basis and the MACD signal, purple for RSI, green and red histogram for MACD.
+  Colours follow TradingView's defaults too: blue lines (SMA, EMA, MACD line, Bollinger basis),
+  red upper and green lower Bollinger band, orange MACD signal, purple RSI, green and red
+  histogram for MACD, red ATR. Each indicator shows a legend line in its pane with its values
+  under the crosshair and the actions hide, settings and remove; adding indicators and the
+  templates are in a bar above the chart, as in TradingView.
 - **IN2** Indicator templates: a named set of indicators the user saves and applies to a chart.
 
 ### 4.5 Chart Page

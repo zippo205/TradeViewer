@@ -4,6 +4,9 @@ import { sameBar, type Bar, type BarPage } from "./bars";
 export const FIRST_PAGE_SIZE = 2000;
 export const OLDER_PAGE_SIZE = 5000;
 
+/** The values of an indicator a refresh asks for: the newest ones; a gap since the last refresh reads all again. */
+export const REFRESH_PAGE_SIZE = 500;
+
 /** Older candles are requested when fewer than this many are left to the left of the view. */
 export const LOAD_OLDER_THRESHOLD = 500;
 

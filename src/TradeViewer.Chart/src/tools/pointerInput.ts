@@ -43,6 +43,10 @@ export class PointerInput {
       return; // on the price scale: that belongs to the chart
     }
 
+    if (point.y > this.priceAreaHeight()) {
+      return; // in an indicator pane, on a separator or on the time scale: drawings live in the price pane only
+    }
+
     if (this.interaction.pointerDown(point)) {
       event.stopPropagation();
       event.preventDefault();
@@ -66,6 +70,18 @@ export class PointerInput {
     if (handled) {
       event.stopPropagation();
       event.preventDefault();
+    }
+  }
+
+  /**
+   * The height of the price pane, the first pane of the chart. The library knows it only from its first
+   * frame after the pane was made; until then there is nothing to draw on, and no press is taken.
+   */
+  private priceAreaHeight(): number {
+    try {
+      return this.chart.paneSize(0).height;
+    } catch {
+      return 0;
     }
   }
 

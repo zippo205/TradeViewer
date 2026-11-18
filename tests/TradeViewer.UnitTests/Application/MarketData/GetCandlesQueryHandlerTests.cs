@@ -4,6 +4,7 @@ using TradeViewer.Application.Features.MarketData.Queries;
 using TradeViewer.Contracts.MarketData;
 using TradeViewer.Domain.Assets;
 using TradeViewer.Domain.MarketData;
+using TradeViewer.Infrastructure.MarketData.Store;
 using TradeViewer.UnitTests.Application.Assets;
 
 namespace TradeViewer.UnitTests.Application.MarketData;
@@ -100,7 +101,7 @@ public class GetCandlesQueryHandlerTests
     [Fact]
     public async Task Wrong_requests_are_errors()
     {
-        var unknownAsset = await new GetCandlesQueryHandler(_assets, _store)
+        var unknownAsset = await new GetCandlesQueryHandler(new CandleSeriesReader(_assets, _store))
             .HandleAsync(new GetCandlesQuery("binance", "ETHUSDT", "15m", null, null), CancellationToken.None);
         var notOfTheAsset = await GetAsync("4h", null, null);
         var noTimeframe = await GetAsync("7m", null, null);
@@ -117,7 +118,7 @@ public class GetCandlesQueryHandlerTests
 
     private Task<Result<CandlesResponse>> GetAsync(string timeframe, long? to, int? limit)
     {
-        return new GetCandlesQueryHandler(_assets, _store)
+        return new GetCandlesQueryHandler(new CandleSeriesReader(_assets, _store))
             .HandleAsync(new GetCandlesQuery("binance", "BTCUSDT", timeframe, to, limit), CancellationToken.None);
     }
 }

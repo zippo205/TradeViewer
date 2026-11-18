@@ -10,6 +10,8 @@ using TradeViewer.Application.Features.ChartSettings.Queries;
 using TradeViewer.Application.Features.Drawings.Commands;
 using TradeViewer.Application.Features.Drawings.Handlers;
 using TradeViewer.Application.Features.Drawings.Queries;
+using TradeViewer.Application.Features.Indicators.Handlers;
+using TradeViewer.Application.Features.Indicators.Queries;
 using TradeViewer.Application.Features.MarketData.Handlers;
 using TradeViewer.Application.Features.MarketData.Queries;
 using TradeViewer.Application.Features.Watchlists.Commands;
@@ -21,6 +23,7 @@ using TradeViewer.Application.Features.Workspace.Queries;
 using TradeViewer.Contracts.Assets;
 using TradeViewer.Contracts.Charts;
 using TradeViewer.Contracts.Drawings;
+using TradeViewer.Contracts.Indicators;
 using TradeViewer.Contracts.MarketData;
 using TradeViewer.Contracts.Watchlists;
 using TradeViewer.Contracts.Workspace;
@@ -48,6 +51,9 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<GetCandlesQuery, CandlesResponse>, GetCandlesQueryHandler>();
         services.AddScoped<IQueryHandler<GetGapsQuery, IReadOnlyList<GapResponse>>, GetGapsQueryHandler>();
 
+        // Indicators
+        services.AddScoped<IQueryHandler<GetIndicatorQuery, IndicatorResponse>, GetIndicatorQueryHandler>();
+
         // Watchlists
         services.AddScoped<IQueryHandler<GetWatchlistsQuery, IReadOnlyList<WatchlistResponse>>, GetWatchlistsQueryHandler>();
         services.AddScoped<ICommandHandler<ReorderWatchlistCommand, Unit>, ReorderWatchlistCommandHandler>();
@@ -63,6 +69,10 @@ public static class DependencyInjection
         // ChartSettings
         services.AddScoped<IQueryHandler<GetChartSettingsQuery, ChartSettingsResponse>, GetChartSettingsQueryHandler>();
         services.AddScoped<ICommandHandler<SaveChartSettingsCommand, ChartSettingsResponse>, SaveChartSettingsCommandHandler>();
+        services.AddScoped<IQueryHandler<GetIndicatorDefaultsQuery, IReadOnlyList<IndicatorRecord>>, GetIndicatorDefaultsQueryHandler>();
+        services.AddScoped<IQueryHandler<GetIndicatorTemplatesQuery, IReadOnlyList<IndicatorTemplateRecord>>, GetIndicatorTemplatesQueryHandler>();
+        services.AddScoped<ICommandHandler<SaveIndicatorTemplateCommand, IndicatorTemplateRecord>, SaveIndicatorTemplateCommandHandler>();
+        services.AddScoped<ICommandHandler<DeleteIndicatorTemplateCommand, Unit>, DeleteIndicatorTemplateCommandHandler>();
 
         // Workspace
         services.AddScoped<IQueryHandler<GetSettingsQuery, SettingsResponse>, GetSettingsQueryHandler>();

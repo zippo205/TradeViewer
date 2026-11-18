@@ -192,7 +192,8 @@ public class AssetRepositoryTests : IDisposable
         var asset = await older.Assets.GetAsync("binance", "BTCUSDT", CancellationToken.None);
 
         Assert.Equal("BTCUSDT", asset!.Info.Ticker);
-        Assert.Contains(older.Store.List(), backup => backup.Name.EndsWith("-before-v6.db", StringComparison.Ordinal));
+        var latest = WorkspaceSchema.FromEmbeddedScripts().LatestVersion;
+        Assert.Contains(older.Store.List(), backup => backup.Name.EndsWith("-before-v" + latest + ".db", StringComparison.Ordinal));
     }
 
     private static SymbolInfo Symbol(string symbol, string name, AssetClass assetClass, double tickSize)

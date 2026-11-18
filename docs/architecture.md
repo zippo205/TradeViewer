@@ -124,8 +124,8 @@ Features/
 ├── Assets            symbol list, add, history, remove (AS2-AS5)
 ├── MarketData        candles, current candle, import, sync status, gaps (MD1-MD8)
 ├── Watchlists        the five fixed lists, order, row figures (AS1, AS6)
-├── ChartSettings     settings per asset (CP2): so far "drawings hidden" (DR6)
-├── Indicators        calculation requests, indicator templates (IN1, IN2)
+├── ChartSettings     settings per asset (CP2): indicators, "drawings hidden" (DR6); indicator templates (IN2)
+├── Indicators        calculation requests (IN1)
 ├── Drawings          drawings, Fibonacci presets (DR1-DR6)
 ├── Downloader        status and subscriptions for the monitoring page (DL1-DL4)
 ├── EwtsInstances     registration, status, observed assets, overview, details (EW1-EW6)
@@ -192,9 +192,11 @@ answered with 500 without internal details.
 ```text
 Abstractions/
 ├── Messaging     the CQRS interfaces, Result, Error, FileContent
-├── MarketData    ICandleStore, ICandleFileReader, IDownloaderClient, ISymbolCatalog
+├── MarketData    ICandleStore, ICandleSeriesReader (a page as the chart shows it, with warm-up), ICandleFileReader,
+│                 IDownloaderClient, ISymbolCatalog
 ├── Ewts          IEwtsClient, IScenarioFileReader, IExpertAnalysisStore
-├── Workspace     one repository interface per feature: IAssetRepository, IChartSettingsRepository, IDrawingRepository, IEwtsInstanceRepository, ...;
+├── Workspace     one repository interface per feature: IAssetRepository, IChartSettingsRepository, IIndicatorTemplateRepository,
+│                 IDrawingRepository, IEwtsInstanceRepository, ...;
 │                 ISettingsRepository, IWorkspaceBackups
 └── Realtime      IWorkspaceNotifier (implemented by the Api on top of the SignalR hub)
 ```
@@ -221,9 +223,12 @@ TimeframeAggregator builds a timeframe, or only its current candle, from a lower
                     built so far: the current candle for a continuous session
 CandleFileRules     file name -> period, row validation (see downloader-interface.md)
 
-Indicator           Sma, Ema, BollingerBands, Rsi, Macd, Atr: candles + parameters -> series
-IndicatorInstance   indicator type, parameters, style
-IndicatorTemplate   name, indicator instances
+Indicator           Sma, Ema, BollingerBands, Rsi, Macd, Atr: candles + parameters -> named lines, one
+                    double? per candle, as TradingView's built-in scripts calculate them (seeds included);
+                    WarmUp says how many candles before a page a calculation needs
+IndicatorParameters one record per type with the defaults of IN1; IndicatorRules: allowed values
+IndicatorInstance   id, parameters, style per line (colour, width), hidden
+IndicatorTemplate   id, name, indicator instances
 
 ChartSettings       asset, indicator instances, drawings hidden, selected EWTS instance, hidden groups
                     (the price scale mode is one setting for all charts, see chapter 9)
@@ -377,8 +382,14 @@ GET /api/candles/{source}/{symbol}/{timeframe}?to={time}&limit={n}
   element; the response carries `"partial": true` then. It is not stored. `CandlesUpdated`
   of the smallest timeframe also tells open charts of higher timeframes to reload their last
   candle. Indicators use the same series including the current candle.
-- Indicators are calculated on request from the stored candles with the warm-up they need and
-  returned in the same column format: `GET /api/indicators/{source}/{symbol}/{timeframe}`.
+- Indicators are calculated on request from the stored candles and returned in the same column
+  format: `GET /api/indicators/{source}/{symbol}/{timeframe}?type=&length=&deviation=&fast=&slow=&signal=&price=&to=&limit=`
+  -> `{ "t": [...], "lines": { "basis": [...], ... }, "partial": ... }`. The candles are read exactly
+  as for /api/candles (`ICandleSeriesReader`, the same `to` and `limit`, the current candle), so `t`
+  is the candle page; the warm-up candles before the page are read with it, enough that a page
+  equals a calculation over the whole history (EMA and RMA to 1e-10 of their start). A value is
+  null where the indicator is not defined yet. Parameters left out take the defaults of IN1; one the
+  type does not have is 400. Nothing is cached: 2,000 values of RSI on 15m take 14 ms.
 - A cache of the most recently used series is not built: a page comes from SQLite in 2 to 17 ms
   (see the measurement above). It is added in the Price Chart epic only if NF1 is missed on the Pi.
   `limit` counts closed candles; the current candle comes on top.
@@ -501,13 +512,16 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/assets/{source}/{symbol}/rescan          reload the files; /rebuild deletes the candles and imports again (MD5)
 /api/candles/{source}/{symbol}/{timeframe}    column arrays; 422 when the timeframe can be neither read nor built (MD3)
 /api/gaps/{source}/{symbol}/{timeframe}       the gaps the source confirmed, within the history of the asset (MD4)
-/api/indicators/{source}/{symbol}/{timeframe}
-/api/indicator-templates
+/api/indicators/{source}/{symbol}/{timeframe}  one indicator for the candle page that to and limit name (see 6)
+/api/indicator-defaults                       a new indicator of each kind with the defaults of IN1, ids empty
+/api/indicator-templates                      list by name; /{id} put (new or replaced), delete; 409 for a name
+                                              another template has, whatever the case
 /api/watchlists                               the five lists with their rows and figures (AS6)
 /api/watchlists/{assetClass}/order            put: all assets of one list in their new order; 409 when
                                               the list has other assets than the order names
-/api/chart-settings/{source}/{symbol}         get, put: the settings per asset (CP2); the defaults when never
-                                              saved; 404 for an unknown asset
+/api/chart-settings/{source}/{symbol}         get, put: the settings per asset (CP2): drawings hidden and the
+                                              indicators; the defaults when never saved; 404 for an unknown
+                                              asset; a put without indicators (null) keeps the saved ones
 /api/settings                                 default history, last chart, price scale mode and magnet of all
                                               charts (AS3, CP3, CP2, DR2); get, put (a part that is null stays)
 /api/drawings/{source}/{symbol}               the drawings of an asset in the order they were made
@@ -540,9 +554,9 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 - Drawings get their id (UUID) from the client and are written with an idempotent `PUT`, so the
   client can show a change at once and save it in the background (NF3, WS1). Chart settings,
   settings and the order of a watchlist are replaced as a whole.
-- A request that changes drawings names its window in the header `X-TradeViewer-Window` (a
-  UUID per browser window); the hub event `DrawingsChanged` carries it back, so that window
-  ignores its own change.
+- A request that changes drawings or chart settings names its window in the header
+  `X-TradeViewer-Window` (a UUID per browser window); the hub events `DrawingsChanged` and
+  `ChartSettingsChanged` carry it back, so that window ignores its own change.
 - The lock of a drawing (DR2) is kept by the chart, not checked by the Api: the client sends only
   the last of several changes of one drawing, so "unlock, then move" arrives as one save that must
   not be refused.
@@ -561,6 +575,7 @@ CandlesUpdated(source, symbol, timeframes)    timeframes as codes
 AssetStatusChanged(source, symbol)
 DownloaderStatusChanged(reachable)
 DrawingsChanged(source, symbol, window)        a drawing of the asset was saved or deleted by that window
+ChartSettingsChanged(source, symbol, window)   the chart settings of the asset (indicators included) were saved
 EwtsInstanceStatusChanged(instanceId, reachable)
 OverlaysChanged(instanceId, symbol)
 TestRunChanged(instanceId, testRunId, state)
@@ -591,9 +606,10 @@ TradeViewer.Chart/src/
 │                          jump to latest (CH5), the message shown instead of a chart without data
 ├── range.ts               the rules of the visible range as pure functions (CH3, CH5)
 ├── format.ts, theme.ts    price format from the tick size, UTC times (MD7), colours for light and dark
-├── data/                  fetching candles from the Api (later indicators and gaps), the page cache
-│                          (SeriesData), when to load older candles (CH4)
-├── indicators/            indicator series and panes (values come from the Api)
+├── data/                  fetching candles and gaps from the Api, the page cache (SeriesData), when to load
+│                          older candles (CH4)
+├── indicators/            the indicators (IN1): their values from /api/indicators paged with the candles
+│                          (IndicatorValues), series and panes (IndicatorSet), band fill, legend lines
 ├── tools/                 interaction: time-to-index mapping, geometry and hit testing, dragging,
 │                          pointer input taken before the chart, tool state machine
 └── primitives/            the drawing layer (one series primitive holding all drawings, one class
@@ -606,7 +622,7 @@ TradeViewer.Chart/src/
 Blazor -> chart    createPane, setSeries(asset, timeframe), setIndicators, setDrawings,
                    setOverlays, setTool(tool, style), setDrawingOptions(magnet, hidden),
                    selectDrawing, setOptions, refresh, dispose
-chart  -> Blazor   drawingCreated, drawingChanged, selectionChanged, toolChanged
+chart  -> Blazor   drawingCreated, drawingChanged, selectionChanged, toolChanged, indicatorAction(id, action)
 ```
 
 Deleting a drawing is an action of Web (the bar of the selected drawing, the Delete key): Web
@@ -615,10 +631,11 @@ context menu; the bar of the selected drawing does what one would.
 
 - `ChartHost` (Web) wraps the calls in typed C# methods; events return through a
   `DotNetObjectReference`. Built so far: createPane, setSeries (asset, timeframe, tick size),
-  setOptions (price scale mode), refresh, dispose, and the drawing calls and events; the calls for
-  indicators and overlays come with their epics. Three helpers of the module serve the page:
-  `bindDrawingEvents` (the events of a pane to ChartHost), `bindPageKeys` (Delete, Ctrl+Z, Ctrl+Y and
-  Ctrl+Shift+Z on the page, not while typing in a field) and `warnWhenLeaving`.
+  setOptions (price scale mode), refresh, dispose, the drawing calls and events, and setIndicators
+  with indicatorAction; the calls for overlays come with their epic. Four helpers of the module serve
+  the page: `bindDrawingEvents` (the events of a pane to ChartHost), `bindIndicatorActions` (hide,
+  settings, remove from a legend line), `bindPageKeys` (Delete, Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z on the
+  page, not while typing in a field) and `warnWhenLeaving`.
 - The chart page is `/chart/{source}/{symbol}/{timeframe}` (CP1); changing asset or timeframe
   changes the address without a page load. `/` opens the last chart (CP3), or the assets page when
   there is none. The chart stays alive across such changes: only the series is replaced.
@@ -662,7 +679,26 @@ context menu; the bar of the selected drawing does what one would.
   over 16.8 ms and no long task, the same as on an empty chart (NF3).
 - Other windows follow (CP1): a window that shows an asset reads its drawings again when the hub
   reports `DrawingsChanged` for it from another window, so a line drawn on 4h appears in the 1d
-  window beside it. The window that made the change ignores its own event.
+  window beside it, and its chart settings on `ChartSettingsChanged`, so its next save does not undo
+  the other window's indicators. The window that made the change ignores its own event.
+- Indicators (IN1, IN2): `setIndicators` takes the records of the chart settings unchanged; an
+  unchanged one keeps its values, a changed parameter fetches again, a changed style redraws. SMA,
+  EMA and BB are drawn in the price pane, every RSI, MACD and ATR in a pane of its own below, in the
+  order added, with a quarter of the price pane's height; these panes stay linear when the price
+  scale is logarithmic. Their values are fetched in parallel with the candles of a new series and
+  drawn together with them; an older candle page fetches the same page of every indicator; a
+  refresh asks for the newest 500. Legend lines: the price indicators below the candle legend, the
+  others at the top of their pane, placed from `paneSize` whenever a pane element resizes (the
+  library has no event for it); hide, settings and remove show on hover. Web has a bar above the
+  chart with "Indicators" (the six, with the defaults read from /api/indicator-defaults) and
+  "Templates" (apply replaces with copies, save, delete), and a settings dialog per indicator. Every
+  change saves the chart settings at once; until they are read, a save leaves the indicators out.
+- Drawing tools act in the price pane only: a press below it goes to the library, so in an
+  indicator pane the chart pans as on an empty chart.
+- Measured with the six indicators on the chart (WSL, headless Chromium): click to painted
+  candles and indicators worst 128 ms, median 95 ms (NF1: 150 ms); the indicators arrive before the
+  candles and are painted in the same frame. Zoom, pan and crosshair 60 frames per second with no
+  request (NF2).
 - Candles and indicator values never go through interop: Blazor passes asset and timeframe, the
   module fetches the column arrays itself.
 - Web owns the list of drawings and saves it; the module owns the geometry while the user drags
@@ -747,7 +783,7 @@ workspace.db     what the user creates     backed up, upgraded, never deleted
 
 Workspace tables: assets (with their position in the watchlist, their history per timeframe and
 the unsubscriptions still to be sent), chart settings per asset,
-indicator templates, drawings, Fibonacci presets, EWTS instances (with the last seen change
+indicator templates (script 0007, name unique whatever the case), drawings, Fibonacci presets, EWTS instances (with the last seen change
 and alert numbers), settings (default history, last chart).
 
 - Microsoft.Data.Sqlite with plain SQL
@@ -761,7 +797,9 @@ and alert numbers), settings (default history, last chart).
 - Every use of workspace.db goes through `WorkspaceDatabase.OpenAsync`, which hands out a pooled
   connection together with a shared lease. Code holding one must not ask for a second
 - Chart settings, indicator instances and drawings are stored as JSON with a type discriminator
-  and a payload version, so a new drawing type needs no schema change
+  and a payload version, so a new drawing type needs no schema change. An indicator carries its
+  type code and only the parameters of its type; one a build cannot read is left out, the others
+  of the list stay
 - Backups are made with the SQLite online backup API into `backups/`: once a day at
   `Storage:Backup:Time`, at once after a start when the backup of the day is missing, before a
   schema upgrade, and when the user asks for one. The name tells time (UTC) and kind:

@@ -19,4 +19,10 @@ public interface IWorkspaceNotifier
     /// when unknown): it ignores the event, every other window showing the asset reads its drawings again.
     /// </summary>
     Task DrawingsChangedAsync(string source, string symbol, string window);
+
+    /// <summary>
+    /// The chart settings of the asset were saved (CP2). Window is the id of the window that saved them (empty when
+    /// unknown): it ignores the event, every other window showing the asset reads the settings again.
+    /// </summary>
+    Task ChartSettingsChangedAsync(string source, string symbol, string window);
 }

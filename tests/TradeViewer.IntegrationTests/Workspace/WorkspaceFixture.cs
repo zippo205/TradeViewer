@@ -52,6 +52,8 @@ public sealed class WorkspaceFixture : IDisposable
 
     public FibonacciPresetRepository Presets { get; private set; } = null!;
 
+    public IndicatorTemplateRepository Templates { get; private set; } = null!;
+
     public static SchemaScript ExtraScript(int version, string sql)
     {
         return new SchemaScript(version, version.ToString("0000") + "_test.sql", sql);
@@ -88,6 +90,7 @@ public sealed class WorkspaceFixture : IDisposable
         ChartSettings = new ChartSettingsRepository(Database, Clock);
         Drawings = new DrawingRepository(Database, Clock);
         Presets = new FibonacciPresetRepository(Database, Clock);
+        Templates = new IndicatorTemplateRepository(Database, Clock);
     }
 
     public DailyBackupService DailyService(string time = "03:00")

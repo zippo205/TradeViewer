@@ -1,6 +1,5 @@
 // Entry point of the chart module, imported by Blazor (ChartHost). It exposes the calls of the
-// interop contract (architecture, chapter 10); the calls for indicators, drawings and overlays are
-// added by their epics.
+// interop contract (architecture, chapter 10); the calls for overlays are added by their epic.
 import { ChartPane, type PaneOptions } from "./chartPane";
 
 export { moduleInfo } from "./moduleInfo";
@@ -8,6 +7,8 @@ export type { ModuleInfo } from "./moduleInfo";
 export type { PaneOptions, PaneStats, SeriesRequest } from "./chartPane";
 export type { Anchor, Drawing, DrawingStyle, LineStyle, ToolCode } from "./primitives/drawing";
 export type { DrawingEvents, DrawingOptions } from "./tools/interaction";
+export type { IndicatorInstance, IndicatorStyle, IndicatorType } from "./indicators/indicator";
+export type { IndicatorAction } from "./indicators/legend";
 
 const openPanes = new Set<ChartPane>();
 
@@ -23,4 +24,4 @@ export function panes(): ChartPane[] {
   return [...openPanes];
 }
 
-export { bindDrawingEvents, bindPageKeys, warnWhenLeaving } from "./blazorBridge";
+export { bindDrawingEvents, bindIndicatorActions, bindPageKeys, warnWhenLeaving } from "./blazorBridge";

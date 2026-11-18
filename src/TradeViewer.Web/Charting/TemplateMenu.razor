@@ -1,0 +1,153 @@
+@inject IndicatorsApi Api
+
+@* "Templates" in the bar above the chart (IN2): applying one replaces the indicators of the chart, saving keeps the
+   current indicators under a name. Deleting asks once more: a template is the user's work (priority 1). *@
+<div class="menu-anchor">
+    <button type="button" class="@(_open ? "selected" : "")" title="Indicator templates" disabled="@(!Enabled)" @onclick="ToggleAsync">
+        Templates
+    </button>
+    @if (_open)
+    {
+        @* A click anywhere else closes the menu, as in TradingView. *@
+        <div class="menu-backdrop" @onclick="() => _open = false"></div>
+        <div class="menu template-menu" role="menu">
+            @if (_templates == null)
+            {
+                <span class="muted">Loading...</span>
+            }
+            else if (_templates.Count == 0)
+            {
+                <span class="muted">No templates yet.</span>
+            }
+            else
+            {
+                @foreach (var template in _templates)
+                {
+                    <div class="template-row" @key="template.Id">
+                        <button type="button" role="menuitem" title="@Summary(template)" @onclick="() => ApplyAsync(template)">@template.Name</button>
+                        @if (_deleting == template.Id)
+                        {
+                            <button type="button" class="danger" @onclick="() => DeleteAsync(template)">Delete?</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="template-delete" title="Delete this template" @onclick="() => _deleting = template.Id">✕</button>
+                        }
+                    </div>
+                }
+            }
+
+            <div class="template-save">
+                <input type="text" placeholder="Name" aria-label="Name of the new template" maxlength="100" @bind="_name" @bind:event="oninput" @onkeydown="SaveOnEnterAsync" />
+                <button type="button" disabled="@(Current.Count == 0 || string.IsNullOrWhiteSpace(_name) || _busy)" title="Save the indicators of this chart under the name" @onclick="SaveAsync">Save</button>
+            </div>
+
+            @if (_message != null)
+            {
+                <span class="@(_failed ? "status-bad" : "status-ok")">@_message</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool _open;
+    private bool _busy;
+    private List<IndicatorTemplateRecord>? _templates;
+    private Guid? _deleting;
+    private string _name = string.Empty;
+    private string? _message;
+    private bool _failed;
+
+    [Parameter]
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>The indicators of the chart, which "Save" keeps under a name.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<IndicatorRecord> Current { get; set; } = Array.Empty<IndicatorRecord>();
+
+    [Parameter]
+    public EventCallback<IndicatorTemplateRecord> OnApply { get; set; }
+
+    /// <summary>The list is read each time the menu opens: another window may have saved one meanwhile.</summary>
+    private async Task ToggleAsync()
+    {
+        _open = !_open;
+        _deleting = null;
+        _message = null;
+        if (_open)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        var templates = await Api.GetTemplatesAsync();
+        _templates = templates.Value ?? new List<IndicatorTemplateRecord>();
+        if (templates.Error != null)
+        {
+            Show(templates.Error, true);
+        }
+    }
+
+    private async Task ApplyAsync(IndicatorTemplateRecord template)
+    {
+        _open = false;
+        await OnApply.InvokeAsync(template);
+    }
+
+    private async Task SaveOnEnterAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SaveAsync();
+        }
+    }
+
+    /// <summary>The template keeps copies: changing the chart's indicators later leaves it as it is.</summary>
+    private async Task SaveAsync()
+    {
+        if (Current.Count == 0 || string.IsNullOrWhiteSpace(_name) || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        var template = new IndicatorTemplateRecord(Guid.NewGuid(), _name.Trim(), Current.Select(indicator => indicator with { Id = Guid.NewGuid() }).ToList());
+        var saved = await Api.SaveTemplateAsync(template);
+        _busy = false;
+        if (saved.Value == null)
+        {
+            Show(saved.Error, true);
+            return;
+        }
+
+        _name = string.Empty;
+        Show("Saved as " + saved.Value.Name + ".", false);
+        await LoadAsync();
+    }
+
+    private async Task DeleteAsync(IndicatorTemplateRecord template)
+    {
+        _deleting = null;
+        var problem = await Api.DeleteTemplateAsync(template.Id);
+        if (problem != null)
+        {
+            Show(problem, true);
+        }
+
+        await LoadAsync();
+    }
+
+    private void Show(string? message, bool failed)
+    {
+        _message = message;
+        _failed = failed;
+    }
+
+    private static string Summary(IndicatorTemplateRecord template)
+    {
+        return string.Join(", ", template.Indicators.Select(indicator => IndicatorNames.Name(indicator.Type)));
+    }
+}

@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject AssetsApi Api
 @inject DrawingsApi DrawingsApi
+@inject IndicatorsApi IndicatorsApi
 @inject DrawingSession Session
 @inject DrawingSaveQueue Saves
 
@@ -36,6 +37,13 @@
             </div>
 
             <label title="Logarithmic price scale"><input type="checkbox" checked="@_logScale" @onchange="OnLogScaleChanged" /> log</label>
+
+            <IndicatorMenu Enabled="@IndicatorsEditable" OnAdd="AddIndicatorAsync" />
+            <TemplateMenu Enabled="@IndicatorsEditable" Current="@_indicators" OnApply="ApplyTemplateAsync" />
+            @if (_indicatorError != null)
+            {
+                <span class="status-bad">@_indicatorError</span>
+            }
 
             @if (_asset.Loading)
             {
@@ -82,7 +90,13 @@
                            OnDrawingChanged="OnDrawingChanged"
                            OnSelectionChanged="OnSelectionChanged"
                            OnToolChanged="OnToolChanged"
+                           OnIndicatorAction="OnIndicatorActionAsync"
                            OnKey="OnKey" />
+                @if (_editing != null)
+                {
+                    <IndicatorSettingsDialog Indicator="@_editing" Defaults="@DefaultOf(_editing.Type)" Problem="@_editingProblem"
+                                             OnSave="SaveEditedIndicatorAsync" OnCancel="() => { _editing = null; _editingProblem = null; }" />
+                }
                 @if (Session.Selected != null && !_hidden)
                 {
                     <DrawingBar Drawing="@Session.Selected" Wave="@((_waveDegree, _waveLabel))" OnEdit="OnDrawingEdited" OnDelete="() => Session.Delete(Session.Selected.Id)" />
@@ -132,6 +146,15 @@
     private string? _lastPattern;
     private List<FibonacciPresetRecord> _presets = new List<FibonacciPresetRecord>();
 
+    // Indicators (IN1, IN2): those of the asset shown, as its chart settings hold them, and the asset they belong to.
+    private List<IndicatorRecord> _indicators = new List<IndicatorRecord>();
+    private string? _settingsAsset;
+    private List<IndicatorRecord> _indicatorDefaults = new List<IndicatorRecord>();
+    private IndicatorRecord? _editing;
+    private string? _editingProblem;
+    private string? _indicatorError;
+    private readonly SemaphoreSlim _settingsSaves = new SemaphoreSlim(1, 1);
+
     /// <summary>The preset chosen per kind (retracement, extension) in this window; the first of the kind before a choice.</summary>
     private readonly Dictionary<string, Guid> _chosenPresets = new Dictionary<string, Guid>();
 
@@ -154,6 +177,7 @@
     {
         Events.CandlesUpdated += OnCandlesUpdated;
         Events.DrawingsChanged += OnDrawingsChanged;
+        Events.ChartSettingsChanged += OnChartSettingsChanged;
         Events.AssetStatusChanged += OnAssetStatusChanged;
         Events.Reconnected += OnReconnected;
         _ = Events.StartAsync();
@@ -168,6 +192,10 @@
         // The Fibonacci presets (DR4): a new Fibonacci drawing copies the levels of the one chosen.
         var presets = await DrawingsApi.GetPresetsAsync();
         _presets = presets.Value ?? new List<FibonacciPresetRecord>();
+
+        // A new indicator starts with TradingView's defaults (IN1); they live in the Domain and are read here once.
+        var defaults = await IndicatorsApi.GetDefaultsAsync();
+        _indicatorDefaults = defaults.Value ?? new List<IndicatorRecord>();
 
         await LoadAssetsAsync();
         _settingsRead = true;
@@ -206,6 +234,7 @@
         _disposed = true;
         Events.CandlesUpdated -= OnCandlesUpdated;
         Events.DrawingsChanged -= OnDrawingsChanged;
+        Events.ChartSettingsChanged -= OnChartSettingsChanged;
         Events.AssetStatusChanged -= OnAssetStatusChanged;
         Events.Reconnected -= OnReconnected;
         Session.Changed -= OnSessionChanged;
@@ -323,6 +352,20 @@
         _ = InvokeAsync(() => LoadDrawingsAsync(source, symbol));
     }
 
+    /// <summary>
+    /// Another window saved the chart settings of the asset shown (its indicators, "drawings hidden"): this one reads
+    /// them again, so its next save does not undo the other window's change (CP2, priority 1).
+    /// </summary>
+    private void OnChartSettingsChanged(string source, string symbol, string window)
+    {
+        if (source != Source || symbol != Symbol || window == Window.Id || _disposed)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() => LoadChartSettingsAsync(source, symbol));
+    }
+
     private void OnAssetStatusChanged(string source, string symbol)
     {
         if (source == Source && symbol == Symbol && !_disposed)
@@ -371,26 +414,60 @@
 
         _drawingsAsset = asset;
         Session.Show(source, symbol, Array.Empty<DrawingRecord>());
+
+        // The indicators of the last asset go at once, before the chart reads the candles of the new one.
+        _indicators = new List<IndicatorRecord>();
+        _settingsAsset = null;
+        _editing = null;
+        _ = PushIndicatorsAsync();
         _ = LoadDrawingsAsync(source, symbol);
     }
 
     private async Task LoadDrawingsAsync(string source, string symbol)
     {
         var drawings = await DrawingsApi.GetAsync(source, symbol);
-        var settings = await DrawingsApi.GetChartSettingsAsync(source, symbol);
         if (_disposed || _drawingsAsset != Key(source, symbol))
         {
             return; // the user has moved on to another asset meanwhile
         }
 
         _drawingError = drawings.Error == null ? null : "Drawings could not be read: " + drawings.Error;
-        _hidden = settings.Value?.DrawingsHidden ?? false;
-        await PushOptionsAsync();
         if (drawings.Value != null)
         {
             Session.Show(source, symbol, drawings.Value);
         }
 
+        await LoadChartSettingsAsync(source, symbol);
+    }
+
+    /// <summary>The chart settings of the asset (CP2): "drawings hidden" and the indicators.</summary>
+    private async Task LoadChartSettingsAsync(string source, string symbol)
+    {
+        var settings = await DrawingsApi.GetChartSettingsAsync(source, symbol);
+        if (_disposed || _drawingsAsset != Key(source, symbol))
+        {
+            return;
+        }
+
+        if (settings.Value == null)
+        {
+            // Not read: the indicators stay as they are and cannot be changed, so no save replaces what is stored.
+            _indicatorError = "Indicators could not be read: " + settings.Error;
+            StateHasChanged();
+            return;
+        }
+
+        _hidden = settings.Value.DrawingsHidden;
+        _indicators = (settings.Value.Indicators ?? Array.Empty<IndicatorRecord>()).ToList();
+        _settingsAsset = Key(source, symbol);
+        _indicatorError = null;
+        if (_editing != null && _indicators.All(indicator => indicator.Id != _editing.Id))
+        {
+            _editing = null; // removed in another window
+        }
+
+        await PushOptionsAsync();
+        await PushIndicatorsAsync();
         StateHasChanged();
     }
 
@@ -398,6 +475,7 @@
     private async Task OnChartReadyAsync()
     {
         await PushOptionsAsync();
+        await PushIndicatorsAsync();
         await PushDrawingsAsync();
         if (_chart != null)
         {
@@ -411,6 +489,124 @@
         {
             var drawings = Session.Drawings.Select(ChartDrawings.ToChart).ToList();
             await _chart.SetDrawingsAsync(drawings, Session.SelectedId?.ToString());
+        }
+    }
+
+    private async Task PushIndicatorsAsync()
+    {
+        if (_chart != null)
+        {
+            await _chart.SetIndicatorsAsync(_indicators);
+        }
+    }
+
+    /// <summary>Indicators can be changed once the settings of the asset are read: a save replaces them as a whole.</summary>
+    private bool IndicatorsEditable => _settingsAsset == Key(Source, Symbol) && _indicatorDefaults.Count > 0;
+
+    private IndicatorRecord? DefaultOf(string type)
+    {
+        return _indicatorDefaults.FirstOrDefault(indicator => indicator.Type == type);
+    }
+
+    /// <summary>A new indicator with TradingView's defaults, below the others (IN1); it shows and is saved at once.</summary>
+    private async Task AddIndicatorAsync(string type)
+    {
+        var template = DefaultOf(type);
+        if (template == null || !IndicatorsEditable)
+        {
+            return;
+        }
+
+        _indicators = _indicators.Append(template with { Id = Guid.NewGuid() }).ToList();
+        await PushIndicatorsAsync();
+        await SaveChartSettingsAsync();
+    }
+
+    /// <summary>Applying a template replaces the indicators of the chart with copies of its own (proposal 4).</summary>
+    private async Task ApplyTemplateAsync(IndicatorTemplateRecord template)
+    {
+        if (!IndicatorsEditable)
+        {
+            return;
+        }
+
+        _indicators = template.Indicators.Select(indicator => indicator with { Id = Guid.NewGuid() }).ToList();
+        _editing = null;
+        await PushIndicatorsAsync();
+        await SaveChartSettingsAsync();
+    }
+
+    /// <summary>Hide, settings and remove from the legend line of an indicator.</summary>
+    private async Task OnIndicatorActionAsync((string Id, string Action) request)
+    {
+        var indicator = _indicators.FirstOrDefault(candidate => candidate.Id.ToString() == request.Id);
+        if (indicator == null || !IndicatorsEditable)
+        {
+            return;
+        }
+
+        switch (request.Action)
+        {
+            case "hide":
+                _indicators = _indicators.Select(candidate => candidate.Id == indicator.Id ? candidate with { Hidden = !candidate.Hidden } : candidate).ToList();
+                break;
+            case "remove":
+                _indicators = _indicators.Where(candidate => candidate.Id != indicator.Id).ToList();
+                if (_editing?.Id == indicator.Id)
+                {
+                    _editing = null;
+                }
+
+                break;
+            case "settings":
+                _editing = indicator;
+                _editingProblem = null;
+                return;
+            default:
+                return;
+        }
+
+        await PushIndicatorsAsync();
+        await SaveChartSettingsAsync();
+    }
+
+    /// <summary>OK in the settings dialog: shown and saved; a change the Api refuses keeps the dialog open with the reason.</summary>
+    private async Task SaveEditedIndicatorAsync(IndicatorRecord edited)
+    {
+        var before = _indicators;
+        _indicators = _indicators.Select(candidate => candidate.Id == edited.Id ? edited : candidate).ToList();
+        var problem = await SaveChartSettingsAsync();
+        if (problem != null)
+        {
+            _indicators = before;
+            _editingProblem = problem;
+            _indicatorError = null;
+            return;
+        }
+
+        _editing = null;
+        _editingProblem = null;
+        await PushIndicatorsAsync();
+    }
+
+    /// <summary>
+    /// Saves the chart settings of the asset at once (WS1), one save at a time, each with what the window shows when it
+    /// is sent. Until the settings are read the indicators are left out, which keeps the saved ones (priority 1).
+    /// </summary>
+    /// <returns>Null when saved, otherwise the reason.</returns>
+    private async Task<string?> SaveChartSettingsAsync()
+    {
+        await _settingsSaves.WaitAsync();
+        try
+        {
+            var indicators = _settingsAsset == Key(Source, Symbol) ? _indicators : null;
+            var problem = await DrawingsApi.SaveChartSettingsAsync(Source, Symbol, new ChartSettingsResponse(_hidden, indicators));
+            _indicatorError = problem == null ? null : "Not saved: " + problem;
+            return problem;
+        }
+        finally
+        {
+            _settingsSaves.Release();
         }
     }
 
@@ -633,7 +829,7 @@
     {
         _hidden = hidden;
         await PushOptionsAsync();
-        var problem = await DrawingsApi.SaveChartSettingsAsync(Source, Symbol, new ChartSettingsResponse(hidden));
+        var problem = await SaveChartSettingsAsync();
         _drawingError = problem == null ? null : "Not saved: " + problem;
     }
 

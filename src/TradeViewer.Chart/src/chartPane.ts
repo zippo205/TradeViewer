@@ -15,8 +15,11 @@ import {
 import type { Bar } from "./data/bars";
 import { CandleRequestError, fetchCandles, type SeriesKey } from "./data/candleClient";
 import { fetchGaps, gapText, placeGaps, type Gap } from "./data/gaps";
-import { FIRST_PAGE_SIZE, OLDER_PAGE_SIZE, SeriesData, shouldLoadOlder } from "./data/seriesData";
+import { FIRST_PAGE_SIZE, OLDER_PAGE_SIZE, REFRESH_PAGE_SIZE, SeriesData, shouldLoadOlder } from "./data/seriesData";
 import { GAP_ID_PREFIX, GapMarkers } from "./gapMarkers";
+import type { IndicatorInstance } from "./indicators/indicator";
+import { IndicatorSet } from "./indicators/indicatorSet";
+import type { IndicatorAction } from "./indicators/legend";
 import type { Drawing, DrawingStyle, ToolCode } from "./primitives/drawing";
 import { DrawingLayer } from "./primitives/drawingLayer";
 import type { Point } from "./tools/geometry";
@@ -47,10 +50,15 @@ export interface PaneOptions {
 export interface PaneStats {
   /** Milliseconds from the last setSeries call until its candles were painted. */
   readonly lastDrawMs: number | undefined;
+  /** Milliseconds from the last setSeries call until the values of all its indicators were painted (NF1). */
+  readonly lastIndicatorsMs: number | undefined;
   /** Candles in memory. */
   readonly bars: number;
   /** Requests for candles since the pane was created. */
   readonly requests: number;
+  /** Indicators on the chart and the requests for their values since the pane was created (IN1). */
+  readonly indicators: number;
+  readonly indicatorRequests: number;
   /** The visible part in bar indices, or undefined without candles. */
   readonly visibleFrom: number | undefined;
   readonly visibleTo: number | undefined;
@@ -103,6 +111,8 @@ export class ChartPane {
   private loadingOlder = false;
   private lastDrawMs: number | undefined;
   private requests = 0;
+  private indicatorRequests = 0;
+  private readonly indicatorSet: IndicatorSet;
   private disposed = false;
 
   constructor(
@@ -157,6 +167,20 @@ export class ChartPane {
     this.volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
     this.candles.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.22 } });
 
+    // The indicators (IN1); their values are fetched with the candles, page by page.
+    this.indicatorSet = new IndicatorSet(
+      this.chart,
+      container,
+      {
+        key: () => this.request,
+        oldestBarTime: () => this.data.oldestTime,
+        priceFormat: () => this.priceFormat,
+        fetcher: this.fetcher,
+        counted: () => this.indicatorRequests++,
+      },
+      { first: FIRST_PAGE_SIZE, older: OLDER_PAGE_SIZE, refresh: REFRESH_PAGE_SIZE },
+    );
+
     this.legend = overlay(container, "tv-chart-legend");
     this.message = overlay(container, "tv-chart-message");
     this.tooltip = overlay(container, "tv-chart-tooltip");
@@ -197,6 +221,7 @@ export class ChartPane {
 
     this.chart.subscribeCrosshairMove((event) => {
       this.showLegend(event);
+      this.indicatorSet.showValues(event.time === undefined ? undefined : (event.time as number));
       this.showGapTooltip(event);
     });
     this.chart.timeScale().subscribeVisibleLogicalRangeChange((range) => this.onRangeChanged(range));
@@ -216,6 +241,7 @@ export class ChartPane {
     this.request = request;
     this.loadingOlder = false;
     this.showMessage(this.data.bars.length === 0 ? "Loading..." : undefined);
+    this.indicatorSet.load(); // in parallel with the candles, drawn with them
 
     let data: SeriesData;
     try {
@@ -224,6 +250,7 @@ export class ChartPane {
     } catch (error) {
       if (generation === this.generation) {
         this.showError(error);
+        this.indicatorSet.release();
       }
 
       return;
@@ -239,16 +266,19 @@ export class ChartPane {
     void this.loadGaps(request, generation);
     this.priceFormat = priceFormatOf(request.tickSize);
     this.candles.applyOptions({ priceFormat: { type: "price", ...this.priceFormat } });
+    this.indicatorSet.applyPriceFormat();
     // A new series starts with the price scale fitted to its candles, whatever the user did before (CH1).
     this.candles.priceScale().applyOptions({ autoScale: true });
 
     if (data.bars.length === 0) {
       this.draw();
+      this.indicatorSet.release();
       this.showMessage(`No candles for ${request.symbol} in ${request.timeframe}.`);
       return;
     }
 
     this.draw();
+    this.indicatorSet.release();
     this.chart.timeScale().setVisibleLogicalRange(restoreView(view, data.bars, assetChanged));
     this.showMessage(undefined);
     this.showLegend(undefined);
@@ -268,6 +298,7 @@ export class ChartPane {
     }
 
     const generation = this.generation;
+    void this.indicatorSet.refresh();
     let page;
     try {
       page = await this.fetchPage(request, undefined, FIRST_PAGE_SIZE);
@@ -323,6 +354,7 @@ export class ChartPane {
       rightPriceScale: { borderColor: this.theme.border, mode: scaleMode(this.options) },
       timeScale: { borderColor: this.theme.border },
     });
+    this.indicatorSet.scalesChanged(); // the mode is for the price pane only
     this.candles.applyOptions({
       upColor: this.theme.up,
       downColor: this.theme.down,
@@ -369,6 +401,42 @@ export class ChartPane {
     this.drawingInteraction.select(id ?? undefined);
   }
 
+  /**
+   * Shows these indicators of the asset (IN1), on every timeframe, calculated from the candles shown. Unchanged ones
+   * keep their values, a changed parameter fetches again, a changed style only redraws.
+   */
+  setIndicators(instances: readonly IndicatorInstance[] | null | undefined): void {
+    this.indicatorSet.set(instances ?? []);
+  }
+
+  /** The indicators as the chart shows them. */
+  indicators(): readonly IndicatorInstance[] {
+    return this.indicatorSet.instances();
+  }
+
+  /** The values the chart holds of an indicator, for checks in the browser; changes nothing. */
+  indicatorValues(id: string): { t: readonly number[]; lines: Record<string, readonly (number | null)[]> } | undefined {
+    const values = this.indicatorSet.valuesOf(id);
+    const instance = this.indicatorSet.instances().find((candidate) => candidate.id === id);
+    if (values === undefined || instance === undefined) {
+      return undefined;
+    }
+
+    const lines: Record<string, readonly (number | null)[]> = {};
+    for (const line of ["value", "basis", "upper", "lower", "macd", "signal", "histogram"]) {
+      if (values.line(line).length > 0) {
+        lines[line] = values.line(line);
+      }
+    }
+
+    return { t: values.t, lines };
+  }
+
+  /** Who hears the actions of the legend lines (hide, settings, remove); Web in step 6 of the plan. */
+  onIndicatorActions(listener: (id: string, action: IndicatorAction) => void): void {
+    this.indicatorSet.onActions(listener);
+  }
+
   /** Who hears what the user does with drawings; Web in step 6 of the plan. */
   onDrawingEvents(listener: Partial<DrawingEvents>): void {
     this.drawingListener = listener;
@@ -390,8 +458,11 @@ export class ChartPane {
     const bars = this.data.bars;
     return {
       lastDrawMs: this.lastDrawMs,
+      lastIndicatorsMs: this.indicatorSet.lastLoadMs,
       bars: bars.length,
       requests: this.requests,
+      indicators: this.indicatorSet.count,
+      indicatorRequests: this.indicatorRequests,
       visibleFrom: range?.from,
       visibleTo: range?.to,
       firstTime: bars[0]?.time,
@@ -410,6 +481,7 @@ export class ChartPane {
     this.generation++;
     this.onDisposed();
     this.pointerInput.dispose();
+    this.indicatorSet.dispose();
     this.chart.remove();
     this.container.replaceChildren();
     this.container.classList.remove("tv-chart");
@@ -573,6 +645,7 @@ export class ChartPane {
 
     const generation = this.generation;
     this.loadingOlder = true;
+    void this.indicatorSet.loadOlder(oldest); // the same page of every indicator, in parallel
     try {
       const page = await this.fetchPage(request, oldest, OLDER_PAGE_SIZE);
       if (generation !== this.generation || this.disposed) {

@@ -38,6 +38,11 @@ public sealed class RecordingNotifier : IWorkspaceNotifier
         return Add("DrawingsChanged " + source + "/" + symbol + " " + window);
     }
 
+    public Task ChartSettingsChangedAsync(string source, string symbol, string window)
+    {
+        return Add("ChartSettingsChanged " + source + "/" + symbol + " " + window);
+    }
+
     private Task Add(string text)
     {
         lock (_events)
