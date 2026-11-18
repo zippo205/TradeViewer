@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Indicators (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-17 (answers at the end); reference export open
+Status:   Step 1 done 2026-11-18; reference values received (question 1)
 Branch:   feature/indicators
-Next:     step 1
+Next:     step 2
 Baseline: docs as of commit 30f5e68 (main)
 ```
 
@@ -91,7 +91,7 @@ start of the history on:
 
 ```text
 SMA    mean of the last n sources
-EMA    alpha = 2 / (n + 1), seeded with the first source
+EMA    alpha = 2 / (n + 1), seeded with the SMA of the first n values (Pine's ta.ema)
 RMA    alpha = 1 / n, seeded with the SMA of the first n values (Wilder; used by RSI and ATR)
 BB     basis SMA(n), upper / lower basis +- k * population standard deviation of the last n
 RSI    100 - 100 / (1 + RMA(gain, n) / RMA(loss, n))
@@ -114,7 +114,8 @@ GET /api/indicators/{source}/{symbol}/{timeframe}?type=bb&length=20&mult=2&price
 
 - One request per indicator and page, with the same `to` and `limit` as the candle page, so `t` is
   the `t` of that candle page, one value per candle; `null` where the indicator is not defined yet
-  (the first n - 1 candles of the history).
+  (the first n - 1 candles of the history; MACD n = slow, its signal and histogram slow + signal - 2;
+  RSI n candles, it needs n changes).
 - The candles are read exactly as /api/candles reads them (store, aggregation of MD3, current
   candle of MD8): that code moves out of `GetCandlesQueryHandler` into one reader both features use,
   plus the warm-up candles before the page.
@@ -168,7 +169,7 @@ TradeViewer.Chart/src/indicators/
 ```text
 1  Proof in the browser: indicator panes in Lightweight Charts 5.3 (add, remove, order, stretch,
    resize by the separator, legend per pane from paneSize), the band fill primitive, and that the
-   drawing tools ignore pointers outside the price pane; nothing stays that is not used later      open
+   drawing tools ignore pointers outside the price pane; nothing stays that is not used later      done
 2  Domain: IndicatorType, PriceSource, parameters with defaults and rules, the six calculations
    and WarmUp, IndicatorInstance, IndicatorTemplate; unit tests against reference values
    (question 1), at the start of the history and across a page seam                             open
@@ -189,12 +190,36 @@ TradeViewer.Chart/src/indicators/
 
 ---
 
+# Result of Step 1 (2026-11-18)
+
+Proved in headless Chromium with the real `ChartPane` on the frozen BTCUSDT 1d candles (local
+Docker, Downloader off): BB with its fill in the price pane, RSI with the 30-70 fill, MACD (lines and
+histogram) and ATR in panes 1 to 3. The proof page and its script stayed in the scratchpad.
+
+- Panes: `addSeries(definition, options, paneIndex)` makes the pane; `IPaneApi.moveTo` orders;
+  removing the last series of a pane removes the pane, a pane with series left stays.
+  `setStretchFactor` divides the height (relative values; proposal 5's quarter is price 4, oscillator
+  1); dragging a separator (cursor `row-resize`) changes the stretch factors of the two panes.
+- `paneSize(i)` equals the pane element's height, the separator is 1 px. It throws until the
+  library's next frame after a pane was added: legends are placed from a `ResizeObserver` on the pane
+  elements (`IPaneApi.getHTMLElement`), which fires on every layout change (separator, pane added,
+  moved or removed, window resize). The library has no event of its own for that.
+- The crosshair event carries `paneIndex`: the legends of step 5 know which pane the pointer is in.
+- Band fill: a series primitive with `zOrder` "bottom" drawing in `drawBackground` between two
+  lines, or between two constant prices (RSI), only over the visible range.
+- Drawing tools: `PointerInput` took presses in every pane, so a tool clicked in the RSI pane drew
+  in the price pane. Fixed: a press below `paneSize(0)` goes to the library (`tools/pointerInput.ts`,
+  kept); with a tool active it creates nothing there, without one a drag pans as on an empty chart.
+  The fix stays because every later step needs it; nothing else of the proof is in the code.
+
+---
+
 # Proposals (accepted unless the owner objects)
 
 1. **Calculated on the server in C#**, as the architecture says, one request per indicator and page.
    If NF1 is missed with six indicators on the Pi, the requests of one page are joined into one;
    that is not built in advance.
-2. **TradingView's built-in definitions**, seeds included (EMA from the first source, RSI and ATR
+2. **TradingView's built-in definitions**, seeds included (EMA from the SMA of its first n values, RSI and ATR
    with Wilder's RMA, population standard deviation in BB).
 3. **Hub event `ChartSettingsChanged`**: today two windows on the same asset can overwrite each
    other's settings, because a save replaces them as a whole. With indicators that would lose a
@@ -213,8 +238,27 @@ TradeViewer.Chart/src/indicators/
 
 Answers of 2026-11-17: (2) BB basis blue, upper red, lower green: IN1 corrected; (3) the bar above
 the chart, as in TradingView; (4) the price source can be chosen, default close: IN1 updated. (1)
-open: the owner was told how to export; step 2 uses the export if it comes, hand-calculated series
-otherwise.
+answered 2026-11-18 with the Data Window values of TradingView (below); no export needed.
+
+Reference values (BINANCE:BTCUSDT 1D, defaults, UTC). They equal the frozen candles' values to the
+cent, calculated as in Design; the candles of both dates are the same.
+
+```text
+                SMA 9     EMA 9     BB basis  BB upper   BB lower  RSI 14  MACD     signal   hist     ATR 14
+2020-03-12      8046.26   7642.72   8600.39   10673.63   6527.15   15.04   -625.32  -318.32  -307.00  641.76
+2025-01-01     95353.54  95027.70  98025.68  106081.01  89970.34   46.13   -714.81   113.28  -828.09  3795.47
+```
+
+- The owner first wrote the histogram of 2025-01-01 as -829.09; a screenshot of TradingView showed
+  -828.09 (a typo). The screenshot also shows the legend line as TradingView writes it (name,
+  parameters, then the values: "MACD close 12 26 9  -828,09 -714,81 113,28"), the histogram in four
+  shades (rising and falling, above and below zero) and ATR in dark red: the reference for step 5.
+- TradingView's history of the pair starts on 2017-10-01, the Downloader's on 2017-08-17. The first
+  values TradingView showed (SMA and EMA 9 on the 9th candle, ATR 14th, RSI 15th, BB 20th, MACD 26th,
+  its signal 34th) prove that EMA is seeded with an SMA, not with the first price; the plan said
+  otherwise and is corrected. Values from 2020 on do not depend on where the history starts.
+- No test-only library is needed: the tests check the two dates, the first defined candle of each
+  indicator, and a page seam.
 
 1. **Reference values.** Best would be an export from your TradingView: BINANCE:BTCUSDT, 1D, with
    the six indicators in their defaults ("Export chart data" writes the indicator values into the
