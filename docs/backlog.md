@@ -149,9 +149,10 @@ Branch: `feature/downloader-monitoring`
 
 - Status page of the Downloader, coverage and gaps per asset, all subscriptions
 - Gaps in the asset's status (the markers on the chart came with the Watchlists epic)
-- Aggregation of timeframes a source does not provide
+- Another asset keeps the timeframe or takes the next larger one (CP1, decision 0008); building
+  timeframes a source lacks (MD3) comes with the stock and Forex sources (roadmap, "Later")
 
-Requirements: DL1, DL2, DL3, DL4, MD3, MD4
+Requirements: DL1, DL2, DL3, DL4, MD4, CP1 (timeframe on an asset change)
 Depends on: Assets and Market Data
 Knowledge: docs/knowledge/downloader-interface.md
 

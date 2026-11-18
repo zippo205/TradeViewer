@@ -376,7 +376,9 @@ GET /api/candles/{source}/{symbol}/{timeframe}?to={time}&limit={n}
   5,000; `to` is exclusive, so an older page asks with the time of the oldest candle it has.
   An unknown asset is 404, a timeframe the asset does not have 422.
 - A timeframe the source lacks is aggregated on read from the largest stored timeframe that
-  divides it (MD3); aggregated candles are not stored.
+  divides it (MD3), for assets that trade around the clock or through the week; an asset with
+  exchange hours has no 4h (decision 0008). Aggregated candles are not stored. Built with the
+  stock and Forex sources; binance delivers every timeframe.
 - The current candle (MD8) is built on read from the closed candles of the smallest stored
   timeframe after the last closed candle of the requested one and appended as the last
   element; the response carries `"partial": true` then. It is not stored. `CandlesUpdated`
