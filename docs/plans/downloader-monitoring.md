@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Downloader Monitoring (P1 - Workstation)
-Status:   Steps 1 to 3 done 2026-11-18; real check when the Pi is reachable
+Status:   Steps 1 to 4 done 2026-11-18; real answers recorded from the Pi (part of step 6)
 Branch:   feature/downloader-monitoring
-Next:     step 4
+Next:     step 5
 Baseline: docs as of commit db8d6db (main)
 ```
 
@@ -138,7 +138,7 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
 3  Feature Downloader: the three queries, contracts, endpoints, the light rule; unit and
    integration tests with the stub Downloader (reachable, unreachable, switched off, 404)       done
 4  Web: the status page, the header dot, the gaps on the assets page; browser checks against
-   the stub of the integration tests and the local container                                    open
+   the stub of the integration tests and the local container                                    done
 5  CP1: the timeframe on an asset change as a rule with unit tests (Web), used by the watchlist
    panel; browser check                                                                         open
 6  Check against the real Downloader (question 3), Docker image, architecture (chapters 4, 6, 7,
@@ -201,6 +201,37 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
 - Tests: 17 unit tests of the handlers and the light, 5 API tests with the stub (the fixture of step
   1 is yellow: partial cycle, yahoo rate limited; unreachable is 200 and red; subscriptions with
   TradeViewer marked; 503 and 404; switched off).
+
+---
+
+# Result of Step 4 (2026-11-18)
+
+- `Pages/Downloader.razor` at `/downloader`: service (light and its words, version, started, last and
+  next cycle, queue, file check), sources with their symbol lists, the workspace's assets (unfolded:
+  `DownloaderAssetDetail.razor`, coverage per timeframe and every gap the Downloader holds, folded per
+  timeframe), all subscriptions with TradeViewer's client marked. Read on opening and every 10 s,
+  unfolded assets too; a failed read keeps what is shown, with the time it was read (proposal 4).
+- `Layout/DownloaderLight.razor` in the header, a link to the page: read at start, every 60 s, on
+  `DownloaderStatusChanged` and after a reconnect. `DownloaderStatusText` holds the words both use.
+- MD4 on the assets page: `AssetTimeframeResponse.Gaps`, the confirmed gaps within the asset's history;
+  the rule is `DownloaderStatusRules.ConfirmedGaps`, shared with `/api/gaps`. A badge "n gaps" and the gaps
+  folded per timeframe in the details. The status page's badge says "in the history", because its table
+  shows all the Downloader holds (also history other clients wanted, DL2).
+- Browser check (scratchpad, not part of the solution): a fake Downloader serving the fixtures and the
+  real answers of step 6, a local instance as `tradeviewer-dev` on a scratch workspace; green (recorded),
+  yellow (fixture: partial cycle, yahoo rate limited), red (fake stopped: "not reachable since", the
+  asset's last status with `live: false`, subscriptions 503 shown as text); light and dark; 390 px wide
+  without page scroll. No console errors besides the intended 503 of the subscriptions.
+- Tests: 1 unit test of the gaps in the asset status (within the history only, pending left out).
+
+# Real Answers (part of step 6, 2026-11-18)
+
+- Read only from the Downloader on the Pi (`GET status`, `GET subscriptions`, `GET status/binance/BTCUSDT`),
+  stored as `tests/fixtures/downloader/recorded-2026-11-18-*.json`; 3 client tests read them. They match the
+  contract and the written fixtures. Seen: version 0.1.0, three sources ok (binance with an old error),
+  file check with 30 problems, 13 symbols for ewts, ewts-dev and tradeviewer; BTCUSDT has 45 confirmed gaps
+  (2019-2023), outside the history of a new asset. Nothing was written to the Downloader.
+- Still open for step 6: a run of the development instance against the Pi, Docker image, architecture.
 
 ---
 

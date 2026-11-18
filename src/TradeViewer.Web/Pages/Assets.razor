@@ -168,6 +168,10 @@
                     {
                         <span class="badge warning">@asset.Errors.Count file(s) not imported</span>
                     }
+                    @if (GapsOf(asset) > 0)
+                    {
+                        <span class="badge" title="Candles the source does not have; the chart marks where (MD4)">@DownloaderStatusText.GapCount(GapsOf(asset))</span>
+                    }
                 </header>
 
                 @* Folded by default, so a watchlist is a short list that can be reordered. The browser keeps
@@ -224,6 +228,19 @@
                         }
                     </tbody>
                 </table>
+
+                @foreach (var timeframe in asset.Timeframes.Where(item => item.Gaps.Count > 0))
+                {
+                    <details class="gap-list">
+                        <summary>@timeframe.Timeframe: @DownloaderStatusText.GapCount(timeframe.Gaps.Count) the source confirmed</summary>
+                        <ul>
+                            @foreach (var gap in timeframe.Gaps)
+                            {
+                                <li>@GapText(gap)</li>
+                            }
+                        </ul>
+                    </details>
+                }
 
                 @if (asset.Errors.Count > 0)
                 {
@@ -597,6 +614,17 @@
     private static string Key(AssetResponse asset)
     {
         return asset.Source + "/" + asset.Symbol;
+    }
+
+    /// <summary>The gaps the source confirmed within the asset's history, over all its timeframes (MD4).</summary>
+    private static int GapsOf(AssetResponse asset)
+    {
+        return asset.Timeframes.Sum(timeframe => timeframe.Gaps.Count);
+    }
+
+    private static string GapText(GapResponse gap)
+    {
+        return TimeText(DateTimeOffset.FromUnixTimeSeconds(gap.From)) + " to " + TimeText(DateTimeOffset.FromUnixTimeSeconds(gap.To)) + " UTC";
     }
 
     private static string TimeText(DateTimeOffset? time)

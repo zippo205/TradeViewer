@@ -1,0 +1,104 @@
+@* Coverage of one asset at the Downloader (DL2): per timeframe what it wants and holds, jobs, gaps, errors. *@
+
+@if (Detail == null)
+{
+    <p class="muted">@(Error ?? "Loading...")</p>
+}
+else
+{
+    @if (!Detail.Live)
+    {
+        <p class="status-warn">
+            The Downloader does not answer. @(Detail.ReadAt == null ? "Nothing is known of this asset yet." : "Shown: what it reported at " + DownloaderStatusText.Time(Detail.ReadAt) + ".")
+        </p>
+    }
+    else if (Error != null)
+    {
+        <p class="status-bad">@Error</p>
+    }
+    @if (Detail.Problem != null)
+    {
+        <p class="status-bad">@Detail.Problem</p>
+    }
+
+    <div class="table-scroll">
+        <table class="list">
+            <thead>
+                <tr>
+                    <th>Timeframe</th>
+                    <th>Wanted from</th>
+                    <th>Covered from</th>
+                    <th>Covered to</th>
+                    <th class="number">Jobs</th>
+                    <th class="number">Gaps</th>
+                    <th>Last change</th>
+                    <th>Last error</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var timeframe in Detail.Timeframes)
+                {
+                    <tr @key="timeframe.Timeframe">
+                        <td>@timeframe.Timeframe</td>
+                        <td>@(timeframe.WantedFrom ?? "complete")</td>
+                        <td>@DownloaderStatusText.Time(timeframe.CoveredFrom)</td>
+                        <td>@DownloaderStatusText.Time(timeframe.CoveredTo)</td>
+                        <td class="number">@timeframe.PendingJobs</td>
+                        <td class="number">@timeframe.Gaps.Count</td>
+                        <td>@DownloaderStatusText.Time(timeframe.LastChangedAt)</td>
+                        <td class="wrap @(timeframe.LastError == null ? "muted" : "status-bad")">@(timeframe.LastError ?? "-")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @foreach (var timeframe in Detail.Timeframes.Where(item => item.Gaps.Count > 0))
+    {
+        <details class="gap-list">
+            <summary>@timeframe.Timeframe: @DownloaderStatusText.GapCount(timeframe.Gaps.Count)</summary>
+            <ul>
+                @foreach (var gap in timeframe.Gaps)
+                {
+                    <li>@DownloaderStatusText.Time(gap.From) to @DownloaderStatusText.Time(gap.To) <span class="muted">· @ReasonText(gap.Reason)</span></li>
+                }
+            </ul>
+        </details>
+    }
+
+    @if (Detail.ImportErrors.Count > 0)
+    {
+        <h4>Files not imported</h4>
+        <ul class="status-bad">
+            @foreach (var error in Detail.ImportErrors)
+            {
+                <li>@error.File: @error.Error</li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    [Parameter]
+    public DownloaderAssetResponse? Detail { get; set; }
+
+    /// <summary>Why the last read failed; the detail read before stays shown.</summary>
+    [Parameter]
+    public string? Error { get; set; }
+
+    /// <summary>The reasons the Downloader gives for a part without candles (downloader-interface.md).</summary>
+    public static string ReasonText(string reason)
+    {
+        switch (reason)
+        {
+            case "missingUpstream":
+                return "the source has no candles there (confirmed)";
+            case "unavailable":
+                return "before the source's history begins";
+            case "pending":
+                return "still being downloaded";
+            default:
+                return reason;
+        }
+    }
+}

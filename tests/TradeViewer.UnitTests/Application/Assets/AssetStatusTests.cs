@@ -114,6 +114,27 @@ public class AssetStatusTests
         Assert.Equal(new[] { "defaultHistory.15m", "defaultHistory.1h", "defaultHistory.2h" }, wrong.Error.Fields.Keys.OrderBy(key => key));
     }
 
+    [Fact]
+    public void The_asset_shows_the_gaps_the_source_confirmed_within_its_history_only()
+    {
+        // 15m history starts 2026-08-17: a confirmed gap before it is history another client wanted.
+        var before = new CoverageGap(new DateTimeOffset(2026, 1, 5, 2, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 1, 5, 4, 0, 0, TimeSpan.Zero), "missingUpstream");
+        var within = new CoverageGap(new DateTimeOffset(2026, 9, 1, 2, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 9, 1, 3, 0, 0, TimeSpan.Zero), "missingUpstream");
+        var pending = new CoverageGap(new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 10, 2, 0, 0, 0, TimeSpan.Zero), "pending");
+        var status = new SymbolStatus(100, true, new[]
+        {
+            new TimeframeStatus(Timeframe.M15, new DateOnly(2026, 8, 17), null, null, 0, new[] { pending, within, before }, null),
+            new TimeframeStatus(Timeframe.D1, null, null, null, 0, new[] { before }, null)
+        });
+
+        var asset = AssetStatusReader.Build(Btc, NoRanges, ImportProgress.None, status, NoErrors);
+        var without = AssetStatusReader.Build(Btc, NoRanges, ImportProgress.None, null, NoErrors);
+
+        Assert.Equal(new[] { within.From.ToUnixTimeSeconds() }, asset.Timeframes[0].Gaps.Select(gap => gap.From));
+        Assert.Equal(new[] { before.From.ToUnixTimeSeconds() }, asset.Timeframes[1].Gaps.Select(gap => gap.From)); // complete history
+        Assert.All(without.Timeframes, timeframe => Assert.Empty(timeframe.Gaps));
+    }
+
     private static SymbolStatus Downloader(int pendingJobs15m, int pendingJobs1d, string? gapReason = null)
     {
         var gaps = gapReason == null

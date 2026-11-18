@@ -1,3 +1,5 @@
+using TradeViewer.Contracts.MarketData;
+
 namespace TradeViewer.Contracts.Assets;
 
 /// <summary>
@@ -20,6 +22,8 @@ public sealed record AssetResponse(
 /// <summary>
 /// One timeframe of an asset, smallest first in the list. HistoryFrom: the first day wanted (yyyy-MM-dd), null
 /// for the complete history. FirstCandle and LastCandle: what is stored. Chartable: its newest candles are there.
+/// Gaps: those the source confirmed within the history, as the Downloader last reported them (MD4), oldest first;
+/// empty without the Downloader.
 /// </summary>
 public sealed record AssetTimeframeResponse(
     string Timeframe,
@@ -29,4 +33,5 @@ public sealed record AssetTimeframeResponse(
     int FilesImported,
     int FilesWanted,
     bool Loading,
-    bool Chartable);
+    bool Chartable,
+    IReadOnlyList<GapResponse> Gaps);

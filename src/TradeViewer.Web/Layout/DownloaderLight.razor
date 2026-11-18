@@ -1,0 +1,72 @@
+@implements IAsyncDisposable
+@inject DownloaderApi Api
+@inject WorkspaceEvents Events
+
+@* The status dot of the Downloader in the header (DL1): green, yellow, red, grey when switched off. *@
+<a href="downloader" class="downloader-light" title="@DownloaderStatusText.Summary(_status)" aria-label="@DownloaderStatusText.Summary(_status)">
+    <span class="dot @(_status?.Light ?? "off")"></span>
+    <span class="label">Downloader</span>
+</a>
+
+@code {
+    /// <summary>The dot is read every minute and at once when the hub says the state changed.</summary>
+    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(60);
+
+    private readonly CancellationTokenSource _stop = new CancellationTokenSource();
+    private DownloaderStatusResponse? _status;
+
+    protected override void OnInitialized()
+    {
+        Events.DownloaderStatusChanged += OnStatusChanged;
+        Events.Reconnected += OnReconnected;
+        _ = Events.StartAsync();
+        _ = RefreshEveryMinuteAsync();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Events.DownloaderStatusChanged -= OnStatusChanged;
+        Events.Reconnected -= OnReconnected;
+        _stop.Cancel();
+        _stop.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    private void OnStatusChanged(bool reachable)
+    {
+        _ = InvokeAsync(ReadAsync);
+    }
+
+    private void OnReconnected()
+    {
+        _ = InvokeAsync(ReadAsync);
+    }
+
+    private async Task RefreshEveryMinuteAsync()
+    {
+        await ReadAsync();
+        using var timer = new PeriodicTimer(Interval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_stop.Token))
+            {
+                await InvokeAsync(ReadAsync);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // the page was left
+        }
+    }
+
+    /// <summary>A failed call keeps the last colour: TradeViewer itself was not reachable, not the Downloader.</summary>
+    private async Task ReadAsync()
+    {
+        var result = await Api.GetStatusAsync();
+        if (result.Value != null)
+        {
+            _status = result.Value;
+            StateHasChanged();
+        }
+    }
+}

@@ -510,7 +510,8 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
                                               fixed list without the Downloader; answers truncated
 /api/symbols/{source}/{sourceSymbol}          look one up at the Downloader: tick size, session, earliest dates
 /api/assets                                   list, add
-/api/assets/{source}/{symbol}                 get (loading progress, available timeframes), remove; /history put changes the history
+/api/assets/{source}/{symbol}                 get (loading progress, available timeframes, confirmed gaps per timeframe as
+                                              /api/gaps gives them), remove; /history put changes the history
 /api/assets/{source}/{symbol}/rescan          reload the files; /rebuild deletes the candles and imports again (MD5)
 /api/candles/{source}/{symbol}/{timeframe}    column arrays; 422 when the timeframe can be neither read nor built (MD3)
 /api/gaps/{source}/{symbol}/{timeframe}       the gaps the source confirmed, within the history of the asset (MD4)
