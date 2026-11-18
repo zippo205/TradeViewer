@@ -128,8 +128,6 @@
 </section>
 
 @code {
-    private static readonly string[] TimeframeOrder = { "15m", "1h", "4h", "1d", "1w" };
-
     private IReadOnlyList<BackupResponse>? _backups;
     private List<HistoryRow>? _history;
     private string? _historyMessage;
@@ -185,7 +183,7 @@
     private static List<HistoryRow> ToRows(SettingsResponse settings)
     {
         return (settings.DefaultHistory ?? new Dictionary<string, int?>())
-            .OrderBy(pair => Array.IndexOf(TimeframeOrder, pair.Key))
+            .OrderBy(pair => TimeframeChoice.Order.ToList().IndexOf(pair.Key))
             .Select(pair => new HistoryRow { Timeframe = pair.Key, Complete = pair.Value == null, Days = pair.Value ?? 365 })
             .ToList();
     }

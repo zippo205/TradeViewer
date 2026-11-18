@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Downloader Monitoring (P1 - Workstation)
-Status:   Steps 1 to 4 done 2026-11-18; real answers recorded from the Pi (part of step 6)
+Status:   Steps 1 to 5 done 2026-11-18; real answers recorded from the Pi (part of step 6)
 Branch:   feature/downloader-monitoring
-Next:     step 5
+Next:     step 6
 Baseline: docs as of commit db8d6db (main)
 ```
 
@@ -140,7 +140,7 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
 4  Web: the status page, the header dot, the gaps on the assets page; browser checks against
    the stub of the integration tests and the local container                                    done
 5  CP1: the timeframe on an asset change as a rule with unit tests (Web), used by the watchlist
-   panel; browser check                                                                         open
+   panel; browser check                                                                         done
 6  Check against the real Downloader (question 3), Docker image, architecture (chapters 4, 6, 7,
    9, 10), plan result; then the owner's look                                                    open
 ```
@@ -223,6 +223,15 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
   asset's last status with `live: false`, subscriptions 503 shown as text); light and dark; 390 px wide
   without page scroll. No console errors besides the intended 503 of the subscriptions.
 - Tests: 1 unit test of the gaps in the asset status (within the history only, pending left out).
+
+# Result of Step 5 (2026-11-18)
+
+- `Charting/TimeframeChoice` (Web): the timeframe stays when the asset can chart it, otherwise the next
+  larger one it has, otherwise the largest smaller one; none without a chartable timeframe. The chart page
+  uses it for a watchlist row; `Order` replaces the settings page's own list of the order.
+- Tests: 7 unit tests (the order equals the Domain's; keep, next larger, largest smaller, unordered input,
+  none). Browser check: BTCUSDT at 15m, 4h and 1w, ETHUSDT chosen in the watchlist, the address keeps the
+  timeframe. The other cases have no asset today (every binance asset has the five timeframes).
 
 # Real Answers (part of step 6, 2026-11-18)
 
