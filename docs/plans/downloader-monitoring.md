@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Downloader Monitoring (P1 - Workstation)
-Status:   Steps 1 to 5 done 2026-11-18; real answers recorded from the Pi (part of step 6)
+Status:   Steps 1 to 6 done 2026-11-18; waiting for the owner's look
 Branch:   feature/downloader-monitoring
-Next:     step 6
+Next:     the owner's approval, then merge into main
 Baseline: docs as of commit db8d6db (main)
 ```
 
@@ -142,7 +142,7 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
 5  CP1: the timeframe on an asset change as a rule with unit tests (Web), used by the watchlist
    panel; browser check                                                                         done
 6  Check against the real Downloader (question 3), Docker image, architecture (chapters 4, 6, 7,
-   9, 10), plan result; then the owner's look                                                    open
+   9, 10), plan result; then the owner's look                                                    done
 ```
 
 ---
@@ -240,7 +240,19 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
   contract and the written fixtures. Seen: version 0.1.0, three sources ok (binance with an old error),
   file check with 30 problems, 13 symbols for ewts, ewts-dev and tradeviewer; BTCUSDT has 45 confirmed gaps
   (2019-2023), outside the history of a new asset. Nothing was written to the Downloader.
-- Still open for step 6: a run of the development instance against the Pi, Docker image, architecture.
+
+# Result of Step 6 (2026-11-18)
+
+- Development instance against the Pi as `tradeviewer-dev`, on an empty scratch workspace so that the
+  sync had nothing to subscribe: the page showed the live state (green, last cycle ok, 30 problems of the
+  file check, 13 subscriptions, none of tradeviewer-dev). Its log names only GET status, GET subscriptions
+  and GET clients/tradeviewer-dev/subscriptions. Stopped afterwards.
+- Docker image built (`tradeviewer:downloader-monitoring`, 452 MB) and started as a throwaway container
+  with the Downloader switched off: grey dot, "switched off", subscriptions not asked. The local container
+  `tradeviewer` and the Pi are unchanged.
+- Architecture: chapter 6 (reachability since when), 7 (calls, read only, the light), 9 (answers of
+  /api/downloader/*, gaps in /api/assets), 10 (the page, the dot, CP1's rule, gaps on the assets page).
+- Result: 527 unit, 19 architecture, 229 integration and 216 chart tests pass.
 
 ---
 

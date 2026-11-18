@@ -326,7 +326,10 @@ remove asset  switch off its analysis at EWTS if on -> DELETE subscription -> de
 - There is no file watcher. The Downloader's change numbers are the only change signal; the
   rescan is the fallback.
 - When the Downloader is unreachable the sync logs it once, keeps the last known status and
-  tries again at the next poll. Charts are not affected (NF5).
+  tries again at the next poll. Charts are not affected (NF5). Since when it is unreachable (DL4)
+  is kept by `IDownloaderReachability` (Abstractions/MarketData), one per application and in memory:
+  the sync and the monitoring queries report every answer and failure to it, the first failure of a
+  run sets the time, an answer clears it, and a change is sent once as `DownloaderStatusChanged`.
 - A subscription that failed (503, timeout) is sent again by the sync.
 
 ### Without the Downloader
@@ -407,8 +410,8 @@ LookupAsync(source, symbol)                         GET  sources/{source}/symbol
 SubscribeAsync(source, symbol, history)             PUT  clients/{client}/subscriptions/...
 UnsubscribeAsync(source, symbol)                    DELETE (404 counts as done)
 GetOwnSubscriptionsAsync()                          GET  clients/{client}/subscriptions (404: none)
-GetSubscriptionsAsync()                             GET  subscriptions (all clients)   with Downloader Monitoring
-GetServiceStatusAsync()                             GET  status                        with Downloader Monitoring
+GetSubscriptionsAsync()                             GET  subscriptions (all clients)
+GetServiceStatusAsync()                             GET  status
 GetSymbolStatusAsync(source, symbol)                GET  status/{source}/{symbol}
 GetChangesAsync(source, symbol, after)              GET  status/{source}/{symbol}/changes
 ```
@@ -419,7 +422,11 @@ GetChangesAsync(source, symbol, after)              GET  status/{source}/{symbol
   `TradeViewer.Infrastructure/MarketData/Downloader/Contracts`; every copied file starts with a
   "Do not edit" comment. The client maps them to Application models.
 - The monitoring page (DL1-DL3) reads through TradeViewer.Api, which asks the Downloader on
-  request; nothing of it is stored except `sync_state`.
+  request; nothing of it is stored except `sync_state`. It only reads: no call of the feature
+  Downloader changes anything at the Downloader. The colour of the status dot is decided in
+  `DownloaderStatusRules.LightOf`: off (switched off, or not asked yet), red (no answer), yellow (a
+  source not ok, the last cycle partial, failed or interrupted, or an answer that could not be read),
+  green.
 
 ---
 
@@ -533,9 +540,13 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
                                               409 when the id is a drawing of another asset
 /api/fibonacci-presets                        list; /{id} put (levels kept sorted), delete; 409 for the last
                                               preset of a kind
-/api/downloader/status
-/api/downloader/subscriptions
-/api/downloader/assets/{source}/{symbol}      coverage, gaps, import errors
+/api/downloader/status                        the Downloader's state and the light; always 200, also when it does
+                                              not answer (reachable false, since when: DL4)
+/api/downloader/subscriptions                 all clients merged per symbol, TradeViewer's client named; 503
+                                              when the Downloader does not answer or is switched off
+/api/downloader/assets/{source}/{symbol}      coverage, jobs, all gaps it holds, import errors; the sync's last
+                                              status (live false, read at) when it does not answer; 404 for an
+                                              asset not in the workspace
 /api/ewts/instances
 /api/ewts/instances/{id}/assets
 /api/ewts/instances/{id}/assets/{symbol}      put switches analysis on, delete off, get details
@@ -644,7 +655,8 @@ context menu; the bar of the selected drawing does what one would.
   there is none. The chart stays alive across such changes: only the series is replaced.
 - The watchlists (AS1, AS6) are a panel at the right of the chart page, as in TradingView: the five
   lists as tabs, a row per asset with last close, change and marks; choosing a row shows the asset
-  in this window in the same timeframe (CP1). The panel can be folded away; that and the open list
+  in this window in the same timeframe, otherwise the next larger one it has, otherwise the largest
+  smaller one (CP1, decision 0008; `TimeframeChoice` in Web). The panel can be folded away; that and the open list
   are kept in the browser (`localStorage`), not in the workspace. The order is changed on the
   assets page only (drag and drop, or arrow buttons), which shows the same five lists with the
   management actions folded behind each asset. Rows are read again when the hub reports new
@@ -661,7 +673,15 @@ context menu; the bar of the selected drawing does what one would.
   after the candles of a series, without waiting for them. The Api takes them from the last status
   the Downloader reported (sync state), only those with the reason `missingUpstream` and only
   within the history of the asset: the Downloader also reports gaps of history that another client
-  wanted. Without the Downloader no gaps are known.
+  wanted (`DownloaderStatusRules.ConfirmedGaps`). The assets page shows the same gaps per
+  timeframe: a badge with their number and the list in the asset's details. Without the Downloader
+  no gaps are known.
+- The Downloader page (`/downloader`, DL1-DL4) reads the status and the subscriptions when opened
+  and every 10 seconds, and an asset's coverage when it is unfolded; a read that fails keeps what is
+  shown, with the time it was read. Its coverage shows all gaps the Downloader holds (DL2). The
+  status dot in the header (`DownloaderLight`) links to it and is read at start, every 60 seconds,
+  on `DownloaderStatusChanged` and after a reconnect; both take their words from
+  `DownloaderStatusText`.
 - The module draws what belongs to the canvas itself: the legend with the values under the
   crosshair, the jump-to-latest button and the message in place of a chart without data. Volume is
   a histogram in the lower fifth of the candle pane on its own hidden scale, as in TradingView;

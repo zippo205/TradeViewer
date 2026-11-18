@@ -187,7 +187,11 @@
         are marked; the others belong to other clients and are read-only here.
     </p>
 
-    @if (_subscriptions == null)
+    @if (_status?.Enabled == false)
+    {
+        <p class="muted">The Downloader is switched off in the configuration.</p>
+    }
+    else if (_subscriptions == null)
     {
         <p class="muted">@(_subscriptionsError ?? "Loading...")</p>
     }
@@ -319,7 +323,13 @@
 
     private async Task ReadAllAsync()
     {
-        await Task.WhenAll(ReadStatusAsync(), ReadSubscriptionsAsync(), ReadAssetsAsync());
+        await Task.WhenAll(ReadStatusAsync(), ReadAssetsAsync());
+
+        // Switched off, there are no subscriptions to ask for.
+        if (_status?.Enabled != false)
+        {
+            await ReadSubscriptionsAsync();
+        }
         foreach (var key in _open.ToList())
         {
             var parts = key.Split('/', 2);
