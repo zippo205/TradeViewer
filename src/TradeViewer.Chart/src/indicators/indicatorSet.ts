@@ -81,6 +81,9 @@ export class IndicatorSet {
   private crosshairTime: number | undefined;
   /** True while the candles of a new series are on their way: values that arrive are kept, drawn on release. */
   private holding = false;
+  private released: (() => void)[] = [];
+  private loadGeneration = 0;
+  private lastLoad: number | undefined;
   private onAction: (id: string, action: IndicatorAction) => void = () => {};
 
   constructor(
@@ -99,6 +102,11 @@ export class IndicatorSet {
 
   get count(): number {
     return this.entries.length;
+  }
+
+  /** Milliseconds from the last load (another asset or timeframe) until the values of every indicator were painted (NF1). */
+  get lastLoadMs(): number | undefined {
+    return this.lastLoad;
   }
 
   /** The instances shown, in their order. */
@@ -169,12 +177,26 @@ export class IndicatorSet {
    * stand beside the candles of the old one.
    */
   load(): void {
+    const started = performance.now();
+    const generation = ++this.loadGeneration;
     this.holding = true;
-    for (const entry of this.entries) {
+    this.released = [];
+    const fetches = this.entries.map((entry) => {
       entry.generation++;
       entry.values = new IndicatorValues(linesOf(entry.instance.type));
-      void this.fetchLatest(entry, this.pages.first);
-    }
+      return this.fetchLatest(entry, this.pages.first);
+    });
+
+    // For the measurement of NF1: all values arrived, drawn with the candles, and painted in the next frame.
+    void Promise.all(fetches).then(() =>
+      this.afterRelease(() =>
+        requestAnimationFrame(() => {
+          if (generation === this.loadGeneration) {
+            this.lastLoad = performance.now() - started;
+          }
+        }),
+      ),
+    );
   }
 
   /** The candles of the new series are drawn: the values held so far too, and from now on as they arrive. */
@@ -182,6 +204,18 @@ export class IndicatorSet {
     this.holding = false;
     for (const entry of this.entries) {
       this.draw(entry);
+    }
+
+    const waiting = this.released;
+    this.released = [];
+    waiting.forEach((action) => action());
+  }
+
+  private afterRelease(action: () => void): void {
+    if (this.holding) {
+      this.released.push(action);
+    } else {
+      action();
     }
   }
 

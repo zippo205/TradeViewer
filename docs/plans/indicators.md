@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Indicators (P1 - Workstation)
-Status:   Steps 1 to 6 done 2026-11-18
+Status:   All steps done 2026-11-18; waiting for the owner's look and approval
 Branch:   feature/indicators
-Next:     step 7
+Next:     the owner's look; merge after approval; the Pi only with the owner's go-ahead
 Baseline: docs as of commit 30f5e68 (main)
 ```
 
@@ -185,7 +185,7 @@ TradeViewer.Chart/src/indicators/
    legend actions (hide, settings, remove), saving with the chart settings, other windows follow
    on ChartSettingsChanged; browser checks                                                       done
 7  NF1 and NF2 with six indicators, browser checks, Docker image, architecture (chapters 4, 6, 9,
-   10, 11), plan result; then the owner's look                                                    open
+   10, 11), plan result; then the owner's look                                                    done
 ```
 
 ---
@@ -359,6 +359,37 @@ histogram) and ATR in panes 1 to 3. The proof page and its script stayed in the 
   hidden and ATR removed from the legend, B follows; a template saved, applied with new ids, the
   template unchanged; "drawings hidden" keeps the indicators; a reload and another asset and back;
   deleting a template asks once more.
+
+---
+
+# Result of Step 7 and of the Epic (2026-11-18)
+
+```text
+Delivered  IN1: the six indicators, calculated in C# as TradingView does (all 22 values of the
+           owner's Data Window to the cent), any number per asset and of one kind, parameters,
+           price source, colour and width per line, hidden; on every timeframe from its own
+           candles, the current candle included; paged with the candles; a legend line per
+           indicator with hide, settings, remove; "Indicators" in a bar above the chart
+           IN2: templates: save, apply (copies, replacing), delete
+           CP2: indicators saved per asset with the chart settings, at once, other windows follow
+Tests      .NET 731 (unit 497, integration 215, architecture 19), Vitest 216, format clean
+Browser    step 5 (module) and step 6 (the page in two windows) checks pass on the final image
+NF1        click to painted candles and six indicators: worst 128 ms, median 95 ms (150 ms);
+           the indicators arrive first and are painted with the candles. WSL, headless Chromium
+NF2        zoom, pan, crosshair with six indicators: 60 frames per second (no frame over
+           16.8 ms), 0 requests
+Docker     amd64 image built and run on WSL: 56 MB of 512 MB; workspace upgraded 6 -> 7 with its
+           backup before
+Docs       architecture chapters 4, 5, 6, 9, 10, 11; this plan
+Open       the owner's own look in a real browser; the Pi (needs the owner's go-ahead: it brings
+           schema 7, with the backup before-v7); undo for indicator changes is not built (IN1
+           asks for none)
+```
+
+- `ChartPane.stats()` gained `lastIndicatorsMs` for the measurement: from setSeries until every
+  indicator of the new series was painted.
+- Measurement script and the browser checks are throw-away scripts in the session's scratchpad, as
+  in the earlier epics (architecture chapter 14: no browser tests in V1).
 
 ---
 

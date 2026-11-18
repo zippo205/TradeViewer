@@ -50,6 +50,8 @@ export interface PaneOptions {
 export interface PaneStats {
   /** Milliseconds from the last setSeries call until its candles were painted. */
   readonly lastDrawMs: number | undefined;
+  /** Milliseconds from the last setSeries call until the values of all its indicators were painted (NF1). */
+  readonly lastIndicatorsMs: number | undefined;
   /** Candles in memory. */
   readonly bars: number;
   /** Requests for candles since the pane was created. */
@@ -456,6 +458,7 @@ export class ChartPane {
     const bars = this.data.bars;
     return {
       lastDrawMs: this.lastDrawMs,
+      lastIndicatorsMs: this.indicatorSet.lastLoadMs,
       bars: bars.length,
       requests: this.requests,
       indicators: this.indicatorSet.count,
