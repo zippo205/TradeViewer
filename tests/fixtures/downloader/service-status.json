@@ -1,0 +1,14 @@
+{ "state": "running", "startedAt": "2026-11-17T21:05:12Z", "version": "1.4.0",
+  "lastCycle": { "startedAt": "2026-11-18T09:30:30Z", "finishedAt": "2026-11-18T09:30:41Z", "result": "partial", "jobsPlanned": 26,
+                 "message": "yahoo: rate limited, 4 jobs postponed" },
+  "nextCycleAt": "2026-11-18T09:45:30Z",
+  "queue": { "recent": 0, "backfill": 312, "retryMissing": 2, "running": 1, "failed": 0 },
+  "sources": [
+    { "source": "binance", "state": "ok", "lastSuccessAt": "2026-11-18T09:30:40Z", "lastError": null, "lastErrorAt": null, "retryAt": null },
+    { "source": "yahoo", "state": "rateLimited", "lastSuccessAt": "2026-11-18T09:15:39Z", "lastError": "429 Too Many Requests",
+      "lastErrorAt": "2026-11-18T09:30:33Z", "retryAt": "2026-11-18T09:40:33Z" } ],
+  "consistencyCheck": { "lastRunAt": "2026-11-16T03:00:05Z", "problems": 0 },
+  "catalogs": [
+    { "source": "binance", "refreshedAt": "2026-11-18T04:00:02Z", "symbolCount": 3412, "lastError": null, "lastErrorAt": null },
+    { "source": "yahoo", "refreshedAt": null, "symbolCount": 0, "lastError": "list could not be read", "lastErrorAt": "2026-11-18T04:00:09Z" } ],
+  "unknownLaterField": { "ignored": true } }

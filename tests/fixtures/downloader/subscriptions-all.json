@@ -1,0 +1,7 @@
+[ { "source": "binance", "symbol": "BTCUSDT", "sourceSymbol": "BTCUSDT", "subscribedBy": ["ewts", "tradeviewer-test"],
+    "timeframes": [
+      { "timeframe": "1d", "wantedFrom": null, "subscribedBy": ["ewts", "tradeviewer-test"] },
+      { "timeframe": "15m", "wantedFrom": "2026-08-18", "subscribedBy": ["tradeviewer-test"] },
+      { "timeframe": "1M", "wantedFrom": null, "subscribedBy": ["ewts"] } ] },
+  { "source": "yahoo", "symbol": "BRK-B", "sourceSymbol": "BRK.B", "subscribedBy": ["ewts"],
+    "timeframes": [ { "timeframe": "1d", "wantedFrom": "2019-01-01", "subscribedBy": ["ewts"] } ] } ]

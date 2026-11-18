@@ -209,6 +209,20 @@ public class CandleStoreTests : IDisposable
     }
 
     [Fact]
+    public void A_status_stored_before_the_last_change_time_was_kept_is_read_without_it()
+    {
+        // As the build before Downloader Monitoring wrote it: no LastChangedAt per timeframe.
+        Scalar("INSERT INTO sync_state (source, symbol, last_change, last_status_json, checked_at) VALUES ('binance', 'BTCUSDT', 7, "
+            + "'{\"LastChange\":7,\"Subscribed\":true,\"Timeframes\":[{\"Timeframe\":0,\"WantedFrom\":null,\"CoveredFrom\":null,"
+            + "\"CoveredTo\":null,\"PendingJobs\":2,\"Gaps\":[],\"LastError\":null}]}', 1000);");
+
+        var timeframe = Assert.Single(_store.GetSyncState("binance", "BTCUSDT")!.LastStatus!.Timeframes);
+
+        Assert.Equal(2, timeframe.PendingJobs);
+        Assert.Null(timeframe.LastChangedAt);
+    }
+
+    [Fact]
     public void The_store_survives_a_restart_and_runs_in_WAL_mode()
     {
         _store.Import(Btc15m, new[] { Day("BTCUSDT-15m-2026-11-04.csv", 96) });

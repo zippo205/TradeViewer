@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Downloader Monitoring (P1 - Workstation)
-Status:   Plan approved by the owner 2026-11-18 (answers at the end); real check when the Pi is reachable
+Status:   Step 1 done 2026-11-18; real check when the Pi is reachable
 Branch:   feature/downloader-monitoring
-Next:     step 1
+Next:     step 2
 Baseline: docs as of commit db8d6db (main)
 ```
 
@@ -133,7 +133,7 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
 ```text
 1  Contracts and client: copy ServiceStatusResponse again (catalogs), interface document;
    GetServiceStatusAsync, GetSubscriptionsAsync with their models; recorded answers as fixtures
-   (from the Downloader's own tests and documentation, not from a live call); client tests       open
+   (from the Downloader's own tests and documentation, not from a live call); client tests       done
 2  Reachability since (DL4): the port, written by the sync and the status query; tests          open
 3  Feature Downloader: the three queries, contracts, endpoints, the light rule; unit and
    integration tests with the stub Downloader (reachable, unreachable, switched off, 404)       open
@@ -144,6 +144,24 @@ GET /api/downloader/assets/{source}/{symbol}  coverage per timeframe, pending jo
 6  Check against the real Downloader (question 3), Docker image, architecture (chapters 4, 6, 7,
    9, 10), plan result; then the owner's look                                                    open
 ```
+
+---
+
+# Result of Step 1 (2026-11-18)
+
+- `ServiceStatusResponse` copied again from `Downloader.Contracts` (the other seven copies are
+  unchanged, compared file by file); the interface document has `catalogs` and `GET subscriptions`.
+- Models (Abstractions/MarketData): `DownloaderServiceStatus`, `UpdateCycle`, `DownloaderQueue`,
+  `SourceState`, `CatalogState`, `ConsistencyCheck`, `MergedSubscription`, `MergedTimeframe`;
+  `TimeframeStatus` gained `LastChangedAt` (DL2's "last change") as a trailing optional field, so a
+  status the sync stored before is still read (tested on a row in the old shape).
+- `IDownloaderClient.GetServiceStatusAsync` and `GetSubscriptionsAsync`; timeframes TradeViewer does
+  not know (1M) are left out, the rest smallest first; switched off, nothing is asked.
+- Fixtures: the Downloader documents no complete answer of `status` or `subscriptions`, so
+  `service-status.json`, `service-status-first-start.json` and `subscriptions-all.json` were
+  written from its contract records (with a field it may add later, which is ignored); they are
+  checked against the real Downloader in step 6.
+- Tests: 6 client tests, 1 store test.
 
 ---
 

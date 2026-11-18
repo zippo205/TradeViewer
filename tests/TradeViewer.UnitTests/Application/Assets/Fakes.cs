@@ -121,6 +121,11 @@ internal sealed class FakeDownloader : IDownloaderClient
 
     public SymbolChanges Changes { get; set; } = new SymbolChanges(0, true, Array.Empty<string>());
 
+    /// <summary>The answer of GET status; an error when not set, as when the Downloader cannot be reached.</summary>
+    public DownloaderServiceStatus? ServiceStatus { get; set; }
+
+    public IReadOnlyList<MergedSubscription> Subscriptions { get; set; } = Array.Empty<MergedSubscription>();
+
     /// <summary>The calls in their order, e.g. "subscribe binance/BTCUSDT".</summary>
     public List<string> Calls { get; } = new List<string>();
 
@@ -201,6 +206,22 @@ internal sealed class FakeDownloader : IDownloaderClient
         Calls.Add("changes " + source + "/" + symbol);
         ChangesAfter = after;
         return Task.FromResult(Result.Success(Changes));
+    }
+
+    public Task<Result<DownloaderServiceStatus>> GetServiceStatusAsync(CancellationToken cancellationToken)
+    {
+        Calls.Add("service status");
+        return Task.FromResult(ServiceStatus == null
+            ? Result.Failure<DownloaderServiceStatus>(Error.Unavailable("downloader.unreachable", "The Downloader cannot be reached."))
+            : Result.Success(ServiceStatus));
+    }
+
+    public Task<Result<IReadOnlyList<MergedSubscription>>> GetSubscriptionsAsync(CancellationToken cancellationToken)
+    {
+        Calls.Add("subscriptions");
+        return Task.FromResult(ServiceStatus == null
+            ? Result.Failure<IReadOnlyList<MergedSubscription>>(Error.Unavailable("downloader.unreachable", "The Downloader cannot be reached."))
+            : Result.Success(Subscriptions));
     }
 }
 
