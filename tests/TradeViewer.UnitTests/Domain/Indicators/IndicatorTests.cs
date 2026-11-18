@@ -1,4 +1,3 @@
-using System.Globalization;
 using TradeViewer.Domain.Indicators;
 using TradeViewer.Domain.MarketData;
 
@@ -7,7 +6,7 @@ namespace TradeViewer.UnitTests.Domain.Indicators;
 public class IndicatorTests
 {
     /// <summary>BINANCE BTCUSDT 1d, 2017-08-17 to 2025-01-01 (tests/fixtures/indicators).</summary>
-    private static readonly IReadOnlyList<Candle> Daily = ReadFixture("BTCUSDT-1d.csv");
+    private static readonly IReadOnlyList<Candle> Daily = IndicatorFixture.Daily;
 
     public static TheoryData<IndicatorType, string, string, double> TradingViewValues => new()
     {
@@ -249,7 +248,7 @@ public class IndicatorTests
 
     private static int IndexOf(IReadOnlyList<Candle> candles, string day)
     {
-        var time = DateTimeOffset.Parse(day + "T00:00:00Z", CultureInfo.InvariantCulture).ToUnixTimeSeconds();
+        var time = IndicatorFixture.Time(day);
         for (var i = 0; i < candles.Count; i++)
         {
             if (candles[i].Time == time)
@@ -261,19 +260,5 @@ public class IndicatorTests
         throw new ArgumentException($"No candle on {day}.");
     }
 
-    private static string Day(long time) => DateTimeOffset.FromUnixTimeSeconds(time).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-    private static IReadOnlyList<Candle> ReadFixture(string name)
-    {
-        var path = Path.Combine(AppContext.BaseDirectory, "fixtures", "indicators", name);
-        return File.ReadLines(path)
-            .Where(line => line.Length > 0 && line[0] != '#')
-            .Select(line =>
-            {
-                var f = line.Split(',');
-                double D(int i) => double.Parse(f[i], CultureInfo.InvariantCulture);
-                return new Candle(long.Parse(f[0], CultureInfo.InvariantCulture), D(1), D(2), D(3), D(4), 0);
-            })
-            .ToList();
-    }
+    private static string Day(long time) => IndicatorFixture.Day(time);
 }

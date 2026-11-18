@@ -23,6 +23,7 @@ app.MapHealthEndpoints();
 app.MapWorkspaceEndpoints();
 app.MapAssetEndpoints();
 app.MapCandleEndpoints();
+app.MapIndicatorEndpoints();
 app.MapWatchlistEndpoints();
 app.MapDrawingEndpoints();
 app.MapChartSettingsEndpoints();

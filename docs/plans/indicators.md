@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Indicators (P1 - Workstation)
-Status:   Steps 1 and 2 done 2026-11-18
+Status:   Steps 1 to 3 done 2026-11-18
 Branch:   feature/indicators
-Next:     step 3
+Next:     step 4
 Baseline: docs as of commit 30f5e68 (main)
 ```
 
@@ -175,7 +175,7 @@ TradeViewer.Chart/src/indicators/
    (question 1), at the start of the history and across a page seam                             done
 3  Feature Indicators, calculation: one candle reader for /api/candles and /api/indicators
    (moved, not copied), GetIndicatorQuery with its validator, contract, endpoint; integration
-   tests (t equals the candle page, current candle included, seams, 400/404/422)                open
+   tests (t equals the candle page, current candle included, seams, 400/404/422)                done
 4  Chart settings and templates: ChartSettings with indicator instances (Domain, contract,
    validator, stored payload), script 0007 and the template repository, template commands and
    /api/indicator-templates, hub event ChartSettingsChanged; tests                              open
@@ -238,6 +238,29 @@ histogram) and ATR in panes 1 to 3. The proof page and its script stayed in the 
   whole history (1e-8 relative) for twelve parameter sets at three seams; small series by hand;
   rules and codes. Fixture `tests/fixtures/indicators/BTCUSDT-1d.csv` (2,695 candles, 112 KB, from
   the frozen copy).
+
+---
+
+# Result of Step 3 (2026-11-18)
+
+- The candle reader is a port, `ICandleSeriesReader` (Abstractions/MarketData), implemented by
+  `Infrastructure/MarketData/Store/CandleSeriesReader`: the architecture lets no feature use another
+  feature's code, and a candle series several features need is a port. The code moved out of
+  `GetCandlesQueryHandler` unchanged (limit, asset, timeframe, current candle) and gained the warm-up:
+  up to n candles before the page, fewer at the start of the history. `CandleSeriesPage` holds warm-up
+  and page; the page limits (2,000 / 5,000) moved from `GetCandlesQuery` to the port.
+- Feature `Indicators`: `GetIndicatorQuery`, `GetIndicatorQueryValidator` (returns the parameters or
+  the fields), `GetIndicatorQueryHandler`; contract `IndicatorResponse` (`t`, `lines`, `partial`);
+  `GET /api/indicators/{source}/{symbol}/{timeframe}?type=&length=&deviation=&fast=&slow=&signal=&price=&to=&limit=`.
+- Query names: `deviation` (not `mult`) as in the Domain, `price` for the source (`source` is the
+  route's). A parameter left out takes the IN1 default; a parameter the type does not have (`fast` for
+  sma, `price` for atr) is a 400, so a client mistake is not silently ignored.
+- Tests: 21 unit tests of the handler (every type equals the whole history on the latest page, two
+  pages meet, nulls at the start, defaults, the current week, the errors by field); 5 integration
+  tests (t equals the candle page, the warm-up from before the page, nulls at the start of the
+  files, the current 1h candle, an older page, 400/404/422 as problem details).
+- Checked in the local container on the frozen data: all 22 values of TradingView come out of the
+  endpoint; 2,000 RSI values of 15m in 14 ms.
 
 ---
 
