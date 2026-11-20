@@ -81,7 +81,7 @@ Branch: `feature/scenario-editor`
 - Point tools with the snap rules of EWTS's format, a timeframe per section, head fields, form
   checks
 
-Requirements: SC1-SC16, OV6
+Requirements: SC1-SC16, SC20, SC21, OV6
 Depends on: Price Chart, Drawing Tools; the converted expert scenarios of EWTS as fixtures
 Knowledge: docs/knowledge/ewts-interface.md (Drawings, Scenario Files, Expert Scenario Files)
 Outcome: the owner makes and adjusts the expert scenarios in TradeViewer instead of writing

@@ -390,6 +390,8 @@ wave2      timeframe, pattern (zigzag | flat | expanded-flat | running-flat | tr
 trade      timeframe; entry, stop { price, why }, add, stopMoves[],
            exits[] { time, price, share, kind (target | stop), why }   for trade-win, trade-loss
 legacy     only in converted scenarios: the old fields with no place here; ignored by EWTS
+drawings   TradeViewer's free drawings of the scenario, each with its level (context, setup,
+           trigger); ignored by EWTS                                    proposed, see below
 ```
 
 - Id `<symbol>-<context tf>-<yyyy-MM>-X<n>` (`btcusdt-1d-2024-03-X1`): lower case except `X`,

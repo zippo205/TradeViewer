@@ -35,6 +35,18 @@ add up to 100 (90/10, 50/40/10, 100), `aEnd`/`bEnd` present for every zigzag and
 proposes: both are optional in a file it has not saved yet; at its first save it sets `createdAt`
 to `updatedAt` = the time of that save. Please confirm or say otherwise.
 
+**Proposal (TradeViewer decision 0012, accepted by the owner 2026-11-20; please confirm):**
+
+1. The expert file gets a section `drawings` that belongs to TradeViewer: the owner's free
+   drawings of the scenario (lines, Fibonacci, Elliott counts, notes), each with its level
+   (`context`, `setup`, `trigger`). EWTS ignores it, as it ignores `legacy`; the named points stay
+   the only reading EWTS tests.
+2. An expert scenario has three timeframe levels from the chain of `contextTimeframe` (`1d` ->
+   `4h` -> `1h`, `4h` -> `1h` -> `15m`). TradeViewer writes `waves.timeframe` as the context,
+   `wave2.timeframe` as the setup and `trade.timeframe` as the trigger timeframe. All 13
+   converted files already follow this. A file with other section timeframes still opens.
+3. The 4h chain has 15m as trigger, so a 4h scenario with a trade has `trade.timeframe` `15m`.
+
 **Still waiting for:** one example test-run file in the new format (`T<n>` id, verdict `draft`)
 until the Scenarios epic writes real ones (needed only by the Test-Run Viewer).
 

@@ -330,7 +330,7 @@ Every requirement has an id. The backlog refers to these ids.
 ### 4.12 Scenarios
 
 Replaces writing an expert scenario by hand (a YAML file) and checking a scenario of a test run (a
-Pine script loaded in TradingView). Decisions 0010 and 0011.
+Pine script loaded in TradingView). Decisions 0010, 0011 and 0012.
 
 **Both pages**
 
@@ -339,7 +339,7 @@ Pine script loaded in TradingView). Decisions 0010 and 0011.
   (`test-runs/<run id>/`, written by EWTS).
 - **SC2** Opening a scenario shows a chart of its asset on its context timeframe, positioned on
   the time span of the scenario, with the scenario drawn in groups. The user can switch the
-  timeframe; the drawing stays. The user shows and hides each group; the choice stays while
+  timeframe (in the editor among the three levels of SC11); the drawing stays. The user shows and hides each group; the choice stays while
   stepping through scenarios.
 - **SC3** The chart of a scenario uses the logarithmic price scale by default, because the
   levels of a scenario are measured in log scale. The choice is not saved in the chart
@@ -362,21 +362,30 @@ copied by hand to the development machine, where EWTS's code is adjusted against
 - **SC7** The list holds every expert scenario: id, asset, context timeframe, verdict and draft
   mark. It can be filtered by asset, verdict and draft mark and sorted by any column.
 - **SC8** An expert scenario is drawn by TradeViewer from its named points, in the groups waves
-  (with their labels), wave 2 (its internals) and trade (entry, stop, add, stop moves, exits).
-  Every scenario opens ready to edit; there is no separate view mode.
+  (with their labels), wave 2 (its internals) and trade (entry, stop, add, stop moves, exits),
+  together with its free drawings (SC20). Every scenario opens ready to edit; there is no
+  separate view mode.
 - **SC9** The user creates an expert scenario: asset, context timeframe (1d, or 4h for an asset
   without exchange hours, decision 0008) and time span. Every expert scenario is long.
-- **SC10** The editor has a tool per named point, each snapping by the rules of EWTS's format:
+- **SC10** The editor has a tool per named point, offered only on the timeframe of the point's
+  level (SC11): a "1-2" tool that places wave 1 start, wave 1 end and wave 2 end with three clicks
+  and an "A-B-C" tool for the internals of wave 2, always; tools for entry, stop, add, stop move,
+  exit at target and exit at stop for the verdicts trade-win and trade-loss only. Each point snaps
+  by the rules of EWTS's format:
   a wave point (wave 1 start, wave 1 end, wave 2 end; A, B and C end of wave 2) to the open time
   of its candle and the candle's wick extreme (the low for a low, the high for a high); entry and
   add to the open time and the close of the candle; an exit to the open time of the candle at the
-  price the user gives, with its share and kind (target or stop); the stop to a price, a stop move
-  to a price and the candle that caused it. Points are moved and removed like drawings (4.6).
-- **SC11** Each section (waves, wave 2, trade) has its own timeframe, chosen in the editor; a point
-  snaps to the candles of its section's timeframe whatever timeframe the chart shows.
+  price where it is placed, which the user can correct in the panel, with its share and kind
+  (target or stop); the stop to a price, a stop move to a price and the candle that caused it.
+  Snapping is done by the server. Points are moved and removed like drawings (4.6).
+- **SC11** An expert scenario has three timeframe levels, set when it is created from the chain of
+  its context timeframe: context 1d, setup 4h, trigger 1h; or context 4h, setup 1h, trigger 15m.
+  The editor offers only these three timeframes. The waves belong to the context, the internals
+  of wave 2 to the setup, the trade to the trigger.
 - **SC12** In the panel the user sets the head of the scenario: verdict (trade-win, trade-loss,
-  no-trade), draft mark, reason, notes, the time span (from, to), the pattern of wave 2, and a
-  reason for every point (optional).
+  no-trade), draft mark, reason, notes, the time span (from, to), the pattern of wave 2, a
+  reason for every point (optional), and the price, share and kind of every exit. A no-trade is
+  the waves, the reason why there is no trade, and the time span (`to`: no trade until here).
 - **SC13** The scenario is saved automatically, and only once the user has drawn, changed or
   written something: viewing writes nothing. It is the file `expert/<id>.json` in EWTS's format.
   Reopening it rebuilds the drawing from the named points. Fields TradeViewer does not know
@@ -386,10 +395,17 @@ copied by hand to the development machine, where EWTS's code is adjusted against
   from the moment its wave 2 end is placed; until then the page warns before it is left. The id
   does not change afterwards.
 - **SC15** The editor checks the form and shows each problem at its field or point: the order of
-  the times, the fields the verdict and the pattern require, exit shares that do not add up to
-  100 %, a point outside the time span. A problem never prevents saving. Whether the reading
+  the times, the fields the verdict and the pattern require (a reason for a no-trade), exit
+  shares that do not add up to 100 %, a point outside the time span. A problem never prevents saving. Whether the reading
   follows the rules of the strategy is checked by EWTS, not by TradeViewer.
 - **SC16** The user deletes an expert scenario after confirmation.
+- **SC20** On every level the user draws with the tools of the chart page (4.6: lines,
+  Fibonacci, Elliott patterns such as 1-2-3-4-5 for a nested count, wave labels, text notes).
+  These drawings belong to the scenario and its level, not to the asset: they are saved in the
+  expert file (decision 0012) and do not appear on the chart page.
+- **SC21** What belongs to a level (its points and drawings) is shown on its own timeframe and on
+  the lower levels, never on a higher one. The user hides and shows each level; the choice stays
+  while stepping through scenarios.
 
 **Test-run viewer**
 

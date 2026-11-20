@@ -15,7 +15,7 @@ its converted expert scenarios; the Test-Run Viewer needs the test-run files EWT
 | Workspace Persistence | done (2026-11-15) |
 | Assets and Market Data | done (2026-11-15) |
 | Price Chart | done (2026-11-16) |
-| Scenario Editor | open |
+| Scenario Editor | in progress |
 | Watchlists | done (2026-11-16) |
 | Drawing Tools | done (2026-11-17) |
 | Symbol Catalog | done (2026-11-17) |

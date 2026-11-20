@@ -132,7 +132,7 @@ Features/
 ├── Overlays          (OV1-OV5)
 ├── TestRuns          (BT1-BT7)
 ├── Alerts            (AL1-AL4)
-├── Scenarios         scenario editor (SC7-SC16) and test-run viewer (SC17-SC19)
+├── Scenarios         scenario editor (SC7-SC16, SC20, SC21) and test-run viewer (SC17-SC19)
 └── Workspace         settings (default history, last chart) and backup and restore (WS3, WS5)
 ```
 
@@ -469,7 +469,7 @@ GetChangesAsync(after)                              what changed since change nu
 
 ### Scenario Files
 
-Decisions 0006, 0010 and 0011. The scenario folder (`Scenarios:RootPath`) holds two kinds of scenario,
+Decisions 0006, 0010, 0011 and 0012. The scenario folder (`Scenarios:RootPath`) holds two kinds of scenario,
 each with one writer; the formats are in docs/knowledge/ewts-interface.md, "Scenario Files" and
 "Expert Scenario Files".
 
@@ -497,9 +497,17 @@ DeleteAsync(id)                       delete expert/<id>.json (SC16)
 - It writes only in `expert/`, and only when the user has changed something (SC13); viewing a
   scenario creates nothing. Files are written atomically (`<name>.part`, then rename). Nothing in
   `test-runs/` is ever written or deleted (SC19).
-- The expert file is the only record of an expert scenario: no drawing records, nothing in the
-  workspace. The store keeps the fields it does not know (`legacy`, later additions) as raw JSON
-  and writes them back unchanged.
+- The expert file is the only record of an expert scenario, nothing is in the workspace. Besides
+  the named points it holds TradeViewer's section `drawings` (decision 0012): the free drawings
+  of the scenario, each a drawing record of the workspace without the asset plus its level
+  (context, setup, trigger), checked by `DrawingRules` like any drawing. The store keeps the
+  fields it does not know (`legacy`, later additions) as raw JSON and writes them back unchanged.
+- The three levels come from the context timeframe (1d -> 4h -> 1h, 4h -> 1h -> 15m; Domain,
+  `ScenarioLevels`). Each section of the named points is written with the timeframe of its level.
+- A point placed or moved in the editor is snapped by the Api, not the browser: Web sends where
+  it was let go (time of the chart candle, price), the feature reads the candles of the level's
+  timeframe and applies the snap rules of the format (Domain, `ScenarioSnap`), and answers with
+  the scenario, its shapes and its form problems. Opening a scenario never moves a point.
 - The id is taken on the first save under a lock in the store, so two windows cannot take the same
   number; it never changes afterwards (SC14). With several windows the last save wins (WS1).
 - An expert scenario is drawn by building shapes from its named points (Application, feature
@@ -571,7 +579,9 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/ewts/instances/{id}/alert-settings
 /api/alerts                                   history across all instances, filters (AL2); /read marks them read (AL3)
 /api/scenarios/expert                         list (SC7); post saves a new expert scenario and returns its id (SC14)
-/api/scenarios/expert/{id}                    get (points and the shapes built from them), put, delete (SC13, SC16)
+/api/scenarios/expert/{id}                    get (points, drawings and the shapes built from the points), put, delete (SC13, SC16)
+/api/scenarios/expert/snap                    snap a placed or moved point; returns the scenario, its shapes and
+                                              problems without writing (SC10, also before the first save)
 /api/scenarios/test-runs                      the run folders (SC17)
 /api/scenarios/test-runs/{runId}              the scenarios of a run
 /api/scenarios/test-runs/{runId}/{id}         one test-run scenario with its shapes (SC18)
@@ -804,11 +814,12 @@ context menu; the bar of the selected drawing does what one would.
   it.
 - Zoom, pan and crosshair are handled in the browser without a request (NF2). The module keeps
   the number of visible candles and the anchor itself when the timeframe or asset changes (CH3).
-- The scenario editor has point tools (SC10) beside the drawing tools: each places
-  one named point and snaps it to a candle of its section's timeframe (SC11), reading that candle
-  with one `/api/candles` request when the chart shows another timeframe, as the wave-label lookup
-  does. Web saves the points to the expert file instead of the workspace and redraws the shapes
-  built from them. Toolbars, the instance selector and the corner display (OV5) are
+- The scenario editor has point tools (SC10) beside the drawing tools of the chart page (SC20).
+  A point tool is offered only on the timeframe of its level; while a point is dragged only the
+  point follows the pointer, and when it is let go Web asks the Api to snap it and redraws the
+  shapes from the answer (chapter 8). The free drawings use the same interaction as on the chart
+  page; Web saves them, with their level, into the expert file instead of the workspace. What a
+  level holds is drawn on its own timeframe and the lower ones (SC21). Toolbars, the instance selector and the corner display (OV5) are
   Blazor components next to the canvas.
 
 ---
@@ -887,7 +898,7 @@ stops the start with a clear message, and so does an output root or a scenario f
 does not exist (a missing mount; the output root is never created), and a data path that is,
 or lies inside, the output root or the scenario folder. A path may start with `~` (home
 folder); a relative path is resolved against the content root of the Api. A `Scenarios:RootPath`
-that is not writable switches off only the editor's writing (SC9 to SC16); both pages still show the scenarios. EWTS instances are not configured here; the user
+that is not writable switches off only the editor's writing (SC9 to SC16, SC20); both pages still show the scenarios. EWTS instances are not configured here; the user
 registers them (EW1).
 
 ---
