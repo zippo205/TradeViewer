@@ -11,7 +11,7 @@ Written 2026-11-18.
 ## For EWTS
 
 Updated 2026-11-20, answering EWTS's message of the same day on the scenario handling. TradeViewer
-takes over EWTS decision 0006 in its decision 0010; specification 4.12 (SC1-SC17),
+takes over EWTS decision 0006 in its decision 0010; specification 4.12 (SC1-SC19),
 docs/knowledge/ewts-interface.md ("Scenario Files", "Expert Scenario Files") and the backlog
 follow it. Decision 0007 (`*.expert.json`) is replaced; nothing of it remains.
 
@@ -19,6 +19,11 @@ EWTS agreed to all points (2026-11-20): rebuilding from the named points, unknow
 id fixed at the first save, incomplete files reported as incomplete, deleting in the editor,
 `why` optional. Please write the id rule and the incomplete files into the architecture,
 chapter 7, "Scenario Files".
+
+**Two pages (decision 0011, as agreed with the owner):** the Scenario Editor for `expert/` and
+the read-only Test-Run Viewer for `test-runs/`, on one shared scenario chart. There is no "new
+expert scenario from a test-run scenario"; comparing the two stays with EWTS. The editor is built
+first.
 
 **Waiting for:** the 22 converted expert scenarios, to be put where TradeViewer's tests can copy
 them as fixtures, and one example test-run file in the new format (`T<n>` id, verdict `draft`)

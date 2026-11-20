@@ -132,7 +132,7 @@ Features/
 ├── Overlays          (OV1-OV5)
 ├── TestRuns          (BT1-BT7)
 ├── Alerts            (AL1-AL4)
-├── Scenarios         list and draw scenarios (SC1-SC9), editor of the expert scenarios (SC10-SC17)
+├── Scenarios         scenario editor (SC7-SC16) and test-run viewer (SC17-SC19)
 └── Workspace         settings (default history, last chart) and backup and restore (WS3, WS5)
 ```
 
@@ -249,8 +249,8 @@ EwtsInstance        id, name, base address
 - Prices and indicator values are `double`.
 - Analysis results of EWTS (overlays, setups, test runs, alerts) and scenario files are **not**
   domain models. They are contract records that pass through the Application layer unchanged
-  (see 8). The same holds for the expert scenario file TradeViewer writes (SC14); its form
-  checks (SC16) are rules of TradeViewer in Domain/Scenarios.
+  (see 8). The same holds for the expert scenario file TradeViewer writes (SC13); its form
+  checks (SC15) are rules of TradeViewer in Domain/Scenarios.
 - Drawings refer to market data by asset and time only, never by a row of the candle store, so
   rebuilding the store cannot orphan a drawing.
 
@@ -295,7 +295,7 @@ remove asset  switch off its analysis at EWTS if on -> DELETE subscription -> de
 
 - Only files from the asset's history start per timeframe are imported, although the folder
   can hold more (another client, e.g. EWTS, may have subscribed a longer history). Opening a
-  scenario whose time span is not stored moves the history start back to it (SC8).
+  scenario whose time span is not stored moves the history start back to it (SC6).
 - The symbols offered when adding an asset come from the Downloader's symbol catalog
   (`IDownloaderClient.SearchAsync`), searched while the user types (250 ms after the last key,
   `limit` 50, "type more" when the answer is truncated); only the sources in
@@ -469,7 +469,7 @@ GetChangesAsync(after)                              what changed since change nu
 
 ### Scenario Files
 
-Decisions 0006 and 0010. The scenario folder (`Scenarios:RootPath`) holds two kinds of scenario,
+Decisions 0006, 0010 and 0011. The scenario folder (`Scenarios:RootPath`) holds two kinds of scenario,
 each with one writer; the formats are in docs/knowledge/ewts-interface.md, "Scenario Files" and
 "Expert Scenario Files".
 
@@ -479,38 +479,41 @@ each with one writer; the formats are in docs/knowledge/ewts-interface.md, "Scen
 
 IScenarioFileReader                   Abstractions/Ewts
 
-ListAsync()                           the head of every scenario below the root
-ReadTestRunAsync(path)                one test-run scenario with its groups and shapes
+ListRunsAsync()                       the run folders below test-runs/ with their summary (SC17)
+ListRunAsync(runId)                   the head and figures of every scenario of one run
+ReadAsync(runId, id)                  one test-run scenario with its groups and shapes
 
 IExpertScenarioStore                  Abstractions/Ewts
 
+ListAsync()                           the head of every expert scenario (SC7)
 ReadAsync(id)                         one expert scenario, with the fields TradeViewer does not know
 SaveAsync(scenario)                   write expert/<id>.json; the first save takes the next free id
-DeleteAsync(id)                       delete expert/<id>.json (SC17)
+DeleteAsync(id)                       delete expert/<id>.json (SC16)
 ```
 
 - TradeViewer reads every request from the files, so a changed file is visible at the next
-  reload (SC7). There is no watcher and no stored index; the parsed heads are kept in memory by
+  reload (SC5). There is no watcher and no stored index; the parsed heads are kept in memory by
   file size and modified time, so a list request reads only files that changed.
-- It writes only in `expert/`, and only when the user has changed something (SC14); viewing a
+- It writes only in `expert/`, and only when the user has changed something (SC13); viewing a
   scenario creates nothing. Files are written atomically (`<name>.part`, then rename). Nothing in
-  `test-runs/` is ever written or deleted (SC9).
+  `test-runs/` is ever written or deleted (SC19).
 - The expert file is the only record of an expert scenario: no drawing records, nothing in the
   workspace. The store keeps the fields it does not know (`legacy`, later additions) as raw JSON
   and writes them back unchanged.
 - The id is taken on the first save under a lock in the store, so two windows cannot take the same
-  number; it never changes afterwards (SC15). With several windows the last save wins (WS1).
+  number; it never changes afterwards (SC14). With several windows the last save wins (WS1).
 - An expert scenario is drawn by building shapes from its named points (Application, feature
   Scenarios) in the vocabulary of the analysis drawings; a test-run scenario brings its shapes.
   Both are drawn by the same primitives of the chart module (`setOverlays`).
-- A scenario is addressed by its path relative to the root (test run) or its id (expert); the
-  reader rejects a path that leaves the root.
-- The scenario page is a chart apart from the chart page: it takes asset, timeframe and time
-  span from the file.
-- The scenarios of a test run lie in the folder `test-runs/<run id>/`, which the test run names;
-  TradeViewer lists it with the same reader (BT4, BT5). Nothing about a trade is drawn from the
+- An expert scenario is addressed by its id, a test-run scenario by run id and id; both are
+  checked against the file name rules, so no request leaves its folder.
+- Two pages, the scenario editor and the test-run viewer (decision 0011), share one Blazor
+  component for the scenario chart, list and panel. The chart is apart from the chart page: it
+  takes asset, timeframe and time span from the file.
+- The scenarios of a test run lie in the folder `test-runs/<run id>/`, which the test run names
+  (BT4, BT5). Nothing about a trade is drawn from the
   report itself. The figures are name and value pairs written by EWTS; TradeViewer shows them as
-  columns and in the panel without knowing their meaning (SC4). `.pine` files are not read; they
+  columns and in the panel without knowing their meaning (SC18). `.pine` files are not read; they
   are part of a run's ZIP (BT6).
 - Without `Scenarios:RootPath` the feature is switched off and its menu entry is hidden; test
   runs then show statistics only.
@@ -567,10 +570,11 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/ewts/instances/{id}/alerts
 /api/ewts/instances/{id}/alert-settings
 /api/alerts                                   history across all instances, filters (AL2); /read marks them read (AL3)
-/api/scenarios                                list of both kinds (SC1)
-/api/scenarios/test-runs/{path}               one test-run scenario with its shapes
-/api/scenarios/expert                         post saves a new expert scenario and returns its id (SC15)
-/api/scenarios/expert/{id}                    get (points and the shapes built from them), put, delete (SC14, SC17)
+/api/scenarios/expert                         list (SC7); post saves a new expert scenario and returns its id (SC14)
+/api/scenarios/expert/{id}                    get (points and the shapes built from them), put, delete (SC13, SC16)
+/api/scenarios/test-runs                      the run folders (SC17)
+/api/scenarios/test-runs/{runId}              the scenarios of a run
+/api/scenarios/test-runs/{runId}/{id}         one test-run scenario with its shapes (SC18)
 /api/workspace/backups                        list; post makes a backup now; /{name} download; /{name}/restore;
                                               /restore restores the uploaded file (the body, at most 256 MB)
 /health
@@ -608,8 +612,8 @@ AlertReceived(instanceId, alert)
 ```
 
 An event says what changed; the client then reads the data through REST. After a reconnect the
-client reloads what it shows. The scenario list has no event: the scenario page asks
-`/api/scenarios` every 30 seconds (SC7).
+client reloads what it shows. The scenario lists have no event: both scenario pages ask
+for their list every 30 seconds (SC5).
 
 ---
 
@@ -800,8 +804,8 @@ context menu; the bar of the selected drawing does what one would.
   it.
 - Zoom, pan and crosshair are handled in the browser without a request (NF2). The module keeps
   the number of visible candles and the anchor itself when the timeframe or asset changes (CH3).
-- The editor of the scenario page has point tools (SC11) beside the drawing tools: each places
-  one named point and snaps it to a candle of its section's timeframe (SC12), reading that candle
+- The scenario editor has point tools (SC10) beside the drawing tools: each places
+  one named point and snaps it to a candle of its section's timeframe (SC11), reading that candle
   with one `/api/candles` request when the chart shows another timeframe, as the wave-label lookup
   does. Web saves the points to the expert file instead of the workspace and redraws the shapes
   built from them. Toolbars, the instance selector and the corner display (OV5) are
@@ -883,7 +887,7 @@ stops the start with a clear message, and so does an output root or a scenario f
 does not exist (a missing mount; the output root is never created), and a data path that is,
 or lies inside, the output root or the scenario folder. A path may start with `~` (home
 folder); a relative path is resolved against the content root of the Api. A `Scenarios:RootPath`
-that is not writable switches off only the editor (SC10 to SC17); the viewer still works. EWTS instances are not configured here; the user
+that is not writable switches off only the editor's writing (SC9 to SC16); both pages still show the scenarios. EWTS instances are not configured here; the user
 registers them (EW1).
 
 ---

@@ -69,23 +69,23 @@ Outcome: any stored asset can be charted in any timeframe within the performance
 
 # P1 - Workstation
 
-## Epic: Scenario Viewer
+## Epic: Scenario Editor
 
-Branch: `feature/scenario-viewer`
+Branch: `feature/scenario-editor`
 
-- Reader of the scenario folder (expert scenarios and test-run drawing files), list and detail
-  endpoints
-- Shapes built from the named points of an expert scenario (decision 0010)
-- Primitives of the chart module for the overlay shapes (line, label, level, zone, marker,
-  vertical line), with groups and the detail text on pointing
-- Scenario list with filters, scenario page with chart, panel, previous and next
+- Store of `expert/<id>.json` (decisions 0010, 0011): list, read, save with ids and unknown
+  fields kept, delete; endpoints
+- Shapes built from the named points; primitives of the chart module for the overlay shapes
+  (line, label, level, zone, marker, vertical line), with groups and the detail text on pointing
+- The scenario chart shared with the Test-Run Viewer: chart, list, panel, previous and next
+- Point tools with the snap rules of EWTS's format, a timeframe per section, head fields, form
+  checks
 
-Requirements: SC1, SC2, SC3, SC4, SC5, SC6, SC7, SC8, SC9, OV6
-Depends on: Price Chart; the converted expert scenarios of EWTS as fixtures (test-run scenarios
-are tested with fixtures in EWTS's format until EWTS writes them)
+Requirements: SC1-SC16, OV6
+Depends on: Price Chart, Drawing Tools; the converted expert scenarios of EWTS as fixtures
 Knowledge: docs/knowledge/ewts-interface.md (Drawings, Scenario Files, Expert Scenario Files)
-Outcome: a scenario is checked in TradeViewer instead of pasting a Pine script into
-TradingView.
+Outcome: the owner makes and adjusts the expert scenarios in TradeViewer instead of writing
+YAML, and EWTS's code is adjusted against them.
 
 ## Epic: Symbol Catalog
 
@@ -123,19 +123,21 @@ Requirements: DR1, DR2, DR3, DR4, DR5, DR6, NF3
 Depends on: Price Chart
 Outcome: drawings behave the same on every timeframe and are never lost.
 
-## Epic: Scenario Editor
+## Epic: Test-Run Viewer
 
-Branch: `feature/scenario-editor`
+Branch: `feature/test-run-viewer`
 
-- Point tools with the snap rules of EWTS's format, a timeframe per section, head fields
-- Writer of `expert/<id>.json` (decision 0010): ids, unknown fields kept, delete
-- Form checks; a new expert scenario from a test-run scenario
+- Reader of `test-runs/<run id>/` (decision 0011): run folders, a run's scenarios, one drawing
+  file; endpoints
+- Read-only page on the scenario chart of the Scenario Editor: run list, scenario list with the
+  figures as columns, panel
 
-Requirements: SC10, SC11, SC12, SC13, SC14, SC15, SC16, SC17
-Depends on: Scenario Viewer, Drawing Tools
-Knowledge: docs/knowledge/ewts-interface.md (Scenario Files, Expert Scenario Files)
-Outcome: the owner makes and corrects the expert scenarios in TradeViewer instead of writing
-YAML, and EWTS tests against them.
+Requirements: SC1-SC6, SC17, SC18, SC19
+Depends on: Scenario Editor; EWTS writes test-run files (its Scenarios epic; until then tests
+use fixtures in EWTS's format)
+Knowledge: docs/knowledge/ewts-interface.md (Drawings, Scenario Files)
+Outcome: a test-run scenario is checked in TradeViewer instead of pasting a Pine script into
+TradingView.
 
 ## Epic: Indicators
 
@@ -189,7 +191,7 @@ Branch: `feature/analysis-overlays`
 - Update on `OverlaysChanged`
 
 Requirements: OV1, OV2, OV3, OV4, OV5, OV6
-Depends on: EWTS Instances, Scenario Viewer, Drawing Tools
+Depends on: EWTS Instances, Scenario Editor, Drawing Tools
 Knowledge: docs/knowledge/ewts-interface.md
 
 ## Epic: Test Runs
@@ -197,10 +199,10 @@ Knowledge: docs/knowledge/ewts-interface.md
 Branch: `feature/test-runs`
 
 - Start, state, elapsed time and running statistics, cancel, runs table, result view, delete, ZIP of a run's scenarios
-- Scenarios of a run listed with their figures and opened in the Scenario Viewer
+- Scenarios of a run listed with their figures and opened in the Test-Run Viewer
 
 Requirements: BT1, BT2, BT3, BT4, BT5, BT6, BT7
-Depends on: EWTS Instances, Scenario Viewer
+Depends on: EWTS Instances, Test-Run Viewer
 Knowledge: docs/knowledge/ewts-interface.md
 
 ## Epic: Alerts

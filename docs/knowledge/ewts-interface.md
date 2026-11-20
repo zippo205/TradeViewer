@@ -146,7 +146,7 @@ OV1-OV5   overlays                       analysis answers exist, but no drawings
                                          signal that an analysis changed
 BT1-BT6   test runs                      one synchronous request; no progress, cancel, list or storage
 AL1-AL4   alerts                         no alerts, no channels, no settings
-SC1-SC9   scenarios                      the scenarios exist as YAML with a Pine overlay; the shape
+SC1-SC19  scenarios                      the scenarios exist as YAML with a Pine overlay; the shape
                                          model exists in tools/scenario-to-pine.py but is not
                                          written as data
 ```
@@ -376,7 +376,7 @@ counting the run's scenarios; unique only within its run folder and never change
 
 ## Expert Scenario Files
 
-`expert/<id>.json`, written by TradeViewer's editor (specification SC10 to SC17); EWTS's
+`expert/<id>.json`, written by TradeViewer's editor (specification SC7 to SC16); EWTS's
 acceptance tests read them from a copy in the EWTS repository. Named points, not shapes; no
 `expected` section: the expert scenario is the truth.
 

@@ -1,7 +1,7 @@
 # 0010 - Expert Scenarios Are Made in TradeViewer
 
 Status: accepted (2026-11-20, owner, agreed with EWTS: ../EWTS/docs/decisions/
-0006-expert-scenarios-from-tradeviewer.md). Replaces 0007; amends 0006, points 1 and 2.
+0006-expert-scenarios-from-tradeviewer.md). Replaces 0007; amends 0006, points 1 and 2. Refined by 0011 (two pages).
 
 ## Context
 
