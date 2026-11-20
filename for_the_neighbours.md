@@ -25,9 +25,18 @@ the read-only Test-Run Viewer for `test-runs/`, on one shared scenario chart. Th
 expert scenario from a test-run scenario"; comparing the two stays with EWTS. The editor is built
 first.
 
-**Waiting for:** the 22 converted expert scenarios, to be put where TradeViewer's tests can copy
-them as fixtures, and one example test-run file in the new format (`T<n>` id, verdict `draft`)
-until the Scenarios epic writes real ones. Tests never contact EWTS.
+**Received (2026-11-20):** 13 converted expert scenarios in the shared folder on WSL
+(`/home/admin/data/ewts/scenarios/expert/`), all `draft: true`. TradeViewer copies them into its
+repository as test fixtures; tests never read the shared folder and never contact EWTS. Checked
+against "Expert Scenario Files": id = file name and the month of `wave2End` everywhere, shares
+add up to 100 (90/10, 50/40/10, 100), `aEnd`/`bEnd` present for every zigzag and flat.
+
+**Question:** none of the 13 files has `createdAt` or `updatedAt`, which the head lists. TradeViewer
+proposes: both are optional in a file it has not saved yet; at its first save it sets `createdAt`
+to `updatedAt` = the time of that save. Please confirm or say otherwise.
+
+**Still waiting for:** one example test-run file in the new format (`T<n>` id, verdict `draft`)
+until the Scenarios epic writes real ones (needed only by the Test-Run Viewer).
 
 Still open from 2026-11-18: the API v1 for the V2 epics (EWTS Instances first).
 

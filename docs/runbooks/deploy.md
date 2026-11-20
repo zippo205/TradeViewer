@@ -21,8 +21,9 @@ MARKETDATA_PATH   the Downloader's output root, mounted read-only
                   WSL: /home/admin/marketdata (frozen copy)   Pi: /data/marketdata
 APPDATA_PATH      TradeViewer's own data: marketdata.db, workspace.db, backups
                   WSL: /home/admin/tradeviewer                Pi: /data/tradeviewer
-SCENARIOS_PATH    the scenario folder that all EWTS instances write to, writable for TradeViewer too
-                  (only with docker-compose.scenarios.yml); Pi: /data/ewts/scenarios
+SCENARIOS_PATH    the scenario folder shared with EWTS, writable for TradeViewer (only with
+                  docker-compose.scenarios.yml)
+                  WSL: /home/admin/data/ewts/scenarios        Pi: /data/ewts/scenarios
 TRADEVIEWER_PORT  host port of the website (default 8080; the Downloader uses 8081)
 APP_UID/APP_GID   user the container runs as (default 1000:1000 = the first WSL/Pi user)
 ```
@@ -129,6 +130,8 @@ Development uses the frozen copy `~/marketdata` and the repository's `data/app`
 (appsettings.Development.json). Other values as arguments after `--`, named like the setting with
 `:` (`--MarketData:RootPath=/x`), or as environment variables with `__` (`MarketData__RootPath`).
 Order of precedence: arguments, environment variables, appsettings. Stop with Ctrl+C.
+
+With the scenario folder: `--Scenarios:RootPath=/home/admin/data/ewts/scenarios`.
 
 ---
 
