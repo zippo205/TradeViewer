@@ -180,4 +180,12 @@ Rules for the agent:
              crypto.randomUUID. The arm64 image built and started in 184 seconds; schema unchanged
              (7); the container is healthy and uses 87 MB of 512 MB. Proved in the headless browser
              from WSL: two trend lines created and saved side by side, then deleted again.
+             The owner's Edge still ran the old chart module from its cache (it had been served
+             without a cache rule); clearing "Cached images and files" was needed once.
+
+2026-11-20   Fix of the client file caching deployed by the agent at the owner's request: main at
+             merge commit 92831e3, with DOWNLOADER_ENABLED=true (passed inline). The page and the
+             chart module are answered with Cache-Control: no-cache, so a browser loads a new chart
+             module after every update. Built and started in 73 seconds; schema unchanged (7);
+             healthy, 81 MB of 512 MB; two trend lines created and deleted again as before.
 ```
