@@ -1,0 +1,41 @@
+@* The three levels of an expert scenario (SC11, SC21): a button per level with its timeframe, and beside each a switch
+   that hides or shows what belongs to the level. *@
+<div class="segments scenario-levels" role="group" aria-label="Level">
+    @foreach (var level in View.Levels)
+    {
+        <button type="button" class="@(level.Level == View.Shown ? "selected" : "")" title="Show the @level.Level level (@level.Timeframe)"
+                @onclick="() => Show(level.Level)">
+            @Title(level.Level) @level.Timeframe
+        </button>
+    }
+</div>
+<span class="scenario-level-switches" role="group" aria-label="Levels shown">
+    @foreach (var level in View.Levels)
+    {
+        <label title="Show what belongs to the @level.Level level">
+            <input type="checkbox" checked="@(!View.IsHidden(level.Level))" @onchange="() => Toggle(level.Level)" /> @Title(level.Level)
+        </label>
+    }
+</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public ScenarioLevelView View { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private static string Title(string level) => char.ToUpperInvariant(level[0]) + level.Substring(1);
+
+    private Task Show(string level)
+    {
+        View.Show(level);
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task Toggle(string level)
+    {
+        View.Toggle(level);
+        return OnChanged.InvokeAsync();
+    }
+}

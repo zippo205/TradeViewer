@@ -4,6 +4,10 @@
     <span class="title">TradeViewer</span>
     <nav>
         <NavLink href="" Match="NavLinkMatch.All" class="@ChartLinkClass">Chart</NavLink>
+        @if (_scenarios)
+        {
+            <NavLink href="scenarios/expert">Scenarios</NavLink>
+        }
         <NavLink href="assets">Assets</NavLink>
         <NavLink href="settings">Settings</NavLink>
     </nav>
@@ -18,11 +22,18 @@
     [Inject]
     private NavigationManager Navigation { get; set; } = null!;
 
+    [Inject]
+    private ScenariosApi Scenarios { get; set; } = null!;
+
+    /// <summary>The scenario pages exist only with a scenario folder (architecture, chapter 8).</summary>
+    private bool _scenarios;
+
     /// <summary>The link "Chart" leads to the last chart and is the active one on every chart address.</summary>
     private string? ChartLinkClass => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("chart/", StringComparison.Ordinal) ? "active" : null;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Navigation.LocationChanged += (_, _) => StateHasChanged();
+        _scenarios = (await Scenarios.GetStatusAsync()).Value?.Enabled == true;
     }
 }

@@ -45,6 +45,13 @@
     [Parameter]
     public IReadOnlyList<string> Timeframes { get; set; } = Array.Empty<string>();
 
+    /// <summary>
+    /// When only the timeframe changes, show the same dates as before instead of the chart page's rule (CH3): the
+    /// scenario pages go down from the context to the trigger on the dates the user looks at (SC2, SC21).
+    /// </summary>
+    [Parameter]
+    public bool KeepTimesOnTimeframeChange { get; set; }
+
     /// <summary>Logarithmic price scale instead of the linear one (CH1).</summary>
     [Parameter]
     public bool LogScale { get; set; }
@@ -71,6 +78,18 @@
     /// <summary>An action of the legend line of an indicator: its id and hide, settings or remove (IN1).</summary>
     [Parameter]
     public EventCallback<(string Id, string Action)> OnIndicatorAction { get; set; }
+
+    /// <summary>A named point placed with a tool or let go after a drag (SC10); the page has it snapped by the server.</summary>
+    [Parameter]
+    public EventCallback<PlacedPoint> OnPointPlaced { get; set; }
+
+    /// <summary>The selected named point ("field" or "field#index"), null when none.</summary>
+    [Parameter]
+    public EventCallback<string?> OnPointSelected { get; set; }
+
+    /// <summary>The point tool in use; null after its last point or Escape.</summary>
+    [Parameter]
+    public EventCallback<string?> OnScenarioToolChanged { get; set; }
 
     /// <summary>A key of the chart page: delete, undo or redo.</summary>
     [Parameter]
@@ -110,6 +129,57 @@
         if (_pane != null)
         {
             await _pane.InvokeVoidAsync("setIndicators", indicators);
+        }
+    }
+
+    /// <summary>Loads the series again from its newest candles, e.g. after its history was moved back (SC6).</summary>
+    public Task ReloadSeriesAsync()
+    {
+        _shownSeries = null;
+        return ApplyAsync();
+    }
+
+    /// <summary>Read-only shapes as the Api gives them (OV1-OV6, SC8); the groups whose keys are given are hidden (SC21).</summary>
+    public async Task SetOverlaysAsync(IReadOnlyList<OverlayGroupRecord> groups, IReadOnlyList<string> hiddenKeys)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("setOverlays", groups, hiddenKeys);
+        }
+    }
+
+    /// <summary>Positions the chart on a time span, loading older candles as far as it needs (SC2).</summary>
+    public async Task ShowTimeRangeAsync(DateTimeOffset from, DateTimeOffset to)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("showTimeRange", from.ToUnixTimeSeconds(), to.ToUnixTimeSeconds());
+        }
+    }
+
+    /// <summary>The named points of a scenario; those of the level shown are editable (SC10).</summary>
+    public async Task SetScenarioPointsAsync(IReadOnlyList<ScenarioHandle> points)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("setScenarioPoints", points);
+        }
+    }
+
+    /// <summary>A point tool, or the pointer with null.</summary>
+    public async Task SetScenarioToolAsync(ScenarioTool? tool)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("setScenarioTool", tool);
+        }
+    }
+
+    public async Task SelectScenarioPointAsync(string? key)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("selectScenarioPoint", key);
         }
     }
 
@@ -174,6 +244,24 @@
     }
 
     [JSInvokable]
+    public Task PointPlaced(string field, int? index, double time, double price, string? kind)
+    {
+        return OnPointPlaced.InvokeAsync(new PlacedPoint(field, index, (long)time, price, kind));
+    }
+
+    [JSInvokable]
+    public Task PointSelected(string? key)
+    {
+        return OnPointSelected.InvokeAsync(key);
+    }
+
+    [JSInvokable]
+    public Task ScenarioToolChanged(string? tool)
+    {
+        return OnScenarioToolChanged.InvokeAsync(tool);
+    }
+
+    [JSInvokable]
     public Task Key(string key)
     {
         return OnKey.InvokeAsync(key);
@@ -189,6 +277,7 @@
             _self = DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("bindDrawingEvents", _pane, _self);
             await _module.InvokeVoidAsync("bindIndicatorActions", _pane, _self);
+            await _module.InvokeVoidAsync("bindScenarioEvents", _pane, _self);
             _keys = await _module.InvokeAsync<IJSObjectReference>("bindPageKeys", _self);
             await ApplyAsync();
             await OnReady.InvokeAsync();
@@ -200,6 +289,12 @@
 
     public async ValueTask DisposeAsync()
     {
+        // A page may still hold this component after it left the page (a chart removed and made again): from now on
+        // it is not ready and every call does nothing.
+        var pane = _pane;
+        var module = _module;
+        _pane = null;
+        _module = null;
         try
         {
             if (_keys != null)
@@ -208,15 +303,15 @@
                 await _keys.DisposeAsync();
             }
 
-            if (_pane != null)
+            if (pane != null)
             {
-                await _pane.InvokeVoidAsync("dispose");
-                await _pane.DisposeAsync();
+                await pane.InvokeVoidAsync("dispose");
+                await pane.DisposeAsync();
             }
 
-            if (_module != null)
+            if (module != null)
             {
-                await _module.DisposeAsync();
+                await module.DisposeAsync();
             }
         }
         catch (JSDisconnectedException)
@@ -226,6 +321,9 @@
 
         _self?.Dispose();
     }
+
+    /// <summary>The dates in view, as the module reports them (Unix seconds).</summary>
+    private sealed record TimeWindow(long From, long To);
 
     /// <summary>Tells the module what changed since the last render, and nothing when nothing did.</summary>
     private async Task ApplyAsync()
@@ -241,11 +339,18 @@
             await _pane.InvokeVoidAsync("setOptions", new { logScale = LogScale });
         }
 
-        var series = Source + "/" + Symbol + "/" + Timeframe;
+        var asset = Source + "/" + Symbol + "/";
+        var series = asset + Timeframe;
         if (_shownSeries != series && Source.Length > 0 && Symbol.Length > 0 && Timeframe.Length > 0)
         {
+            var sameAsset = _shownSeries != null && _shownSeries.StartsWith(asset, StringComparison.Ordinal);
+            var window = KeepTimesOnTimeframeChange && sameAsset ? await _pane.InvokeAsync<TimeWindow?>("visibleTimeRange") : null;
             _shownSeries = series;
             await _pane.InvokeVoidAsync("setSeries", new { source = Source, symbol = Symbol, timeframe = Timeframe, tickSize = TickSize, timeframes = Timeframes });
+            if (window != null)
+            {
+                await _pane.InvokeVoidAsync("showTimeRange", window.From, window.To, false);
+            }
         }
     }
 }

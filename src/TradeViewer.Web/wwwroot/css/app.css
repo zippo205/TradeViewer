@@ -1134,3 +1134,115 @@ button.fold {
 .card.wide {
     max-width: none;
 }
+
+/* The scenario pages (SC4): the chart, the list at its right, the panel below the chart. */
+.scenario-chart {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.scenario-panel {
+    max-height: 30%;
+    overflow: auto;
+    padding: 6px 12px;
+    border-top: 1px solid var(--border);
+}
+
+.scenario-list {
+    display: flex;
+    flex-direction: column;
+    width: 460px;
+    border-left: 1px solid var(--border);
+    background: var(--bg);
+    min-height: 0;
+}
+
+.scenario-list-head {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.scenario-filters,
+.scenario-list-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.scenario-list-table {
+    flex: 1;
+    overflow: auto;
+}
+
+.scenario-list-table table.list {
+    width: 100%;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.scenario-list-table tbody tr {
+    cursor: pointer;
+}
+
+.scenario-list-table tbody tr:hover,
+.scenario-list-table tbody tr.selected {
+    background: var(--surface);
+}
+
+.scenario-list-table tbody tr.selected td:first-child {
+    box-shadow: inset 3px 0 0 var(--link);
+}
+
+.link-button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.scenario-levels button {
+    white-space: nowrap;
+}
+
+.scenario-level-switches {
+    display: inline-flex;
+    gap: 10px;
+}
+
+.scenario-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.scenario-head-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.scenario-reason,
+.scenario-notes p {
+    margin: 6px 0;
+    white-space: pre-line;
+}
+
+.scenario-problems {
+    margin: 6px 0;
+    padding-left: 18px;
+    color: var(--bad);
+}

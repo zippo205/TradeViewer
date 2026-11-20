@@ -1,0 +1,111 @@
+@* The list of expert scenarios (SC7): filters by asset, verdict and draft mark, every column sorts; a file that cannot
+   be read shows its error. The list checks the folder every 30 seconds and has a reload button (SC5). *@
+<div class="scenario-list-head">
+    <div class="scenario-filters">
+        <select aria-label="Asset" @bind="View.Asset" @bind:after="Changed">
+            <option value="">all assets</option>
+            @foreach (var asset in View.Assets)
+            {
+                <option value="@asset">@asset</option>
+            }
+        </select>
+        <select aria-label="Verdict" @bind="View.Verdict" @bind:after="Changed">
+            <option value="">all verdicts</option>
+            <option value="trade-win">trade-win</option>
+            <option value="trade-loss">trade-loss</option>
+            <option value="no-trade">no-trade</option>
+        </select>
+        <select aria-label="Draft" @bind="View.Draft" @bind:after="Changed">
+            <option value="">drafts and final</option>
+            <option value="draft">drafts only</option>
+            <option value="final">final only</option>
+        </select>
+    </div>
+    <div class="scenario-list-actions">
+        <button type="button" title="Read the folder again" @onclick="() => OnReload.InvokeAsync()">Reload</button>
+        @if (ReadAt != null)
+        {
+            <small class="muted" title="The list is read every 30 seconds">read @ReadAt.Value.ToString("HH:mm:ss", CultureInfo.InvariantCulture) UTC</small>
+        }
+        @if (Problem != null)
+        {
+            <small class="status-bad">@Problem</small>
+        }
+    </div>
+</div>
+
+<div class="scenario-list-table">
+    <table class="list">
+        <thead>
+            <tr>
+                @foreach (var (column, title) in Headers)
+                {
+                    <th><button type="button" class="link-button" @onclick="() => Sort(column)">@title@SortMark(column)</button></th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var head in View.Shown())
+            {
+                <tr class="@(head.Id == Selected ? "selected" : "") @(head.Error != null ? "broken" : "")" @onclick="() => OnSelect.InvokeAsync(head.Id)">
+                    @if (head.Error != null)
+                    {
+                        <td>@head.Id</td>
+                        <td colspan="4" class="status-bad wrap" title="@head.Error">cannot be read</td>
+                    }
+                    else
+                    {
+                        <td>@head.Id</td>
+                        <td>@head.Symbol</td>
+                        <td>@head.ContextTimeframe</td>
+                        <td>@head.Verdict</td>
+                        <td>@(head.Draft ? "draft" : "")</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (View.All.Count == 0)
+    {
+        <p class="muted chart-note">No expert scenarios yet.</p>
+    }
+</div>
+
+@code {
+    private static readonly (string Column, string Title)[] Headers =
+    {
+        ("id", "Id"), ("asset", "Asset"), ("timeframe", "Tf"), ("verdict", "Verdict"), ("draft", "Draft")
+    };
+
+    [Parameter, EditorRequired]
+    public ExpertScenarioListView View { get; set; } = null!;
+
+    [Parameter]
+    public string? Selected { get; set; }
+
+    [Parameter]
+    public DateTimeOffset? ReadAt { get; set; }
+
+    [Parameter]
+    public string? Problem { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnSelect { get; set; }
+
+    [Parameter]
+    public EventCallback OnReload { get; set; }
+
+    /// <summary>The filters or the order changed: previous and next follow the new order.</summary>
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private Task Changed() => OnChanged.InvokeAsync();
+
+    private Task Sort(string column)
+    {
+        View.SortBy(column);
+        return Changed();
+    }
+
+    private string SortMark(string column) => View.SortColumn != column ? "" : View.Descending ? " ▾" : " ▴";
+}

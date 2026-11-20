@@ -1,0 +1,48 @@
+@* The panel below the chart of an expert scenario (SC12, SC15). Step 6 of the plan shows the head and the form
+   problems; editing the fields comes with the editor (step 7). *@
+@if (Response != null)
+{
+    var scenario = Response.Scenario;
+    <div class="scenario-head">
+        <div class="scenario-head-line">
+            <strong>@(scenario.Id ?? "new scenario")</strong>
+            <span class="badge">@(scenario.Verdict ?? "no verdict")</span>
+            @if (scenario.Draft)
+            {
+                <span class="badge warning">draft</span>
+            }
+            <span class="muted">@scenario.Symbol @scenario.ContextTimeframe, @Day(scenario.From) to @Day(scenario.To)</span>
+            @if (scenario.UpdatedAt != null)
+            {
+                <span class="muted">changed @scenario.UpdatedAt.Value.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) UTC</span>
+            }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(scenario.Reason))
+        {
+            <p class="scenario-reason"><span class="muted">Reason</span> @scenario.Reason</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(scenario.Notes))
+        {
+            <details class="scenario-notes">
+                <summary>Notes</summary>
+                <p>@scenario.Notes</p>
+            </details>
+        }
+        @if (Response.Problems.Count > 0)
+        {
+            <ul class="scenario-problems">
+                @foreach (var problem in Response.Problems)
+                {
+                    <li><code>@problem.Field</code> @problem.Message</li>
+                }
+            </ul>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public ExpertScenarioResponse? Response { get; set; }
+
+    private static string Day(DateTimeOffset? time) => time?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "?";
+}

@@ -1,0 +1,321 @@
+@page "/scenarios/expert"
+@page "/scenarios/expert/{Id}"
+@implements IDisposable
+@inject ScenariosApi Api
+@inject AssetsApi AssetsClient
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@* The scenario editor (SC1-SC16, SC20, SC21; decisions 0010 to 0012). Step 6 of the plan: the list, the chart of a
+   scenario on its levels, previous and next, and the asset and history it needs. Opening and stepping through the
+   scenarios writes nothing (SC13). *@
+
+<PageTitle>@(Id ?? "Expert scenarios") - TradeViewer</PageTitle>
+
+<ScenarioChart @bind-ListOpen="_listOpen">
+    <Toolbar>
+        <strong class="chart-title">Expert scenarios</strong>
+        <div class="segments" role="group" aria-label="Step through the list">
+            <button type="button" title="The scenario before this one in the list" disabled="@(_list.Step(Id, -1) == null)" @onclick="() => Step(-1)">‹ Previous</button>
+            <button type="button" title="The scenario after this one in the list" disabled="@(_list.Step(Id, +1) == null)" @onclick="() => Step(+1)">Next ›</button>
+        </div>
+        @if (_response != null)
+        {
+            <ScenarioLevelBar View="@_levels" OnChanged="LevelsChangedAsync" />
+            <label title="Logarithmic price scale; the levels of a scenario are measured in log scale (SC3)">
+                <input type="checkbox" checked="@_logScale" @onchange="e => _logScale = (bool)e.Value!" /> log
+            </label>
+        }
+        @if (_asset?.Loading == true)
+        {
+            <span class="badge loading">loading</span>
+        }
+    </Toolbar>
+
+    <Chart>
+        @if (_status != null && !_status.Enabled)
+        {
+            <p class="chart-note">No scenario folder is configured (Scenarios:RootPath, see the runbook).</p>
+        }
+        else if (_openError != null)
+        {
+            <p class="status-bad chart-note">@_openError</p>
+        }
+        else if (_response == null)
+        {
+            <p class="chart-note muted">@(Id == null ? "Choose a scenario from the list." : "Loading...")</p>
+        }
+        else if (_asset == null)
+        {
+            <div class="chart-note scenario-notice">
+                <p>@_response.Scenario.Source/@_response.Scenario.Symbol is not one of your assets, so its chart cannot be shown (SC6).</p>
+                <button type="button" disabled="@_busy" @onclick="AddAssetAsync">Add @_response.Scenario.Symbol</button>
+                @if (_actionProblem != null)
+                {
+                    <span class="status-bad">@_actionProblem</span>
+                }
+            </div>
+        }
+        else
+        {
+            @if (_response.Asset.HistoryNeeded.Count > 0)
+            {
+                <div class="scenario-notice">
+                    <span>The stored history of @_asset.Symbol starts after this scenario: @HistoryText(_response.Asset.HistoryNeeded).</span>
+                    <button type="button" disabled="@_busy" @onclick="LoadHistoryAsync">Load it</button>
+                    @if (_actionProblem != null)
+                    {
+                        <span class="status-bad">@_actionProblem</span>
+                    }
+                </div>
+            }
+            @if (Chartable)
+            {
+                <ChartHost @ref="_chart"
+                           Source="@_asset.Source"
+                           Symbol="@_asset.Symbol"
+                           Timeframe="@(_levels.Timeframe ?? "")"
+                           TickSize="@_asset.TickSize"
+                           Timeframes="@ChartableTimeframes"
+                           LogScale="@_logScale"
+                           KeepTimesOnTimeframeChange="true"
+                           OnReady="OnChartReadyAsync" />
+            }
+            else
+            {
+                <p class="chart-note">@_asset.Symbol has no candles in @_levels.Timeframe yet.</p>
+            }
+        }
+    </Chart>
+
+    <List>
+        <ExpertScenarioList View="@_list" Selected="@Id" ReadAt="@_readAt" Problem="@_listProblem"
+                            OnSelect="Open" OnReload="ReadListAsync" OnChanged="StateHasChanged" />
+    </List>
+
+    <Panel>
+        <ExpertScenarioPanel Response="@_response" />
+    </Panel>
+</ScenarioChart>
+
+@code {
+    private static readonly TimeSpan ListInterval = TimeSpan.FromSeconds(30);
+
+    private readonly ExpertScenarioListView _list = new ExpertScenarioListView();
+    private readonly ScenarioLevelView _levels = new ScenarioLevelView();
+    private ScenariosStatusResponse? _status;
+    private ExpertScenarioResponse? _response;
+    private AssetResponse? _asset;
+    private ChartHost? _chart;
+    private Timer? _timer;
+    private DateTimeOffset? _readAt;
+    private string? _listProblem;
+    private string? _openError;
+    private string? _actionProblem;
+    private string? _opened;
+    private bool _listOpen = true;
+    private bool _logScale = true;
+    private bool _busy;
+    private bool _showSpan;
+    private bool _disposed;
+
+    [Parameter]
+    public string? Id { get; set; }
+
+    private bool Chartable => _asset != null && _levels.Timeframe != null && _asset.Timeframes.Any(timeframe => timeframe.Timeframe == _levels.Timeframe && timeframe.Chartable);
+
+    private IReadOnlyList<string> ChartableTimeframes => _asset?.Timeframes.Where(timeframe => timeframe.Chartable).Select(timeframe => timeframe.Timeframe).ToList() ?? new List<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var status = await Api.GetStatusAsync();
+        _status = status.Value;
+        if (_status?.Enabled == true)
+        {
+            await ReadListAsync();
+            _timer = new Timer(_ => _ = InvokeAsync(ReadListAsync), null, ListInterval, ListInterval);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id != _opened && _status?.Enabled == true)
+        {
+            _opened = Id;
+            await OpenAsync();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_showSpan && _chart?.IsReady == true)
+        {
+            _showSpan = false;
+            await ShowScenarioAsync(positionOnSpan: true);
+        }
+    }
+
+    /// <summary>SC5: the folder is read on every call; the server reads only the files that changed.</summary>
+    private async Task ReadListAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        var list = await Api.ListAsync();
+        _listProblem = list.Error;
+        if (list.Value != null)
+        {
+            _list.Set(list.Value);
+            _readAt = DateTimeOffset.UtcNow;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task OpenAsync()
+    {
+        _response = null;
+        _openError = null;
+        _actionProblem = null;
+        if (Id == null)
+        {
+            return;
+        }
+
+        var response = await Api.GetAsync(Id);
+        if (response.Value == null)
+        {
+            _openError = response.Error;
+            return;
+        }
+
+        _response = response.Value;
+        _levels.Open(_response.Levels);
+        await ReadAssetAsync();
+        _showSpan = true;
+        if (_chart?.IsReady == true)
+        {
+            StateHasChanged(); // the chart may need another timeframe first; the span follows after the render
+        }
+    }
+
+    private async Task ReadAssetAsync()
+    {
+        var assets = await AssetsClient.GetAssetsAsync();
+        _asset = assets.Value?.FirstOrDefault(asset => asset.Source == _response?.Scenario.Source && asset.Symbol == _response?.Scenario.Symbol);
+    }
+
+    private async Task OnChartReadyAsync()
+    {
+        if (_response != null)
+        {
+            _showSpan = false;
+            await ShowScenarioAsync(positionOnSpan: true);
+        }
+    }
+
+    /// <summary>The shapes of the scenario with the groups hidden that the level shown does not show (SC21), and on opening the span (SC2).</summary>
+    private async Task ShowScenarioAsync(bool positionOnSpan)
+    {
+        if (_chart == null || _response == null)
+        {
+            return;
+        }
+
+        await _chart.SetOverlaysAsync(_response.Groups, _levels.HiddenKeys(_response.Groups));
+        var scenario = _response.Scenario;
+        if (positionOnSpan && scenario.From != null)
+        {
+            await _chart.ShowTimeRangeAsync(scenario.From.Value, scenario.To ?? DateTimeOffset.UtcNow);
+        }
+    }
+
+    private async Task LevelsChangedAsync()
+    {
+        StateHasChanged(); // another timeframe is a new series of the chart; the shapes stay, the groups follow the level
+        await ShowScenarioAsync(positionOnSpan: false);
+    }
+
+    private void Open(string id)
+    {
+        Navigation.NavigateTo("scenarios/expert/" + Uri.EscapeDataString(id));
+    }
+
+    private void Step(int step)
+    {
+        var id = _list.Step(Id, step);
+        if (id != null)
+        {
+            Open(id);
+        }
+    }
+
+    /// <summary>SC6: the asset is added only when the user agrees.</summary>
+    private async Task AddAssetAsync()
+    {
+        var scenario = _response!.Scenario;
+        if (!await JS.InvokeAsync<bool>("confirm", "Add " + scenario.Symbol + " (" + scenario.Source + ") to your assets? Its history is then downloaded and imported."))
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var added = await AssetsClient.AddAsync(scenario.Source, scenario.Symbol);
+            return added.Error;
+        });
+    }
+
+    /// <summary>SC6: the history starts the span needs, as the server named them.</summary>
+    private Task LoadHistoryAsync()
+    {
+        var scenario = _response!.Scenario;
+        return RunAsync(async () =>
+        {
+            var changed = await AssetsClient.ChangeHistoryAsync(scenario.Source, scenario.Symbol, _response.Asset.HistoryNeeded);
+            return changed.Error;
+        });
+    }
+
+    /// <summary>Runs an action on the asset, then waits until it has loaded and opens the scenario again.</summary>
+    private async Task RunAsync(Func<Task<string?>> action)
+    {
+        _busy = true;
+        _actionProblem = await action();
+        if (_actionProblem == null)
+        {
+            for (var attempt = 0; attempt < 300 && !_disposed; attempt++)
+            {
+                await ReadAssetAsync();
+                StateHasChanged();
+                if (_asset != null && !_asset.Loading)
+                {
+                    break;
+                }
+
+                await Task.Delay(2000);
+            }
+
+            await OpenAsync();
+            if (_chart != null)
+            {
+                await _chart.ReloadSeriesAsync();
+            }
+        }
+
+        _busy = false;
+    }
+
+    private static string HistoryText(IReadOnlyDictionary<string, string?> needed)
+    {
+        return string.Join(", ", needed.Select(pair => pair.Key + " from " + pair.Value));
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _timer?.Dispose();
+    }
+}

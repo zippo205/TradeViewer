@@ -522,7 +522,15 @@ DeleteAsync(id)                       delete expert/<id>.json (SC16)
 - An expert scenario is addressed by its id, a test-run scenario by run id and id; both are
   checked against the file name rules, so no request leaves its folder.
 - Two pages, the scenario editor and the test-run viewer (decision 0011), share one Blazor
-  component for the scenario chart, list and panel. The chart is apart from the chart page: it
+  component for the scenario chart, list and panel (`Scenarios/ScenarioChart.razor`: toolbar,
+  chart, list at the right, panel below; the pages fill the parts). The editor is
+  `/scenarios/expert/{id}`; its list (`ExpertScenarioListView`) and its levels
+  (`ScenarioLevelView`: the groups a level hides, SC21) are client state of Web. A scenario opens
+  on its context, positioned on its span (`showTimeRange`, which loads older candles as far as
+  needed and lowers the smallest bar spacing for a long span); switching the level keeps the
+  dates in view (`ChartHost.KeepTimesOnTimeframeChange`), not the rule of the chart page (CH3).
+  The log scale is on by default and not saved (SC3). The menu entry exists only when
+  `/api/scenarios` says the folder is configured. The chart is apart from the chart page: it
   takes asset, timeframe and time span from the file.
 - The scenarios of a test run lie in the folder `test-runs/<run id>/`, which the test run names
   (BT4, BT5). Nothing about a trade is drawn from the
@@ -672,7 +680,8 @@ TradeViewer.Chart/src/
 Blazor -> chart    createPane, setSeries(asset, timeframe), setIndicators, setDrawings,
                    setOverlays, setTool(tool, style), setDrawingOptions(magnet, hidden),
                    selectDrawing, setOptions, refresh, dispose;
-                   setScenarioPoints(points), setScenarioTool(tool), selectScenarioPoint(key)
+                   setScenarioPoints(points), setScenarioTool(tool), selectScenarioPoint(key),
+                   showTimeRange(from, to, margin), visibleTimeRange
 chart  -> Blazor   drawingCreated, drawingChanged, selectionChanged, toolChanged, indicatorAction(id, action);
                    pointPlaced(field, index, time, price, kind), pointSelected(key), scenarioToolChanged
 ```

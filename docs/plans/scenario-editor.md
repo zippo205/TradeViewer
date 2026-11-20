@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Scenario Editor (P1 - Workstation)
-Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 5 done
+Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 6 done
 Branch:   feature/scenario-editor
-Next:     step 6 (Web: scenario chart and list)
+Next:     step 7 (Web: the editor - new scenario, point tools, panel fields, autosave, delete)
 Baseline: docs as of commit 692f02c (main)
 ```
 
@@ -361,6 +361,37 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
 - The Api writes times as `+00:00` in its answers, the files as `Z`; both are UTC and the module
   parses either.
 - 9 new Vitest tests (238 in all); C# unchanged.
+
+# Result of Step 6 (2026-11-21)
+
+- Web: `ScenariosApi`; `Scenarios/ScenarioChart.razor` (the shared layout), `ExpertScenarioList`
+  (filters asset, verdict, draft; every column sorts; a file that cannot be read stays listed
+  with "cannot be read"), `ScenarioLevelBar` (a button per level with its timeframe, a switch per
+  level), `ExpertScenarioPanel` (head, reason, notes, form problems; read-only until step 7);
+  client state `ExpertScenarioListView` and `ScenarioLevelView`; page `Pages/ExpertScenarios.razor`
+  (`/scenarios/expert`, `/scenarios/expert/{id}`); menu entry "Scenarios" only with a scenario
+  folder. The list is read every 30 seconds and on "Reload" (SC5).
+- SC6: an asset that is not in the workspace is offered for adding (after a confirmation); a
+  history that starts after the span is named with the starts the Api gives, "Load it" sends
+  them as the asset's history change; the page waits until the asset has loaded and opens the
+  scenario again.
+- Chart module: `showTimeRange(from, to, margin)` (waits for the series, loads older pages until
+  the start is in memory, lowers the smallest bar spacing of the library when a long span needs
+  it: a year of 4h candles did not fit at 0.5 px), `visibleTimeRange()`, `bindScenarioEvents`.
+  ChartHost: overlays, span, named points and their events, `ReloadSeriesAsync`,
+  `KeepTimesOnTimeframeChange`.
+- Found in the browser and fixed: switching to a lower level jumped to the newest candles (the
+  rule CH3 of the chart page); now the dates in view stay. A ChartHost removed from the page
+  still answered "ready" and its calls failed; a disposed ChartHost is no longer ready.
+- Headless browser (`~/tools/browser/scenario-page-check.mjs`, all through Blazor), over
+  localhost and the WSL address: menu entry, 14 rows (the 13 files and an ADAUSDT copy for SC6),
+  opening on the context positioned on the span with the log scale, only the waves on the
+  context, wave 2 added on the setup and the trade on the trigger with the dates kept, a hidden
+  level stays hidden on the next scenario, previous and next, filters and sort, reload, ADAUSDT
+  added after the confirmation and its history loaded, nothing written into the folder.
+  `tools-check` still passes; `chart-check` (11-15) is outdated: it looks for the asset select
+  that the watchlist panel replaced.
+- 5 new unit tests (615 unit, 270 integration, 19 architecture, 238 Vitest pass).
 
 # Proposals
 

@@ -1,0 +1,55 @@
+@* The scenario chart shared by the scenario editor and, later, the test-run viewer (decision 0011, SC4): the toolbar
+   above, the chart in the middle, the list of scenarios at its right (collapsible) and the panel below the chart.
+   The pages fill the parts; this component only lays them out. *@
+<div class="chart-page scenario-page">
+    <div class="chart-toolbar">
+        @Toolbar
+        <button type="button" class="panel-toggle" title="@(ListOpen ? "Fold the list away" : "Show the list of scenarios")" @onclick="ToggleList">
+            @(ListOpen ? "Scenarios »" : "« Scenarios")
+        </button>
+    </div>
+
+    <div class="chart-body">
+        <div class="chart-area">
+            <div class="scenario-chart">
+                @Chart
+            </div>
+            <div class="scenario-panel">
+                @Panel
+            </div>
+        </div>
+
+        @if (ListOpen)
+        {
+            <aside class="scenario-list">
+                @List
+            </aside>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment? Toolbar { get; set; }
+
+    [Parameter]
+    public RenderFragment? Chart { get; set; }
+
+    [Parameter]
+    public RenderFragment? List { get; set; }
+
+    [Parameter]
+    public RenderFragment? Panel { get; set; }
+
+    [Parameter]
+    public bool ListOpen { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<bool> ListOpenChanged { get; set; }
+
+    private Task ToggleList()
+    {
+        ListOpen = !ListOpen;
+        return ListOpenChanged.InvokeAsync(ListOpen);
+    }
+}

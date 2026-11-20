@@ -22,6 +22,15 @@ export function bindDrawingEvents(pane: ChartPane, target: DotNetTarget): void {
   });
 }
 
+/** Reports the events of the named points of a scenario to ChartHost (SC10): PointPlaced, PointSelected, ScenarioToolChanged. */
+export function bindScenarioEvents(pane: ChartPane, target: DotNetTarget): void {
+  pane.onScenarioPointEvents({
+    pointPlaced: (field, index, time, price, kind) => void target.invokeMethodAsync("PointPlaced", field, index ?? null, time, price, kind ?? null),
+    pointSelected: (key) => void target.invokeMethodAsync("PointSelected", key ?? null),
+    scenarioToolChanged: (code) => void target.invokeMethodAsync("ScenarioToolChanged", code ?? null),
+  });
+}
+
 /** Reports the actions of the indicator legends to ChartHost: IndicatorAction(id, "hide" | "settings" | "remove"). */
 export function bindIndicatorActions(pane: ChartPane, target: DotNetTarget): void {
   pane.onIndicatorActions((id, action) => void target.invokeMethodAsync("IndicatorAction", id, action));

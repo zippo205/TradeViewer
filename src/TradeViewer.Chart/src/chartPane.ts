@@ -92,6 +92,9 @@ export interface PaneStats {
  * scrolling back, last-close line and the jump to the latest candle (CH1 to CH5). It fetches its
  * candles itself; zoom, pan and crosshair need no request (NF2).
  */
+/** The smallest bar spacing of Lightweight Charts by default, in pixels. */
+const MIN_BAR_SPACING = 0.5;
+
 export class ChartPane {
   private readonly chart: IChartApi;
   private readonly candles: ISeriesApi<"Candlestick">;
@@ -115,6 +118,7 @@ export class ChartPane {
   private readonly scenarioPoints: ScenarioPointInteraction;
   private scenarioListener: Partial<ScenarioPointEvents> = {};
   private pointsPlaced = 0;
+  private seriesLoaded: Promise<void> = Promise.resolve();
   private readonly pointerInput: PointerInput;
   private drawingListener: Partial<DrawingEvents> = {};
   private drawingsCreated = 0;
@@ -284,7 +288,61 @@ export class ChartPane {
    * Shows another asset or timeframe. The number of visible candles is kept; the view stays at the
    * latest candles or, scrolled back within the same asset, at the same time (CH3).
    */
-  async setSeries(request: SeriesRequest): Promise<void> {
+  setSeries(request: SeriesRequest): Promise<void> {
+    this.seriesLoaded = this.loadSeries(request);
+    return this.seriesLoaded;
+  }
+
+  /**
+   * Positions the chart on a time span (SC2), with a small margin on both sides: waits for the series being loaded,
+   * loads older pages until the start of the span is in memory (or the history ends), then sets the view. Another
+   * setSeries meanwhile wins: then nothing is changed.
+   */
+  async showTimeRange(from: number, to: number, margin: boolean = true): Promise<void> {
+    await this.seriesLoaded;
+    const generation = this.generation;
+    for (let attempt = 0; attempt < 100 && generation === this.generation && this.data.hasMore && (this.data.oldestTime ?? 0) > from; attempt++) {
+      if (this.loadingOlder) {
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        continue;
+      }
+
+      const oldest = this.data.oldestTime;
+      await this.loadOlder();
+      if (this.data.oldestTime === oldest) {
+        break; // the page failed or brought nothing: show what is there
+      }
+    }
+
+    const mapping = this.timeMapping();
+    const first = mapping?.indexOf(from);
+    const last = mapping?.indexOf(to);
+    if (generation !== this.generation || this.disposed || first === undefined || last === undefined) {
+      return;
+    }
+
+    const bars = margin ? Math.max(2, Math.round((last - first) * 0.05)) : 0;
+    // The library does not zoom out below its smallest bar spacing (0.5 px); a long span of a small timeframe (a year
+    // of 4h candles) needs less, so it is lowered as far as the span needs, never below 0.05 px.
+    const width = this.chart.timeScale().width();
+    const spacing = width / Math.max(1, last - first + 2 * bars + 1);
+    if (spacing < MIN_BAR_SPACING) {
+      this.chart.timeScale().applyOptions({ minBarSpacing: Math.max(0.05, spacing * 0.95) });
+    }
+
+    this.chart.timeScale().setVisibleLogicalRange({ from: first - bars, to: last + bars });
+  }
+
+  /** The times of the first and the last candle in view (Unix seconds), or undefined without candles. */
+  visibleTimeRange(): { from: number; to: number } | undefined {
+    const range = this.chart.timeScale().getVisibleLogicalRange();
+    const mapping = this.timeMapping();
+    const from = range === null ? undefined : mapping?.timeOf(Math.ceil(range.from));
+    const to = range === null ? undefined : mapping?.timeOf(Math.floor(range.to));
+    return from === undefined || to === undefined ? undefined : { from, to };
+  }
+
+  private async loadSeries(request: SeriesRequest): Promise<void> {
     const started = performance.now();
     const generation = ++this.generation;
     const previous = this.request;
