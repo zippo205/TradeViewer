@@ -409,6 +409,9 @@ legacy     only in converted scenarios: the old fields with no place here; ignor
   keeps `legacy` and any field it does not know unchanged when it saves.
 - Rule checks (is a point a real extreme, does the entry follow the strategy) are EWTS's;
   TradeViewer checks only the form.
+- Agreed with EWTS on 2026-11-20, not yet in its architecture: the id is fixed at the first save
+  and stays when `wave2End` later moves into another month; a file may be incomplete (saved at
+  every change), and EWTS reports it as incomplete instead of failing; `why` is optional text.
 
 ## Test Runs
 
