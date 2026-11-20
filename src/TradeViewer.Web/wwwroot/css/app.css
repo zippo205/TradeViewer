@@ -577,11 +577,12 @@ input:disabled {
     margin-bottom: 6px;
 }
 
-/* The text of a gap icon in the chart (MD4). */
+/* The text of a gap icon (MD4) or of an overlay shape (SC4) in the chart: the group's title on its own line. */
 .tv-chart-tooltip {
     position: absolute;
     z-index: 5;
-    max-width: 320px;
+    max-width: 420px;
+    white-space: pre-line;
     padding: 6px 10px;
     font-size: 13px;
     color: var(--text);

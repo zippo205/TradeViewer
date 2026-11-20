@@ -17,6 +17,8 @@ import { CandleRequestError, fetchCandles, type SeriesKey } from "./data/candleC
 import { fetchGaps, gapText, placeGaps, type Gap } from "./data/gaps";
 import { FIRST_PAGE_SIZE, OLDER_PAGE_SIZE, REFRESH_PAGE_SIZE, SeriesData, shouldLoadOlder } from "./data/seriesData";
 import { GAP_ID_PREFIX, GapMarkers } from "./gapMarkers";
+import { parseGroups, type OverlayGroupRecord } from "./primitives/overlays/overlay";
+import { OverlayLayer } from "./primitives/overlays/overlayLayer";
 import type { IndicatorInstance } from "./indicators/indicator";
 import { IndicatorSet } from "./indicators/indicatorSet";
 import type { IndicatorAction } from "./indicators/legend";
@@ -73,6 +75,8 @@ export interface PaneStats {
   readonly drawingChanges: number;
   readonly selectedDrawing: string | undefined;
   readonly tool: ToolCode | undefined;
+  /** Overlay shapes drawn at the last paint (hidden groups and shapes off the candles not counted). */
+  readonly overlayShapes: number;
 }
 
 /**
@@ -90,6 +94,10 @@ export class ChartPane {
   private readonly tooltip: HTMLDivElement;
   private readonly gapMarkers = new GapMarkers();
   private gaps: Gap[] = [];
+  private readonly overlayLayer = new OverlayLayer(
+    () => this.timeMapping(),
+    () => this.theme.background,
+  );
   private readonly drawingLayer = new DrawingLayer(
     () => this.timeMapping(),
     () => this.data.bars,
@@ -189,6 +197,9 @@ export class ChartPane {
     // Gaps the source confirmed show as icons at the bottom of the chart (MD4).
     this.candles.attachPrimitive(this.gapMarkers);
 
+    // Overlays and scenarios (OV1-OV6, SC8): read-only shapes below the user's drawings.
+    this.candles.attachPrimitive(this.overlayLayer);
+
     // The drawings of the asset (DR3), on every timeframe; the pointer is taken before the chart gets it.
     this.candles.attachPrimitive(this.drawingLayer);
     this.drawingInteraction = new DrawingInteraction(
@@ -222,7 +233,7 @@ export class ChartPane {
     this.chart.subscribeCrosshairMove((event) => {
       this.showLegend(event);
       this.indicatorSet.showValues(event.time === undefined ? undefined : (event.time as number));
-      this.showGapTooltip(event);
+      this.showTooltip(event);
     });
     this.chart.timeScale().subscribeVisibleLogicalRangeChange((range) => this.onRangeChanged(range));
   }
@@ -377,6 +388,14 @@ export class ChartPane {
     this.chart.timeScale().setVisibleLogicalRange(latestRange(range.to - range.from, this.data.bars.length));
   }
 
+  /**
+   * Shows read-only shapes (OV1-OV6, SC8) as the Api gives them, placed by time and price on every timeframe; the
+   * groups whose keys are given are hidden (OV2, SC2, SC21). An empty list removes them.
+   */
+  setOverlays(groups: readonly OverlayGroupRecord[] | null | undefined, hiddenKeys?: readonly string[] | null): void {
+    this.overlayLayer.set(parseGroups(groups), hiddenKeys ?? []);
+  }
+
   /** Shows these drawings of the asset (DR3), placed by time and price on the candles of the timeframe shown. */
   setDrawings(drawings: readonly Drawing[]): void {
     this.drawingInteraction.setDrawings(drawings);
@@ -473,6 +492,7 @@ export class ChartPane {
       drawingChanges: this.drawingChanges,
       selectedDrawing: this.drawingInteraction.selected(),
       tool: this.drawingInteraction.tool(),
+      overlayShapes: this.overlayLayer.drawnCount(),
     };
   }
 
@@ -725,16 +745,21 @@ export class ChartPane {
     this.gapMarkers.set(placeGaps(this.data.bars, gaps));
   }
 
-  /** Pointing at a gap icon shows from when to when candles are missing, and why (MD4). */
-  private showGapTooltip(event: MouseEventParams): void {
+  /**
+   * Pointing at a gap icon shows from when to when candles are missing, and why (MD4); pointing at an overlay shape
+   * shows its detail under the title of its group (SC4).
+   */
+  private showTooltip(event: MouseEventParams): void {
     const id = typeof event.hoveredObjectId === "string" ? event.hoveredObjectId : "";
     const marker = id.startsWith(GAP_ID_PREFIX) ? this.gapMarkers.get(Number(id.slice(GAP_ID_PREFIX.length))) : undefined;
-    if (marker === undefined || event.point === undefined) {
+    const overlay = marker === undefined ? this.overlayLayer.hovered(id) : undefined;
+    const text = marker !== undefined ? gapText(marker.gap) : overlay !== undefined ? overlay.group.title + "\n" + (overlay.shape.detail ?? overlay.shape.text ?? "") : undefined;
+    if (text === undefined || event.point === undefined) {
       this.tooltip.hidden = true;
       return;
     }
 
-    this.tooltip.textContent = gapText(marker.gap);
+    this.tooltip.textContent = text;
     this.tooltip.hidden = false;
 
     // Above the icon, kept inside the chart.

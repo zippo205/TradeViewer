@@ -661,7 +661,9 @@ TradeViewer.Chart/src/
 ├── tools/                 interaction: time-to-index mapping, geometry and hit testing, dragging,
 │                          pointer input taken before the chart, tool state machine
 └── primitives/            the drawing layer (one series primitive holding all drawings, one class
-                           per drawing type on it) and the overlay shapes
+                           per drawing type on it); overlays/: the read-only shapes of overlays and
+                           scenarios (one series primitive below the drawings, colours by role OV6,
+                           groups hidden by key, the detail text on pointing)
 ```
 
 ### Interop Contract
@@ -680,7 +682,8 @@ context menu; the bar of the selected drawing does what one would.
 - `ChartHost` (Web) wraps the calls in typed C# methods; events return through a
   `DotNetObjectReference`. Built so far: createPane, setSeries (asset, timeframe, tick size),
   setOptions (price scale mode), refresh, dispose, the drawing calls and events, and setIndicators
-  with indicatorAction; the calls for overlays come with their epic. Four helpers of the module serve
+  with indicatorAction; the module has setOverlays(groups, hiddenKeys), taking the group records of the Api as
+  they are, which ChartHost wraps with the scenario page. Four helpers of the module serve
   the page: `bindDrawingEvents` (the events of a pane to ChartHost), `bindIndicatorActions` (hide,
   settings, remove from a legend line), `bindPageKeys` (Delete, Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z on the
   page, not while typing in a field) and `warnWhenLeaving`.

@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Scenario Editor (P1 - Workstation)
-Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 3 done
+Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 4 done
 Branch:   feature/scenario-editor
-Next:     step 4 (chart module: overlay shapes, setOverlays)
+Next:     step 5 (chart module: the named points as handles, point tools)
 Baseline: docs as of commit 692f02c (main)
 ```
 
@@ -314,6 +314,29 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
   on its level; opening writes nothing; legacy kept through the Api; a broken drawing refused,
   a form problem never), 5 unit tests of the shapes. 610 unit, 270 integration, 19 architecture
   tests pass.
+
+# Result of Step 4 (2026-11-20)
+
+- `primitives/overlays/`: `overlay.ts` (types; the group records of the Api parsed, ISO times to
+  Unix seconds; a shape of an unknown type or with fields it cannot read is dropped, as the
+  interface asks of a client), `roleColours.ts` (OV6, unknown role gray), `placement.ts` (pure:
+  a shape in pixels and its hit test), `overlayLayer.ts` (one series primitive, attached before
+  the drawing layer so the user's drawings stay on top; texts with a border in the chart's
+  background).
+- `ChartPane.setOverlays(groups, hiddenKeys)`; pointing at a shape shows the title of its group
+  and its detail in the tooltip of the gap icons (now multi-line, 420 px wide); `stats()` counts
+  the shapes drawn.
+- Checked in the headless browser (`~/tools/browser/overlay-check.mjs`) on a dev instance with
+  the frozen market data and a copy of the 13 files, over localhost and over the WSL address:
+  every shape of all 13 scenarios drawn on its asset and context timeframe, a hidden group taken
+  away, the detail shown when pointing at a label, an empty list removes everything. The history
+  the scenarios needed was moved back through the SC6 answer of the Api and the asset's history
+  change, as the page will do it.
+- Seen in the screenshots: on the whole span of a long scenario (a year of daily candles) the
+  labels of wave 2 lie on top of the label 1; the topmost shape wins the pointer. Zoomed in they
+  are apart. Entry and add one hour apart sit on one daily candle; on the trigger timeframe they
+  are apart.
+- 10 new Vitest tests (229 in all); C# unchanged (610 unit, 270 integration, 19 architecture).
 
 # Proposals
 
