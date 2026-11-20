@@ -6,8 +6,8 @@ Status values: open, in progress, done (with date).
 
 ## V1 - Charts on the Downloader's Data
 
-Usable without a running EWTS instance. The Scenario Viewer needs the scenario drawing files
-of EWTS.
+Usable without a running EWTS instance. The scenario epics need only EWTS's file formats and
+its converted expert scenarios; the test-run scenarios appear once EWTS writes them.
 
 | Epic | Status |
 |------|--------|
@@ -19,7 +19,7 @@ of EWTS.
 | Watchlists | done (2026-11-16) |
 | Drawing Tools | done (2026-11-17) |
 | Symbol Catalog | done (2026-11-17) |
-| Scenario Analysis | open |
+| Scenario Editor | open |
 | Indicators | done (2026-11-18) |
 | Downloader Monitoring | done (2026-11-18) |
 

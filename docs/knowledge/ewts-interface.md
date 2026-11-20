@@ -146,12 +146,12 @@ OV1-OV5   overlays                       analysis answers exist, but no drawings
                                          signal that an analysis changed
 BT1-BT6   test runs                      one synchronous request; no progress, cancel, list or storage
 AL1-AL4   alerts                         no alerts, no channels, no settings
-SC1-SC9   scenario viewer                the scenarios exist as YAML with a Pine overlay; the shape
+SC1-SC9   scenarios                      the scenarios exist as YAML with a Pine overlay; the shape
                                          model exists in tools/scenario-to-pine.py but is not
                                          written as data
 ```
 
-The scenario viewer is the only one of these that needs no running EWTS instance.
+The scenarios are the only one of these that need no running EWTS instance.
 
 ---
 
@@ -313,39 +313,39 @@ optional on every shape
 
 ## Scenario Files
 
-Decision: docs/decisions/0006-scenario-viewer.md. The format of the owner's expert scenarios
-(`<id>.yaml`) is EWTS's business; TradeViewer reads only the drawing files, which are described
-in `../EWTS/docs/architecture.md`, chapter 7, section "Scenario Files".
-
-For every scenario EWTS writes a drawing file `<id>.json`.
+Decisions: docs/decisions/0010-expert-scenarios-made-in-tradeviewer.md and EWTS's
+../EWTS/docs/decisions/0006-expert-scenarios-from-tradeviewer.md. Original:
+`../EWTS/docs/architecture.md`, chapter 6, "TradeViewer: Scenario Folder", and chapter 7,
+"Scenario Files" (read 2026-11-20).
 
 ```text
-<Scenarios:RootPath>/                       the shared scenario folder
-├── expert/<id>.json                        expert scenarios, written by EWTS
-└── test-runs/<run id>/<id>.json            scenarios of a test run, written by the instance
+<Scenarios:RootPath>/                  the shared scenario folder
+├── expert/<id>.json                   expert scenarios, written by TradeViewer's editor
+└── test-runs/<run id>/
+    ├── <id>.json                      drawing file of a test-run scenario, written by EWTS
+    └── <id>.pine                      its TradingView Pine script, written by EWTS
 ```
 
-There are two kinds of scenario: **expert** (the owner's, in `expert/`) and **generated** (those
-of a test run). `test-runs` is written by a running instance; for TradeViewer to see both, the
-instance's scenario output and the expert folder must lie below one root (e.g. `test-runs` as a
-mounted folder).
+- One writer per folder: TradeViewer never writes into `test-runs/`; EWTS never writes or deletes
+  anything in `expert/`. Deleting a run removes its folder.
+- Both write atomically (`<name>.part`, then rename).
+- TradeViewer reads the `*.json` files; `.pine` and other files are ignored. A file TradeViewer
+  cannot read (unknown `format` or `version`, broken JSON) is listed with its error instead of
+  being hidden.
+- All times are UTC.
 
-- TradeViewer reads every `*.json` below the root; the folder path is shown as the kind. A
-  file `<id>.expert.json` is not a scenario of its own when `<id>.json` exists beside it: it is
-  the analysis of the user on that scenario (Expert Analysis Files).
-  Other files (`.yaml`, `.pine`, `.md`) are ignored.
-- Files are written atomically (`<name>.json.part`, then renamed).
-- A file TradeViewer cannot read (unknown `version`, broken JSON) is listed with its error
-  instead of being hidden.
+### Test-Run Scenario
+
+`test-runs/<run id>/<id>.json`, `version` 1. The id is `<symbol>-<context tf>-<yyyy-MM>-T<n>`:
+lower case except `T`, the month of the end of wave 2 when the scenario is first written, `n`
+counting the run's scenarios; unique only within its run folder and never changed during the run.
 
 ```json
 { "version": 1,
-  "id": "ethusdt-h4-2026-08-long", "source": "binance", "symbol": "ETHUSDT",
-  "contextTimeframe": "4h", "direction": "long", "verdict": "trade-win", "draft": false,
+  "id": "ethusdt-4h-2026-08-T3", "source": "binance", "symbol": "ETHUSDT",
+  "contextTimeframe": "4h", "direction": "long", "verdict": "trade-win",
   "reason": "Wave 1 and a zigzag wave 2 at 73.3 % (log) by wick. ...",
-  "notes": "The prices here are the Binance wick extremes. ...",
-  "knownAt": "2026-08-19T14:45:00Z", "chart": null,
-  "from": "2026-08-01T16:00:00Z", "to": "2026-11-11T00:00:00Z",
+  "chart": null, "from": "2026-08-01T16:00:00Z", "to": "2026-11-11T00:00:00Z",
   "generatedAt": "2026-11-11T10:02:11Z",
   "figures": [ { "name": "Result (R)", "value": 0.45 }, { "name": "Exit", "value": "TargetThenStop" } ],
   "groups": [
@@ -359,42 +359,56 @@ mounted folder).
     { "key": "levels", "title": "Levels (log)", "kind": "levels", "timeframe": "4h",
       "shapes": [
         { "type": "level", "role": "target", "price": 2056.77, "style": "dotted",
-          "from": "2026-08-11T12:00:00Z", "to": "2026-11-11T00:00:00Z", "text": "161.8 %" },
-        { "type": "verticalLine", "role": "neutral", "style": "dotted",
-          "time": "2026-08-19T14:45:00Z", "text": "known_at" } ] } ] }
+          "from": "2026-08-11T12:00:00Z", "to": "2026-11-11T00:00:00Z", "text": "161.8 %" } ] } ] }
 ```
 
 - `version` is the format version: additive changes keep it, an incompatible change raises it.
-- `source` is the source the candles come from (the `MarketData:Source` of the tools).
+- `source` is the source the candles come from.
+- `verdict`: `trade-win`, `trade-loss`, `no-trade`, or `draft` for a plan still open at the end
+  of the run.
 - `from` and `to` are the time span of the drawing; TradeViewer positions the chart on it.
-- All times are UTC, whatever `timezone` the scenario file uses.
-- `groups` and `shapes` use the vocabulary of Drawings above. The groups of a scenario are
-  `waves`, `lowerDegree`, `levels` and `trade`.
-- `verdict`: `trade-win`, `trade-loss`, `no-trade`; `draft` is true for a `# DRAFT` verdict.
+- `groups` and `shapes` use the vocabulary of Drawings above. The groups are `waves`,
+  `lowerDegree`, `levels` and `trade`.
 - `figures` (optional) are named values to show as columns of a list and in the panel of the
   viewer: what the engine measured and how the trade ended. A value is a text or a number.
   TradeViewer shows them in the given order and sorts by them; it does not interpret them.
   The scenarios of one test run carry the same names.
 
-## Expert Analysis Files
+## Expert Scenario Files
 
-Decision: docs/decisions/0007-scenario-analysis.md. TradeViewer writes two kinds of file into
-the scenario root; EWTS reads them and merges them into the expert analysis section of its
-scenario.
+`expert/<id>.json`, written by TradeViewer's editor (specification SC10 to SC17); EWTS's
+acceptance tests read them from a copy in the EWTS repository. Named points, not shapes; no
+`expected` section: the expert scenario is the truth.
 
 ```text
-<id>.expert.json            the analysis of the user on the scenario <id>.json beside it
-expert/<id>.expert.json     a new expert scenario made in TradeViewer (no <id>.json beside it)
+head       format ("ewts-expert-scenario"), version (1), id, source, symbol,
+           contextTimeframe (1d | 4h), direction (long), verdict (trade-win | trade-loss |
+           no-trade), draft, reason, notes, from, to, createdAt, updatedAt
+waves      timeframe; wave1Start, wave1End, wave2End                   point { time, price, why }
+wave2      timeframe, pattern (zigzag | flat | expanded-flat | running-flat | triangle |
+           complex); aEnd, bEnd, cEnd                                   optional
+trade      timeframe; entry, stop { price, why }, add, stopMoves[],
+           exits[] { time, price, share, kind (target | stop), why }   for trade-win, trade-loss
+legacy     only in converted scenarios: the old fields with no place here; ignored by EWTS
 ```
 
-- The format is that of a scenario file (above): head, `verdict`, `reason` and `notes` (the
-  remarks of the user), `groups` with shapes. The id in the file name is the reference to the
-  scenario; the groups hold only the analysis of the user.
-- Besides `groups` (the shapes, for EWTS and for display) the file holds `drawings`: the
-  drawing records of TradeViewer's tools, so the user can edit the analysis again. EWTS ignores
-  `drawings`. TradeViewer writes both in one go.
-- Written atomically by TradeViewer, which is their only writer. EWTS never writes or deletes
-  them.
+- Id `<symbol>-<context tf>-<yyyy-MM>-X<n>` (`btcusdt-1d-2024-03-X1`): lower case except `X`,
+  the month of `wave2End`, `n` the next free number of that prefix. The file name is `<id>.json`.
+- `from` and `to` are the span EWTS runs over and TradeViewer shows; for `no-trade`, `to` means
+  "no trade until here". A `draft` is checked by EWTS but is no acceptance test.
+- Each section names its timeframe, because a reading may mix them (1d waves, 1h internals).
+- Snap rules: a wave point is the open time of its candle on the section's timeframe and that
+  candle's wick extreme (the low for a low, the high for a high). `entry` and `add` are the open
+  time and the close of the candle that closes beyond the level. An exit is the open time of the
+  candle that reaches the level, at the level's price. `stop` and `stopMoves[].price` are prices;
+  a stop move's time is the candle whose close led to it.
+- `aEnd` and `bEnd` are required for a zigzag and the flats. Without `cEnd`, the end of C is
+  `wave2End`. `add` and `stopMoves` are optional; the `share` of the exits, in percent, adds up
+  to 100.
+- TradeViewer rebuilds its drawing from the points and stores no drawing records in the file. It
+  keeps `legacy` and any field it does not know unchanged when it saves.
+- Rule checks (is a point a real extreme, does the entry follow the strategy) are EWTS's;
+  TradeViewer checks only the form.
 
 ## Test Runs
 
@@ -437,7 +451,7 @@ all instances that write to the same scenario root.
   `exits`, `costsR`, `averageHolding` and `equityCurve[]`.
 - `scenarioFolder` is the folder of the run's scenario drawing files, relative to the scenario
   root: `test-runs/<id>`. EWTS writes one scenario for every setup the run watched or traded,
-  as the run reaches it, in the format of Scenario Files with `figures`. Every entry of the
+  as the run reaches it, in the format of Test-Run Scenario (Scenario Files) with `figures`. Every entry of the
   report's `plans[]` and `watches[]` names its scenario (`scenario`: the id). TradeViewer
   draws nothing from the report itself.
 - Deleting a run deletes its folder.

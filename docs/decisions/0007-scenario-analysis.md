@@ -1,6 +1,6 @@
 # 0007 - Analysis of the User on Scenarios
 
-Status: accepted (2026-11-13, owner). Amends 0006: points 1, 3 and 4 no longer hold as written.
+Status: replaced by 0010 (2026-11-20). Was accepted (2026-11-13, owner) and amended 0006, points 1, 3 and 4.
 
 ## Context
 

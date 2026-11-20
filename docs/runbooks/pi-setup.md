@@ -74,8 +74,8 @@ EWTS          /home/admin/trading/EWTS          /data/marketdata (ro)      8082-
 EWTS can run several times on the Pi, up to 8 instances numbered 1 to 8, each with its own data
 folder `/data/ewts/<n>` and its own unique `instanceId`. Instance n listens on port 8081 + n: 8082
 for instance 1, 8083 for instance 2, up to 8089. All instances write their scenario files into the
-one folder `/data/ewts/scenarios`; TradeViewer mounts it as `SCENARIOS_PATH` and writes its
-`*.expert.json` files there (docs/runbooks/deploy.md). TradeViewer reaches instance n at
+one folder `/data/ewts/scenarios`; TradeViewer mounts it as `SCENARIOS_PATH` and writes the
+expert scenarios into its `expert/` folder (docs/runbooks/deploy.md). TradeViewer reaches instance n at
 `http://host.docker.internal:<8081 + n>` (deploy.md, "Reaching the Downloader and EWTS"). Do not
 forward 8080-8089 on the router.
 

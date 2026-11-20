@@ -44,7 +44,7 @@ FluentValidation, ORMs, migration frameworks.
     output root)
    scenario files
    (EWTS folder; TradeViewer
-   writes *.expert.json)
+   writes expert/*.json)
 ```
 
 One process, one container. The browser calls only TradeViewer.Api; it never calls the
@@ -132,7 +132,7 @@ Features/
 ├── Overlays          (OV1-OV5)
 ├── TestRuns          (BT1-BT7)
 ├── Alerts            (AL1-AL4)
-├── Scenarios         list and read scenario drawing files (SC1-SC9), own analysis (SC10-SC13)
+├── Scenarios         list and draw scenarios (SC1-SC9), editor of the expert scenarios (SC10-SC17)
 └── Workspace         settings (default history, last chart) and backup and restore (WS3, WS5)
 ```
 
@@ -194,7 +194,7 @@ Abstractions/
 ├── Messaging     the CQRS interfaces, Result, Error, FileContent
 ├── MarketData    ICandleStore, ICandleSeriesReader (a page as the chart shows it, with warm-up), ICandleFileReader,
 │                 IDownloaderClient, ISymbolCatalog
-├── Ewts          IEwtsClient, IScenarioFileReader, IExpertAnalysisStore
+├── Ewts          IEwtsClient, IScenarioFileReader, IExpertScenarioStore
 ├── Workspace     one repository interface per feature: IAssetRepository, IChartSettingsRepository, IIndicatorTemplateRepository,
 │                 IDrawingRepository, IEwtsInstanceRepository, ...;
 │                 ISettingsRepository, IWorkspaceBackups
@@ -249,7 +249,8 @@ EwtsInstance        id, name, base address
 - Prices and indicator values are `double`.
 - Analysis results of EWTS (overlays, setups, test runs, alerts) and scenario files are **not**
   domain models. They are contract records that pass through the Application layer unchanged
-  (see 8). The same holds for the expert analysis file TradeViewer writes (SC12).
+  (see 8). The same holds for the expert scenario file TradeViewer writes (SC14); its form
+  checks (SC16) are rules of TradeViewer in Domain/Scenarios.
 - Drawings refer to market data by asset and time only, never by a row of the candle store, so
   rebuilding the store cannot orphan a drawing.
 
@@ -468,40 +469,49 @@ GetChangesAsync(after)                              what changed since change nu
 
 ### Scenario Files
 
-Decisions 0006 and 0007. EWTS writes one drawing file per scenario into a shared folder
-(`Scenarios:RootPath`; TradeViewer writes an expert file only for a scenario the user has
-reviewed and changed); the format is in docs/knowledge/ewts-interface.md, Scenario Files.
+Decisions 0006 and 0010. The scenario folder (`Scenarios:RootPath`) holds two kinds of scenario,
+each with one writer; the formats are in docs/knowledge/ewts-interface.md, "Scenario Files" and
+"Expert Scenario Files".
 
 ```text
-IScenarioFileReader                                 Abstractions/Ewts
+<root>/expert/<id>.json               expert scenarios: named points, written by TradeViewer
+<root>/test-runs/<run id>/<id>.json   test-run scenarios: shapes, written by EWTS (and <id>.pine)
 
-ListAsync()                                         the head of every scenario below the root, joined with its expert file
-ReadAsync(path)                                     one file with its groups and shapes
+IScenarioFileReader                   Abstractions/Ewts
 
-IExpertAnalysisStore                                Abstractions/Ewts
+ListAsync()                           the head of every scenario below the root
+ReadTestRunAsync(path)                one test-run scenario with its groups and shapes
 
-SaveAsync(scenarioPath, file)                       write <id>.expert.json beside the scenario
-CreateAsync(file)                                   write expert/<id>.expert.json (SC13)
+IExpertScenarioStore                  Abstractions/Ewts
+
+ReadAsync(id)                         one expert scenario, with the fields TradeViewer does not know
+SaveAsync(scenario)                   write expert/<id>.json; the first save takes the next free id
+DeleteAsync(id)                       delete expert/<id>.json (SC17)
 ```
 
 - TradeViewer reads every request from the files, so a changed file is visible at the next
-  reload (SC7). There is no watcher and no stored index; the parsed heads are kept in memory by file size and modified time, so a list request reads only files that changed. It writes only `*.expert.json` files, and only when
-  the user has changed something (SC12, SC13); viewing a scenario creates nothing, atomically (`.part`, then rename), and never a file of EWTS. The list joins a
-  scenario with its expert file by the id in the name.
-- An expert file holds the analysis of the user twice: `groups` with shapes (for EWTS and for
-  display) and `drawings` with the records of the drawing tools (to edit again), both written
-  by the same handler.
-- A scenario is addressed by its path relative to the root; the reader rejects a path that
-  leaves the root.
-- The shapes are the records of the analysis drawings and are drawn by the same primitives of
-  the chart module (`setOverlays`).
+  reload (SC7). There is no watcher and no stored index; the parsed heads are kept in memory by
+  file size and modified time, so a list request reads only files that changed.
+- It writes only in `expert/`, and only when the user has changed something (SC14); viewing a
+  scenario creates nothing. Files are written atomically (`<name>.part`, then rename). Nothing in
+  `test-runs/` is ever written or deleted (SC9).
+- The expert file is the only record of an expert scenario: no drawing records, nothing in the
+  workspace. The store keeps the fields it does not know (`legacy`, later additions) as raw JSON
+  and writes them back unchanged.
+- The id is taken on the first save under a lock in the store, so two windows cannot take the same
+  number; it never changes afterwards (SC15). With several windows the last save wins (WS1).
+- An expert scenario is drawn by building shapes from its named points (Application, feature
+  Scenarios) in the vocabulary of the analysis drawings; a test-run scenario brings its shapes.
+  Both are drawn by the same primitives of the chart module (`setOverlays`).
+- A scenario is addressed by its path relative to the root (test run) or its id (expert); the
+  reader rejects a path that leaves the root.
 - The scenario page is a chart apart from the chart page: it takes asset, timeframe and time
-  span from the file. Its own analysis is saved in the expert file, not in the workspace.
-- The scenarios of a test run are ordinary scenario files in the folder
-  `test-runs/<run id>/` below the root. The test run names that folder; TradeViewer lists it
-  with the same reader (BT4, BT5). Nothing about a trade is drawn from the report itself.
-- The figures of a scenario are name and value pairs written by EWTS; TradeViewer shows them
-  as columns and in the panel without knowing their meaning (SC4).
+  span from the file.
+- The scenarios of a test run lie in the folder `test-runs/<run id>/`, which the test run names;
+  TradeViewer lists it with the same reader (BT4, BT5). Nothing about a trade is drawn from the
+  report itself. The figures are name and value pairs written by EWTS; TradeViewer shows them as
+  columns and in the panel without knowing their meaning (SC4). `.pine` files are not read; they
+  are part of a run's ZIP (BT6).
 - Without `Scenarios:RootPath` the feature is switched off and its menu entry is hidden; test
   runs then show statistics only.
 
@@ -557,9 +567,10 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/ewts/instances/{id}/alerts
 /api/ewts/instances/{id}/alert-settings
 /api/alerts                                   history across all instances, filters (AL2); /read marks them read (AL3)
-/api/scenarios                                list; post creates an expert scenario (SC13)
-/api/scenarios/{path}                         one scenario with its shapes
-/api/scenarios/{path}/expert                  get, put the analysis of the user (SC12)
+/api/scenarios                                list of both kinds (SC1)
+/api/scenarios/test-runs/{path}               one test-run scenario with its shapes
+/api/scenarios/expert                         post saves a new expert scenario and returns its id (SC15)
+/api/scenarios/expert/{id}                    get (points and the shapes built from them), put, delete (SC14, SC17)
 /api/workspace/backups                        list; post makes a backup now; /{name} download; /{name}/restore;
                                               /restore restores the uploaded file (the body, at most 256 MB)
 /health
@@ -789,8 +800,11 @@ context menu; the bar of the selected drawing does what one would.
   it.
 - Zoom, pan and crosshair are handled in the browser without a request (NF2). The module keeps
   the number of visible candles and the anchor itself when the timeframe or asset changes (CH3).
-- The drawing layer of the scenario page uses the same calls; Web saves it to the expert file
-  instead of the workspace. Toolbars, the instance selector and the corner display (OV5) are
+- The editor of the scenario page has point tools (SC11) beside the drawing tools: each places
+  one named point and snaps it to a candle of its section's timeframe (SC12), reading that candle
+  with one `/api/candles` request when the chart shows another timeframe, as the wave-label lookup
+  does. Web saves the points to the expert file instead of the workspace and redraws the shapes
+  built from them. Toolbars, the instance selector and the corner display (OV5) are
   Blazor components next to the canvas.
 
 ---
@@ -852,7 +866,7 @@ MarketData:Downloader:RequestTimeoutSeconds  30
 Ewts:Enabled                                 false   (tests keep false)
 Ewts:PollSeconds                             30
 Ewts:RequestTimeoutSeconds                   30
-Scenarios:RootPath                           none; the folder of EWTS's scenario drawing files; TradeViewer writes only its *.expert.json
+Scenarios:RootPath                           none; the scenario folder; TradeViewer writes only in expert/
 Storage:DataPath                             required; holds marketdata.db, workspace.db, backups/
 Storage:Backup:KeepCount                     14
 Storage:Backup:Time                          03:00   (UTC)
@@ -869,7 +883,7 @@ stops the start with a clear message, and so does an output root or a scenario f
 does not exist (a missing mount; the output root is never created), and a data path that is,
 or lies inside, the output root or the scenario folder. A path may start with `~` (home
 folder); a relative path is resolved against the content root of the Api. A `Scenarios:RootPath`
-that is not writable switches off only SC10 to SC13; the viewer still works. EWTS instances are not configured here; the user
+that is not writable switches off only the editor (SC10 to SC17); the viewer still works. EWTS instances are not configured here; the user
 registers them (EW1).
 
 ---
@@ -882,7 +896,7 @@ deploy/docker-compose.yml  one service
 
 volumes
   /data/marketdata    the Downloader's output root, mounted read-only
-  /data/scenarios     EWTS's scenario folder, read-write for the expert files (optional)
+  /data/scenarios     the scenario folder, read-write for expert/ (optional)
   /data/app           Storage:DataPath, read-write
 ```
 
@@ -893,7 +907,7 @@ volumes
   through `http://host.docker.internal:<port>`; the compose file maps the name with `extra_hosts`
   (`host-gateway`), which the Docker engine on the Pi needs
 - The compose file limits the memory to 512 MB (NF9), checks `/health`, and runs the container as
-  a configurable user (`user:`), so the expert files written into the scenario folder belong
+  a configurable user (`user:`), so the expert scenarios written into the scenario folder belong
   to the owner of that folder and EWTS can read them
 - Logs go to the console (container log) through `ILogger`
 - The databases belong on an SSD, not on the SD card of the Pi
@@ -909,8 +923,9 @@ UnitTests           Domain: aggregation, indicators (against reference values), 
                     handlers with in-memory ports.
 IntegrationTests    Api with WebApplicationFactory, temporary SQLite files, CSV fixtures;
                     DownloaderClient and EwtsClient against recorded responses; scenario files
-                    read from fixtures, expert files written to a temporary folder (atomic,
-                    never touching a file of EWTS).
+                    read from fixtures (converted expert scenarios of EWTS, test-run
+                    files in EWTS's format), expert scenarios written to a temporary
+                    folder (atomic, unknown fields kept, never touching test-runs/).
 ArchitectureTests   dependency rules, feature rules.
 Chart (Vitest)      tool geometry, hit testing, time-to-candle mapping.
 Benchmark           first candle page over 10 years of 15m candles (NF1); run on request,
@@ -940,9 +955,9 @@ The target framework is .NET 10, but code is written in a .NET 8 style:
 Not decided yet; each must be closed before the epic that needs it starts.
 
 ```text
-O1  EWTS has to accept and build the interface of ewts-interface.md, chapter "Required Interface":
-    the scenario drawing files for the Scenario Viewer, the API for the epics EWTS Instances,
-    Analysis Overlays, Test Runs and Alerts, and the reading of the `*.expert.json` files
-    TradeViewer writes (decision 0007). The owner aligns this with the EWTS agent by a
+O1  EWTS has to build the interface of ewts-interface.md, chapter "Required Interface": the
+    drawing files of test-run scenarios (EWTS's Scenarios epic) and the API for the epics EWTS
+    Instances, Analysis Overlays, Test Runs and Alerts. The scenario folder and both file
+    formats are agreed (decision 0010). The owner aligns this with the EWTS agent by a
     prompt written from that chapter.
 ```

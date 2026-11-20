@@ -19,8 +19,8 @@ TradeViewer   shows charts and operates the other two                       this
 
 TradeViewer shows charts with the user's own drawings and with the analysis of EWTS, and it is
 the user interface for operating the Downloader and the EWTS instances. It also shows the
-scenarios EWTS is developed and tested with and lets the owner add an own analysis to them. It contains no analysis of its own and places no
-orders.
+scenarios EWTS is developed and tested with, and it is the editor in which the owner makes the
+expert scenarios. It contains no analysis of its own and places no orders.
 
 The Downloader and EWTS are specified in their own repositories. This document only states what
 TradeViewer needs from them; the interfaces are in docs/knowledge/downloader-interface.md and
@@ -40,9 +40,9 @@ Overlay         analysis drawings of EWTS shown on a chart; read-only in TradeVi
 Test run        a backtest (later also a Walk Forward run) an EWTS instance runs on its own;
                 it reports statistics and writes a scenario for every setup it handled
 Alert           a message of an EWTS instance about a setup or a trade plan event
-Scenario        one market situation written down in EWTS's scenario format: the waves of a
-                1-2, optionally the trade; the owner's reading (expert scenario) or the
-                engine's reading (generated scenario: one of a test run)
+Scenario        one market situation in EWTS's scenario format: the waves of a 1-2, optionally
+                the trade; the owner's reading (expert scenario, made in TradeViewer's
+                editor) or the engine's reading (test-run scenario, written by EWTS)
 ```
 
 ## 3. Users and Environment
@@ -309,7 +309,7 @@ Every requirement has an id. The backlog refers to these ids.
 - **BT4** For every setup a run watched or traded, EWTS writes a scenario. The scenario table
   of a run shows its figures (e.g. result in R, exit reason, duration) and
   can be sorted and filtered by them. Scenarios appear while the run is still going.
-- **BT5** Selecting a scenario of a run opens the Scenario Viewer (4.12) on the run: the chart
+- **BT5** Selecting a scenario of a run opens the scenario page (4.12) on the run: the chart
   with the scenario drawn, and at its right the list of the run's scenarios to select from.
 - **BT6** A button on a run creates a ZIP file with all scenario files of the run.
 - **BT7** Deleting a run, after confirmation, deletes its scenarios.
@@ -327,48 +327,71 @@ Every requirement has an id. The backlog refers to these ids.
   kinds of alerts are sent. Secrets such as a bot token can be entered but are never shown;
   the form only says whether one is set.
 
-### 4.12 Scenario Viewer
+### 4.12 Scenarios
 
-Replaces the present way of checking a scenario of EWTS: generating a Pine script and loading
-it in TradingView.
+Replaces the present way of checking a scenario of EWTS (generating a Pine script and loading it in
+TradingView) and of writing an expert scenario (a YAML file by hand). Decision 0010.
 
-- **SC1** TradeViewer lists the scenarios EWTS provides in a shared folder: id, asset, context
-  timeframe, direction, verdict of EWTS, verdict of the user, draft mark and kind (expert, or generated: a scenario of a test
-  run), and a mark when the user has an own analysis of it (SC10). The list
-  can be filtered by asset, kind, direction and verdict and sorted by any column.
-- **SC2** Opening a scenario shows a chart of its asset on its context timeframe, positioned
-  on the time span of the scenario, with the scenario drawn: waves and their labels, levels,
-  the trade with entry, add, stop moves and exits. The user can switch the timeframe; the
-  drawing stays.
-- **SC3** The drawing is grouped as in the scenario (waves, lower-degree 1-2, levels, trade).
-  The user shows and hides each group; the choice stays while stepping through scenarios.
+**Viewer**
+
+- **SC1** TradeViewer lists the scenarios of the shared scenario folder: id, asset, context
+  timeframe, direction, verdict, draft mark and kind (expert, or test run with the run's id).
+  The list can be filtered by asset, kind, direction and verdict and sorted by any column.
+- **SC2** Opening a scenario shows a chart of its asset on its context timeframe, positioned on
+  the time span of the scenario, with the scenario drawn. An expert scenario is drawn by
+  TradeViewer from its named points: the waves with their labels, the internals of wave 2, the
+  trade with entry, stop, add, stop moves and exits. A test-run scenario is drawn from the
+  shapes of its drawing file. The user can switch the timeframe; the drawing stays.
+- **SC3** The drawing is grouped as in the scenario (expert: waves, wave 2, trade; test run: the
+  groups of its file). The user shows and hides each group; the choice stays while stepping
+  through scenarios.
 - **SC4** The scenario page shows the chart in the middle and the list of scenarios at its
-  right (collapsible). A panel below the chart shows the verdict, the reason, the notes and the figures
-  of the scenario (for a scenario of a test run: what the engine measured and how the trade
-  ended). Pointing at a label or level shows its price, time and reason.
+  right (collapsible). A panel below the chart shows the verdict, the reason, the notes and, for a
+  test-run scenario, its figures (what the engine measured and how the trade ended). Pointing at
+  a point, label or level shows its price, time and reason (`why`, `detail`).
 - **SC5** The chart of a scenario uses the logarithmic price scale by default, because the
   levels of a scenario are measured in log scale. The choice is not saved in the chart
   settings of the asset (CP2).
-- **SC6** The scenario page shows the chart with the list of scenarios at its right; selecting
-  an entry loads and draws that scenario. "Previous" and "next" step through the filtered
-  list. Opened from a test run (BT5), the list is that run's scenarios.
+- **SC6** Selecting an entry of the list loads and draws that scenario. "Previous" and "next"
+  step through the filtered list. Opened from a test run (BT5), the list is that run's scenarios.
 - **SC7** New or changed scenario files appear without a restart: the list checks the folder
   every 30 seconds and has a reload button.
 - **SC8** When the asset of a scenario is not in TradeViewer, the scenario says so and offers
-  to add the asset (only after the user agrees). When the candles of the scenario's time span are not stored, TradeViewer
-  loads the history it needs, whatever the default history of AS3 is.
-- **SC9** The viewer never changes a file written by EWTS. Writing and changing scenarios
-  stays in EWTS.
-- **SC10** On any scenario the user draws an own analysis with the drawing tools (4.6) on a
-  separate layer. It is shown together with the analysis of EWTS; each can be shown and hidden
-  on its own.
-- **SC11** The user sets a verdict (trade-win, trade-loss, no-trade) and writes remarks for the
-  scenario. The list has a column for it next to the verdict of EWTS.
-- **SC12** The own analysis is saved automatically, and only once the user has drawn, changed
-  or written something: merely viewing a scenario writes nothing. It is a file next to the scenario, the id of
-  the scenario in its name, in the format of a scenario file. EWTS reads it (decision 0007).
-- **SC13** The user creates an expert scenario: asset, context timeframe and time span, drawn
-  and saved like SC12 into the expert folder of the shared folder.
+  to add the asset (only after the user agrees). When the candles of the scenario's time span are
+  not stored, TradeViewer loads the history it needs, whatever the default history of AS3 is.
+- **SC9** TradeViewer never writes, changes or deletes anything in the test-run folders; the
+  files there are EWTS's.
+
+**Editor**
+
+- **SC10** The user creates an expert scenario: asset, context timeframe (1d, or 4h for an asset
+  without exchange hours, decision 0008) and time span. On a test-run scenario, "new expert
+  scenario" takes over its asset, context timeframe and time span; the test-run drawing stays
+  visible while the user draws. Every expert scenario is long.
+- **SC11** The editor has a tool per named point, each snapping by the rules of EWTS's format:
+  a wave point (wave 1 start, wave 1 end, wave 2 end; A, B and C end of wave 2) to the open time
+  of its candle and the candle's wick extreme (the low for a low, the high for a high); entry and
+  add to the open time and the close of the candle; an exit to the open time of the candle at the
+  price the user gives, with its share and kind (target or stop); the stop to a price, a stop move
+  to a price and the candle that caused it. Points are moved and removed like drawings (4.6).
+- **SC12** Each section (waves, wave 2, trade) has its own timeframe, chosen in the editor; a point
+  snaps to the candles of its section's timeframe whatever timeframe the chart shows.
+- **SC13** The user sets the head of the scenario: verdict (trade-win, trade-loss, no-trade),
+  draft mark, reason, notes, the time span (from, to), the pattern of wave 2, and a reason for
+  every point.
+- **SC14** The scenario is saved automatically, and only once the user has drawn, changed or
+  written something: viewing writes nothing. It is the file `expert/<id>.json` in EWTS's format.
+  Reopening it rebuilds the drawing from the named points. Fields TradeViewer does not know
+  (e.g. `legacy` of converted scenarios) are kept unchanged.
+- **SC15** The id is built by EWTS's rule (`<symbol>-<context tf>-<yyyy-MM>-X<n>`, the month of
+  wave 2 end, the next free number) when the scenario is first saved, so a new scenario is saved
+  from the moment its wave 2 end is placed; until then the page warns before it is left. The id
+  does not change afterwards.
+- **SC16** The editor checks the form and shows each problem at its field or point: the order of
+  the times, the fields the verdict and the pattern require, exit shares that do not add up to
+  100 %, a point outside the time span. A problem never prevents saving. Whether the reading
+  follows the rules of the strategy is checked by EWTS, not by TradeViewer.
+- **SC17** The user deletes an expert scenario after confirmation.
 
 ### 4.13 Workspace
 
@@ -411,8 +434,7 @@ Measured on a Raspberry Pi 5 with an SSD, a desktop browser in the same network,
 - Analysis of any kind: wave counting, rule validation, setup detection, scoring (EWTS)
 - Downloading market data (Downloader)
 - Sending alerts (EWTS)
-- Generating scenarios and changing the files EWTS wrote (EWTS); the own analysis of the user
-  is a separate file (SC12)
+- Writing test-run scenarios and checking a scenario against the rules of the strategy (EWTS)
 - The journal and the trades of EWTS (possible later)
 - Order execution and broker connections
 - Replay and paper trading (decision 0005)
@@ -426,7 +448,7 @@ Measured on a Raspberry Pi 5 with an SSD, a desktop browser in the same network,
 ## 7. Dependencies on EWTS
 
 Sections 4.8 to 4.11 need interfaces EWTS does not have yet. They are listed in
-docs/knowledge/ewts-interface.md, chapter "Required Interface". Section 4.12 needs the scenario
-drawing files described there, which EWTS's existing overlay tool can write; SC10 to SC13 also
-need EWTS to read the expert files TradeViewer writes (decision 0007). Sections 4.1 to
+docs/knowledge/ewts-interface.md, chapter "Required Interface". In section 4.12 the expert
+scenarios need only EWTS's file format; the test-run scenarios need the drawing files EWTS writes
+for its test runs. Sections 4.1 to
 4.7 and 4.13 need only the Downloader, whose interface exists.

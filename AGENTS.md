@@ -74,8 +74,9 @@ rewritten, they are replaced by a later one.
 - ../Downloader and ../EWTS own their interfaces. Never change those repositories from here;
   a needed change is written into docs/knowledge/ and raised with the owner.
 - The Downloader's output root (`MarketData:RootPath`) is read-only. Never write there.
-- In the scenario folder (`Scenarios:RootPath`) TradeViewer writes only `*.expert.json` files
-  (decision 0007), and only for a scenario the user has changed. Never change a file of EWTS.
+- In the scenario folder (`Scenarios:RootPath`) TradeViewer writes only in `expert/` (decision
+  0010), and only when the user has changed something. Never write or delete anything in
+  `test-runs/`.
 - Tests never contact the Downloader or an EWTS instance.
 - The agent can log in to the Raspberry Pi (`ssh home8`), but deploys there only after the owner
   has said so, every time (docs/runbooks/pi-setup.md, section 5).

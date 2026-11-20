@@ -73,14 +73,17 @@ Outcome: any stored asset can be charted in any timeframe within the performance
 
 Branch: `feature/scenario-viewer`
 
-- Reader for the scenario drawing files, list and detail endpoints
+- Reader of the scenario folder (expert scenarios and test-run drawing files), list and detail
+  endpoints
+- Shapes built from the named points of an expert scenario (decision 0010)
 - Primitives of the chart module for the overlay shapes (line, label, level, zone, marker,
   vertical line), with groups and the detail text on pointing
 - Scenario list with filters, scenario page with chart, panel, previous and next
 
 Requirements: SC1, SC2, SC3, SC4, SC5, SC6, SC7, SC8, SC9, OV6
-Depends on: Price Chart; EWTS writes the drawing files (architecture, open point O1)
-Knowledge: docs/knowledge/ewts-interface.md (Drawings, Scenario Files)
+Depends on: Price Chart; the converted expert scenarios of EWTS as fixtures (test-run scenarios
+are tested with fixtures in EWTS's format until EWTS writes them)
+Knowledge: docs/knowledge/ewts-interface.md (Drawings, Scenario Files, Expert Scenario Files)
 Outcome: a scenario is checked in TradeViewer instead of pasting a Pine script into
 TradingView.
 
@@ -120,18 +123,19 @@ Requirements: DR1, DR2, DR3, DR4, DR5, DR6, NF3
 Depends on: Price Chart
 Outcome: drawings behave the same on every timeframe and are never lost.
 
-## Epic: Scenario Analysis
+## Epic: Scenario Editor
 
-Branch: `feature/scenario-analysis`
+Branch: `feature/scenario-editor`
 
-- Drawing layer on the scenario page with the tools of Drawing Tools, verdict and remarks
-- Writer of the `*.expert.json` files (decision 0007), mark and filter in the scenario list
-- Create an expert scenario
+- Point tools with the snap rules of EWTS's format, a timeframe per section, head fields
+- Writer of `expert/<id>.json` (decision 0010): ids, unknown fields kept, delete
+- Form checks; a new expert scenario from a test-run scenario
 
-Requirements: SC10, SC11, SC12, SC13
+Requirements: SC10, SC11, SC12, SC13, SC14, SC15, SC16, SC17
 Depends on: Scenario Viewer, Drawing Tools
-Knowledge: docs/knowledge/ewts-interface.md (Scenario Files, Expert Analysis Files)
-Outcome: the own analysis of the user sits beside the one of EWTS and reaches EWTS as a file.
+Knowledge: docs/knowledge/ewts-interface.md (Scenario Files, Expert Scenario Files)
+Outcome: the owner makes and corrects the expert scenarios in TradeViewer instead of writing
+YAML, and EWTS tests against them.
 
 ## Epic: Indicators
 
