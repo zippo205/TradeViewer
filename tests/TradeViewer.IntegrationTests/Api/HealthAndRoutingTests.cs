@@ -61,6 +61,33 @@ public class HealthAndRoutingTests : IClassFixture<TradeViewerFactory>
     }
 
     [Theory]
+    [InlineData("/")]
+    [InlineData("/chart/binance/BTCUSDT/1d")]
+    [InlineData("/index.html")]
+    [InlineData("/chart/index.js")]
+    [InlineData("/_framework/blazor.webassembly.js")]
+    public async Task The_files_of_the_client_are_checked_again_on_every_load(string path)
+    {
+        var response = await _factory.CreateClient().GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.CacheControl?.NoCache, path + ": Cache-Control " + response.Headers.CacheControl);
+    }
+
+    [Fact]
+    public async Task An_unchanged_chart_module_is_answered_with_304()
+    {
+        var client = _factory.CreateClient();
+        var first = await client.GetAsync("/chart/index.js");
+        var again = new HttpRequestMessage(HttpMethod.Get, "/chart/index.js");
+        again.Headers.IfNoneMatch.Add(first.Headers.ETag!);
+
+        var response = await client.SendAsync(again);
+
+        Assert.Equal(HttpStatusCode.NotModified, response.StatusCode);
+    }
+
+    [Theory]
     [InlineData("/api/unknown")]
     [InlineData("/api/assets/binance/BTCUSDT/nothing")]
     public async Task An_unknown_api_route_is_a_404_with_problem_details(string path)
