@@ -20,21 +20,28 @@ public sealed class ExpertScenarioStore : IExpertScenarioStore
 
     private readonly string? _folder;
     private readonly TimeProvider _clock;
+    private readonly Func<bool> _writable;
     private readonly SemaphoreSlim _writeLock = new SemaphoreSlim(1, 1);
     private readonly object _cacheLock = new object();
     private readonly Dictionary<string, CachedHead> _heads = new Dictionary<string, CachedHead>(StringComparer.Ordinal);
 
     public ExpertScenarioStore(StorageLocations locations, TimeProvider clock)
-        : this(locations.ScenariosRoot, clock)
+        : this(locations.ScenariosRoot, clock, () => locations.ScenariosWritable)
     {
     }
 
     /// <param name="scenariosRoot">the scenario folder, or null when the feature is off (then there are no scenarios)</param>
-    public ExpertScenarioStore(string? scenariosRoot, TimeProvider clock)
+    /// <param name="writable">whether the folder is writable, as the start-up checks found; always true when not given</param>
+    public ExpertScenarioStore(string? scenariosRoot, TimeProvider clock, Func<bool>? writable = null)
     {
         _folder = scenariosRoot == null ? null : Path.Combine(scenariosRoot, FolderName);
         _clock = clock;
+        _writable = writable ?? (() => true);
     }
+
+    public bool Enabled => _folder != null;
+
+    public bool Writable => _folder != null && _writable();
 
     public async Task<IReadOnlyList<ExpertScenarioSummary>> ListAsync(CancellationToken cancellationToken)
     {

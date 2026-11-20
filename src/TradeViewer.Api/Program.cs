@@ -27,6 +27,7 @@ app.MapDownloaderEndpoints();
 app.MapWatchlistEndpoints();
 app.MapDrawingEndpoints();
 app.MapChartSettingsEndpoints();
+app.MapScenarioEndpoints();
 app.MapHub<WorkspaceHub>(WorkspaceHub.Route);
 
 // An unknown API route is a 404 with problem details, never the page of the client.

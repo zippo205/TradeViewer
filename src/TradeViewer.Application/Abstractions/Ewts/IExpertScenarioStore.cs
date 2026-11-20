@@ -9,6 +9,12 @@ namespace TradeViewer.Application.Abstractions.Ewts;
 /// </summary>
 public interface IExpertScenarioStore
 {
+    /// <summary>Whether a scenario folder is configured (Scenarios:RootPath); without it the scenario pages are off.</summary>
+    bool Enabled { get; }
+
+    /// <summary>Whether TradeViewer can write into the folder (found at the start); without it the editor only shows.</summary>
+    bool Writable { get; }
+
     /// <summary>
     /// Every *.json of the folder, ordered by id: the head of each scenario, or its error when the file cannot be read
     /// (SC7). Only files that changed since the last call are read again.

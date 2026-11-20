@@ -1,9 +1,12 @@
 using TradeViewer.Contracts.Drawings;
 using TradeViewer.Domain.Drawings;
 
-namespace TradeViewer.Application.Features.Drawings.Services;
+namespace TradeViewer.Application.Abstractions.Drawings;
 
-/// <summary>Between the records of the API (codes, ISO times) and the Domain (enums, Unix seconds).</summary>
+/// <summary>
+/// Between the drawing records of the API (codes, ISO times) and the Domain (enums, Unix seconds). Shared by the features
+/// Drawings (the workspace) and Scenarios (the drawings of an expert scenario, SC20).
+/// </summary>
 public static class DrawingMapping
 {
     public static DrawingRecord ToRecord(Drawing drawing)

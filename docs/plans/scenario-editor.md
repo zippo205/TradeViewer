@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Scenario Editor (P1 - Workstation)
-Status:   In work; plan approved by the owner 2026-11-20; steps 1 and 2 done
+Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 3 done
 Branch:   feature/scenario-editor
-Next:     step 3 (Application and Api: feature Scenarios, endpoints with the snap route)
+Next:     step 4 (chart module: overlay shapes, setOverlays)
 Baseline: docs as of commit 692f02c (main)
 ```
 
@@ -283,6 +283,37 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
 - Checking the drawings with `DrawingRules` stays in step 3, where they are mapped to Domain
   drawings.
 - 62 new unit tests (605 unit, 258 integration, 19 architecture pass).
+
+# Result of Step 3 (2026-11-20)
+
+- Feature Scenarios: queries GetScenariosStatus, ListExpertScenarios, GetExpertScenario,
+  SnapScenarioPoint, PreviewExpertScenario; commands SaveExpertScenario (first save without id,
+  later saves with the id of the address) and DeleteExpertScenario. Services:
+  `ExpertScenarioShapes` (proposal 6), `ScenarioPointEditor` (puts a snapped point into the
+  scenario: a missing section is made with its level's timeframe, wave 1 gets its pattern from
+  the first point, a moved point keeps its reason, a new exit gets the share left to 100 % and
+  the kind of its tool), `ExpertScenarioResponses` (shapes, form problems, levels, asset state),
+  `ExpertScenarioValidator` (refuses only what could not be written or read again: asset, context
+  timeframe, drawings by the rules of their tool and their level; everything else is a form
+  problem).
+- Snapping reads the candle that contains the time through `ICandleSeriesReader` on the
+  timeframe of the point's section, or of its level when the section has none (a file written
+  by hand with other timeframes snaps on its own). No candle there: 422 `scenario.noCandle`.
+- SC6: the answer says whether the asset is in the workspace and which history starts of the
+  three levels lie after the start of the span. The page sends them, after the user agreed,
+  through the existing history change of the asset; the feature never changes an asset itself.
+- Contracts: `Contracts/Overlays` (the shape vocabulary, also for the later overlays), scenario
+  responses and requests. `DrawingMapping` moved from the Drawings feature to
+  `Abstractions/Drawings`, so both features use it (architecture chapter 4).
+- Api: `/api/scenarios` (status), `/api/scenarios/expert` (list, first save), `/snap`,
+  `/preview`, `/{id}` (get, put, delete); chapter 9 updated (`/api/scenarios` and `/preview` are
+  new against the plan).
+- A folder that is not writable answers saves and deletes with 409 `scenarios.readOnly`; without
+  a folder every route but the status answers 404 `scenarios.off`.
+- Tests: 12 endpoint tests (with candle files of known values on 4h, 1h and 15m: every snap kind
+  on its level; opening writes nothing; legacy kept through the Api; a broken drawing refused,
+  a form problem never), 5 unit tests of the shapes. 610 unit, 270 integration, 19 architecture
+  tests pass.
 
 # Proposals
 

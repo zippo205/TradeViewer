@@ -16,6 +16,10 @@ using TradeViewer.Application.Features.Indicators.Handlers;
 using TradeViewer.Application.Features.Indicators.Queries;
 using TradeViewer.Application.Features.MarketData.Handlers;
 using TradeViewer.Application.Features.MarketData.Queries;
+using TradeViewer.Application.Features.Scenarios.Commands;
+using TradeViewer.Application.Features.Scenarios.Handlers;
+using TradeViewer.Application.Features.Scenarios.Queries;
+using TradeViewer.Application.Features.Scenarios.Services;
 using TradeViewer.Application.Features.Watchlists.Commands;
 using TradeViewer.Application.Features.Watchlists.Handlers;
 using TradeViewer.Application.Features.Watchlists.Queries;
@@ -28,6 +32,7 @@ using TradeViewer.Contracts.Downloader;
 using TradeViewer.Contracts.Drawings;
 using TradeViewer.Contracts.Indicators;
 using TradeViewer.Contracts.MarketData;
+using TradeViewer.Contracts.Scenarios;
 using TradeViewer.Contracts.Watchlists;
 using TradeViewer.Contracts.Workspace;
 
@@ -81,6 +86,16 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<GetIndicatorTemplatesQuery, IReadOnlyList<IndicatorTemplateRecord>>, GetIndicatorTemplatesQueryHandler>();
         services.AddScoped<ICommandHandler<SaveIndicatorTemplateCommand, IndicatorTemplateRecord>, SaveIndicatorTemplateCommandHandler>();
         services.AddScoped<ICommandHandler<DeleteIndicatorTemplateCommand, Unit>, DeleteIndicatorTemplateCommandHandler>();
+
+        // Scenarios (SC1-SC16, SC20, SC21)
+        services.AddScoped<ExpertScenarioResponses>();
+        services.AddScoped<IQueryHandler<GetScenariosStatusQuery, ScenariosStatusResponse>, GetScenariosStatusQueryHandler>();
+        services.AddScoped<IQueryHandler<ListExpertScenariosQuery, IReadOnlyList<ExpertScenarioSummary>>, ListExpertScenariosQueryHandler>();
+        services.AddScoped<IQueryHandler<GetExpertScenarioQuery, ExpertScenarioResponse>, GetExpertScenarioQueryHandler>();
+        services.AddScoped<IQueryHandler<SnapScenarioPointQuery, ExpertScenarioResponse>, SnapScenarioPointQueryHandler>();
+        services.AddScoped<IQueryHandler<PreviewExpertScenarioQuery, ExpertScenarioResponse>, PreviewExpertScenarioQueryHandler>();
+        services.AddScoped<ICommandHandler<SaveExpertScenarioCommand, ExpertScenarioResponse>, SaveExpertScenarioCommandHandler>();
+        services.AddScoped<ICommandHandler<DeleteExpertScenarioCommand, Unit>, DeleteExpertScenarioCommandHandler>();
 
         // Workspace
         services.AddScoped<IQueryHandler<GetSettingsQuery, SettingsResponse>, GetSettingsQueryHandler>();

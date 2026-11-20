@@ -14,6 +14,7 @@ public sealed class TradeViewerFactory : WebApplicationFactory<Program>
 {
     private readonly string _root;
     private readonly StubDownloader? _downloader;
+    private string? _scenariosRoot;
     private bool _ownsRoot;
 
     public TradeViewerFactory()
@@ -36,6 +37,12 @@ public sealed class TradeViewerFactory : WebApplicationFactory<Program>
     public static TradeViewerFactory WithDownloader(StubDownloader downloader)
     {
         return new TradeViewerFactory(downloader);
+    }
+
+    /// <summary>The application with a scenario folder (Scenarios:RootPath); the test fills and removes it.</summary>
+    public static TradeViewerFactory WithScenarios(string scenariosRoot)
+    {
+        return new TradeViewerFactory { _scenariosRoot = scenariosRoot };
     }
 
     private TradeViewerFactory(string existingRoot)
@@ -73,7 +80,8 @@ public sealed class TradeViewerFactory : WebApplicationFactory<Program>
                 ["MarketData:RootPath"] = MarketDataRoot,
                 ["Storage:DataPath"] = DataPath,
                 ["MarketData:Downloader:Enabled"] = _downloader == null ? "false" : "true",
-                ["MarketData:Downloader:Client"] = "tradeviewer-test"
+                ["MarketData:Downloader:Client"] = "tradeviewer-test",
+                ["Scenarios:RootPath"] = _scenariosRoot
             });
         });
 

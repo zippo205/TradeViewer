@@ -192,6 +192,7 @@ answered with 500 without internal details.
 ```text
 Abstractions/
 ├── Messaging     the CQRS interfaces, Result, Error, FileContent
+├── Drawings      DrawingMapping: drawing records <-> Domain drawings, shared by Drawings and Scenarios (SC20)
 ├── MarketData    ICandleStore, ICandleSeriesReader (a page as the chart shows it, with warm-up), ICandleFileReader,
 │                 IDownloaderClient, ISymbolCatalog
 ├── Ewts          IEwtsClient, IScenarioFileReader, IExpertScenarioStore
@@ -511,7 +512,12 @@ DeleteAsync(id)                       delete expert/<id>.json (SC16)
 - The id is taken on the first save under a lock in the store, so two windows cannot take the same
   number; it never changes afterwards (SC14). With several windows the last save wins (WS1).
 - An expert scenario is drawn by building shapes from its named points (Application, feature
-  Scenarios) in the vocabulary of the analysis drawings; a test-run scenario brings its shapes.
+  Scenarios, `ExpertScenarioShapes`) in the vocabulary of the analysis drawings
+  (`Contracts/Overlays`), each group with its level; a test-run scenario brings its shapes. Every
+  answer of the editor (read, snap, preview, save) carries the scenario, its shapes, its form
+  problems, the timeframes of its levels and the state of its asset (SC6: whether it is in the
+  workspace and which history starts the span needs; the page sends them, after the user agreed,
+  as a history change of the asset).
   Both are drawn by the same primitives of the chart module (`setOverlays`).
 - An expert scenario is addressed by its id, a test-run scenario by run id and id; both are
   checked against the file name rules, so no request leaves its folder.
@@ -578,10 +584,13 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
 /api/ewts/instances/{id}/alerts
 /api/ewts/instances/{id}/alert-settings
 /api/alerts                                   history across all instances, filters (AL2); /read marks them read (AL3)
+/api/scenarios                                whether the scenario folder is configured and writable (menu entry, editor)
 /api/scenarios/expert                         list (SC7); post saves a new expert scenario and returns its id (SC14)
 /api/scenarios/expert/{id}                    get (points, drawings and the shapes built from the points), put, delete (SC13, SC16)
-/api/scenarios/expert/snap                    snap a placed or moved point; returns the scenario, its shapes and
+/api/scenarios/expert/snap                    post: snap a placed or moved point; returns the scenario, its shapes and
                                               problems without writing (SC10, also before the first save)
+/api/scenarios/expert/preview                 post: shapes and problems of a scenario as the editor holds it, without
+                                              writing (a point removed or a field typed before the first save)
 /api/scenarios/test-runs                      the run folders (SC17)
 /api/scenarios/test-runs/{runId}              the scenarios of a run
 /api/scenarios/test-runs/{runId}/{id}         one test-run scenario with its shapes (SC18)
