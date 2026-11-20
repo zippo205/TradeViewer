@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Scenario Editor (P1 - Workstation)
-Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 4 done
+Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 5 done
 Branch:   feature/scenario-editor
-Next:     step 5 (chart module: the named points as handles, point tools)
+Next:     step 6 (Web: scenario chart and list)
 Baseline: docs as of commit 692f02c (main)
 ```
 
@@ -337,6 +337,30 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
   are apart. Entry and add one hour apart sit on one daily candle; on the trigger timeframe they
   are apart.
 - 10 new Vitest tests (229 in all); C# unchanged (610 unit, 270 integration, 19 architecture).
+
+# Result of Step 5 (2026-11-20)
+
+- `tools/scenarioPoints.ts`: the state machine of the named points. A tool lists the fields it
+  places one after the other and returns to the pointer after the last; a list field
+  (`trade.exits`, `trade.stopMoves`) adds an item, an exit with the kind of its tool. A handle is
+  dragged by whole bars without the magnet; when it is let go the module reports where, and draws
+  the point there until Web gives the snapped points. Escape puts a dragged handle back and stops
+  a tool (the points it placed stay). Points of another level have no handle.
+- `primitives/scenarioHandles.ts`: the handles on top, a ring in the colour of the point's role,
+  filled when selected.
+- `PointerInput` now asks an ordered list of targets (the named points, then the drawings); a busy
+  one gets the pointer alone. `ChartPane`: `setScenarioPoints`, `setScenarioTool`,
+  `selectScenarioPoint`, `onScenarioPointEvents`; one selection and one tool at a time between
+  points and drawings; `stats()` reports handles, tool, next field, selected point.
+- Headless browser (`~/tools/browser/points-check.mjs`, the page script standing in for Web), over
+  localhost and the WSL address: the three wave points of the context have handles and those of
+  the other levels none; dragging the end of wave 2 two candles on does not pan, the server snaps
+  it to that candle's low and the line follows; the 1-2 tool places three points with three
+  clicks and returns to the pointer; nothing is written. The drawing checks (tools, Elliott,
+  Fibonacci, exact times) still pass after the change of `PointerInput`.
+- The Api writes times as `+00:00` in its answers, the files as `Z`; both are UTC and the module
+  parses either.
+- 9 new Vitest tests (238 in all); C# unchanged.
 
 # Proposals
 

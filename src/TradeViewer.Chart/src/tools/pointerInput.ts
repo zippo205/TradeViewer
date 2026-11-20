@@ -1,12 +1,22 @@
 import type { IChartApi } from "lightweight-charts";
 import type { Point } from "./geometry";
-import type { DrawingInteraction } from "./interaction";
+
+/** Something on the chart that can take the pointer: the named points of a scenario, the drawings. */
+export interface PointerTarget {
+  pointerDown(point: Point): boolean;
+  pointerMove(point: Point): boolean;
+  pointerUp(): boolean;
+  isBusy(): boolean;
+  cancel(): boolean;
+  finish(): boolean;
+}
 
 /**
- * Takes the pointer before the chart does. A press that the interaction takes (placing, a drawing, a handle)
- * never reaches the library, so the chart does not pan; any other press goes to the chart as before (NF2).
- * While a drawing is placed or dragged, the moves and the release anywhere in the window belong to it, and
- * Escape cancels. Only the module works meanwhile: no call to Blazor until the result is reported (NF3).
+ * Takes the pointer before the chart does. The targets are asked in their order (the named points of a scenario
+ * before the drawings); a press that one takes (placing, a drawing, a handle) never reaches the library, so the
+ * chart does not pan; any other press goes to the chart as before (NF2). While something is placed or dragged,
+ * the moves and the release anywhere in the window belong to it, and Escape cancels. Only the module works
+ * meanwhile: no call to Blazor until the result is reported (NF3).
  */
 export class PointerInput {
   private readonly onDown = (event: MouseEvent) => this.press(event);
@@ -17,7 +27,7 @@ export class PointerInput {
   constructor(
     private readonly element: HTMLElement,
     private readonly chart: IChartApi,
-    private readonly interaction: DrawingInteraction,
+    private readonly targets: readonly PointerTarget[],
   ) {
     // The capture phase on an element around the chart: the library listens on its own elements inside it.
     element.addEventListener("mousedown", this.onDown, { capture: true });
@@ -47,26 +57,32 @@ export class PointerInput {
       return; // in an indicator pane, on a separator or on the time scale: drawings live in the price pane only
     }
 
-    if (this.interaction.pointerDown(point)) {
-      event.stopPropagation();
-      event.preventDefault();
+    const busy = this.targets.find((target) => target.isBusy());
+    const takers = busy !== undefined ? [busy] : this.targets;
+    for (const target of takers) {
+      if (target.pointerDown(point)) {
+        event.stopPropagation();
+        event.preventDefault();
+        return;
+      }
     }
   }
 
   private move(event: MouseEvent): void {
-    if (this.interaction.isBusy()) {
-      this.interaction.pointerMove(this.local(event));
-    }
+    const busy = this.targets.find((target) => target.isBusy());
+    busy?.pointerMove(this.local(event));
   }
 
   private release(event: MouseEvent): void {
-    if (event.button === 0 && this.interaction.isBusy()) {
-      this.interaction.pointerUp();
+    const busy = this.targets.find((target) => target.isBusy());
+    if (event.button === 0 && busy !== undefined) {
+      busy.pointerUp();
     }
   }
 
   private key(event: KeyboardEvent): void {
-    const handled = (event.key === "Escape" && this.interaction.cancel()) || (event.key === "Enter" && this.interaction.finish());
+    const handled =
+      (event.key === "Escape" && this.targets.some((target) => target.cancel())) || (event.key === "Enter" && this.targets.some((target) => target.finish()));
     if (handled) {
       event.stopPropagation();
       event.preventDefault();

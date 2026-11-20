@@ -19,10 +19,12 @@ import { FIRST_PAGE_SIZE, OLDER_PAGE_SIZE, REFRESH_PAGE_SIZE, SeriesData, should
 import { GAP_ID_PREFIX, GapMarkers } from "./gapMarkers";
 import { parseGroups, type OverlayGroupRecord } from "./primitives/overlays/overlay";
 import { OverlayLayer } from "./primitives/overlays/overlayLayer";
+import { ScenarioHandles } from "./primitives/scenarioHandles";
+import { ScenarioPointInteraction, type ScenarioHandle, type ScenarioPointEvents, type ScenarioTool } from "./tools/scenarioPoints";
 import type { IndicatorInstance } from "./indicators/indicator";
 import { IndicatorSet } from "./indicators/indicatorSet";
 import type { IndicatorAction } from "./indicators/legend";
-import type { Drawing, DrawingStyle, ToolCode } from "./primitives/drawing";
+import type { Anchor, Drawing, DrawingStyle, ToolCode } from "./primitives/drawing";
 import { DrawingLayer } from "./primitives/drawingLayer";
 import type { Point } from "./tools/geometry";
 import { DrawingInteraction, type DrawingEvents, type DrawingOptions } from "./tools/interaction";
@@ -77,6 +79,12 @@ export interface PaneStats {
   readonly tool: ToolCode | undefined;
   /** Overlay shapes drawn at the last paint (hidden groups and shapes off the candles not counted). */
   readonly overlayShapes: number;
+  /** Handles of named points, the point tool in use, the field it places next, the selected point, points placed or let go. */
+  readonly scenarioHandles: number;
+  readonly scenarioTool: string | undefined;
+  readonly scenarioNext: string | undefined;
+  readonly selectedPoint: string | undefined;
+  readonly pointsPlaced: number;
 }
 
 /**
@@ -103,6 +111,10 @@ export class ChartPane {
     () => this.data.bars,
   );
   private readonly drawingInteraction: DrawingInteraction;
+  private readonly scenarioHandles: ScenarioHandles;
+  private readonly scenarioPoints: ScenarioPointInteraction;
+  private scenarioListener: Partial<ScenarioPointEvents> = {};
+  private pointsPlaced = 0;
   private readonly pointerInput: PointerInput;
   private drawingListener: Partial<DrawingEvents> = {};
   private drawingsCreated = 0;
@@ -213,14 +225,44 @@ export class ChartPane {
           this.drawingChanges++;
           this.drawingListener.drawingChanged?.(drawing);
         },
-        selectionChanged: (id) => this.drawingListener.selectionChanged?.(id),
+        selectionChanged: (id) => {
+          if (id !== undefined) {
+            this.scenarioPoints.select(undefined); // one thing is selected at a time: a drawing or a point
+          }
+
+          this.drawingListener.selectionChanged?.(id);
+        },
         toolChanged: (tool) => this.drawingListener.toolChanged?.(tool),
       },
       undefined,
       (drawing, changed) => this.exactTimes(drawing, changed),
     );
     this.drawingLayer.bind(this.drawingInteraction);
-    this.pointerInput = new PointerInput(canvasHost, this.chart, this.drawingInteraction);
+
+    // The named points of an expert scenario (SC10): handles on top, taken before the drawings.
+    const pointSurface = {
+      pointOf: (anchor: Anchor) => this.drawingLayer.pointOf(anchor),
+      anchorAt: (point: Point, magnet: boolean) => this.drawingLayer.anchorAt(point, magnet),
+      redraw: () => this.scenarioHandles.redraw(),
+    };
+    this.scenarioHandles = new ScenarioHandles(pointSurface, () => this.theme.background);
+    this.scenarioPoints = new ScenarioPointInteraction(pointSurface, {
+      pointPlaced: (field, index, time, price, kind) => {
+        this.pointsPlaced++;
+        this.scenarioListener.pointPlaced?.(field, index, time, price, kind);
+      },
+      pointSelected: (key) => {
+        if (key !== undefined) {
+          this.drawingInteraction.select(undefined);
+        }
+
+        this.scenarioListener.pointSelected?.(key);
+      },
+      scenarioToolChanged: (code) => this.scenarioListener.scenarioToolChanged?.(code),
+    });
+    this.scenarioHandles.bind(this.scenarioPoints);
+    this.candles.attachPrimitive(this.scenarioHandles);
+    this.pointerInput = new PointerInput(canvasHost, this.chart, [this.scenarioPoints, this.drawingInteraction]);
     this.latestButton = document.createElement("button");
     this.latestButton.type = "button";
     this.latestButton.className = "tv-chart-latest";
@@ -408,7 +450,37 @@ export class ChartPane {
 
   /** Chooses the tool to place next (undefined: the pointer); a style given replaces the default of the tool. */
   setTool(tool: ToolCode | null | undefined, style?: DrawingStyle | null, extras?: Record<string, unknown> | null): void {
+    if (tool !== null && tool !== undefined && this.scenarioPoints.tool() !== undefined) {
+      this.scenarioPoints.setTool(undefined); // one tool at a time
+    }
+
     this.drawingInteraction.setTool(tool ?? undefined, style ?? undefined, extras ?? {});
+  }
+
+  /**
+   * The named points of an expert scenario (SC10): those of the level shown are editable and get a handle; the
+   * others are drawn by the overlay only. Called with the points the server snapped; an empty list removes them.
+   */
+  setScenarioPoints(points: readonly ScenarioHandle[] | null | undefined): void {
+    this.scenarioPoints.setPoints(points ?? []);
+  }
+
+  /** A point tool ("1-2", "i-v", an exit, ...), or the pointer with null. Choosing one puts the drawing tool away. */
+  setScenarioTool(tool: ScenarioTool | null | undefined): void {
+    if (tool !== null && tool !== undefined) {
+      this.drawingInteraction.setTool(undefined);
+    }
+
+    this.scenarioPoints.setTool(tool ?? undefined);
+  }
+
+  /** Selects a point by its key ("<field>" or "<field>#<index>"), or none. */
+  selectScenarioPoint(key: string | null | undefined): void {
+    this.scenarioPoints.select(key ?? undefined);
+  }
+
+  onScenarioPointEvents(listener: Partial<ScenarioPointEvents>): void {
+    this.scenarioListener = listener;
   }
 
   /** The magnet and "all drawings hidden" (DR2, DR6). */
@@ -493,6 +565,11 @@ export class ChartPane {
       selectedDrawing: this.drawingInteraction.selected(),
       tool: this.drawingInteraction.tool(),
       overlayShapes: this.overlayLayer.drawnCount(),
+      scenarioHandles: this.scenarioPoints.visible().length,
+      scenarioTool: this.scenarioPoints.tool(),
+      scenarioNext: this.scenarioPoints.nextField(),
+      selectedPoint: this.scenarioPoints.selected(),
+      pointsPlaced: this.pointsPlaced,
     };
   }
 

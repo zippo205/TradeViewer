@@ -671,8 +671,10 @@ TradeViewer.Chart/src/
 ```text
 Blazor -> chart    createPane, setSeries(asset, timeframe), setIndicators, setDrawings,
                    setOverlays, setTool(tool, style), setDrawingOptions(magnet, hidden),
-                   selectDrawing, setOptions, refresh, dispose
-chart  -> Blazor   drawingCreated, drawingChanged, selectionChanged, toolChanged, indicatorAction(id, action)
+                   selectDrawing, setOptions, refresh, dispose;
+                   setScenarioPoints(points), setScenarioTool(tool), selectScenarioPoint(key)
+chart  -> Blazor   drawingCreated, drawingChanged, selectionChanged, toolChanged, indicatorAction(id, action);
+                   pointPlaced(field, index, time, price, kind), pointSelected(key), scenarioToolChanged
 ```
 
 Deleting a drawing is an action of Web (the bar of the selected drawing, the Delete key): Web
@@ -829,7 +831,12 @@ context menu; the bar of the selected drawing does what one would.
 - The scenario editor has point tools (SC10) beside the drawing tools of the chart page (SC20).
   A point tool is offered only on the timeframe of its level; while a point is dragged only the
   point follows the pointer, and when it is let go Web asks the Api to snap it and redraws the
-  shapes from the answer (chapter 8). The free drawings use the same interaction as on the chart
+  shapes from the answer (chapter 8). In the module the named points are handles
+  (`tools/scenarioPoints.ts`, `primitives/scenarioHandles.ts`, drawn on top): Web passes every
+  point with "editable" set for those of the level shown; a tool lists the fields it places one
+  after the other ("1-2": wave 1 start, wave 1 end, wave 2 end). `PointerInput` asks the named
+  points before the drawings; one thing is selected at a time, a point or a drawing, and one tool
+  is in use, a point tool or a drawing tool. The free drawings use the same interaction as on the chart
   page; Web saves them, with their level, into the expert file instead of the workspace. What a
   level holds is drawn on its own timeframe and the lower ones (SC21). Toolbars, the instance selector and the corner display (OV5) are
   Blazor components next to the canvas.
