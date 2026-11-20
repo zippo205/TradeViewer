@@ -16,8 +16,7 @@ builder.Services.AddInfrastructure(builder.Configuration, builder.Environment.Co
 var app = builder.Build();
 
 app.UseErrorHandling();
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
+app.UseClientFiles();
 
 app.MapHealthEndpoints();
 app.MapWorkspaceEndpoints();
@@ -32,7 +31,7 @@ app.MapHub<WorkspaceHub>(WorkspaceHub.Route);
 
 // An unknown API route is a 404 with problem details, never the page of the client.
 app.Map("/api/{**rest}", () => Results.NotFound());
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", StaticFileCaching.FallbackOptions());
 
 app.Run();
 
