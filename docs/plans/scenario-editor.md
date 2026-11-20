@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Scenario Editor (P1 - Workstation)
-Status:   In work; plan approved by the owner 2026-11-20; step 1 done
+Status:   In work; plan approved by the owner 2026-11-20; steps 1 and 2 done
 Branch:   feature/scenario-editor
-Next:     step 2 (Domain/Scenarios: levels, point names, snap rules, form checks)
+Next:     step 3 (Application and Api: feature Scenarios, endpoints with the snap route)
 Baseline: docs as of commit 692f02c (main)
 ```
 
@@ -262,6 +262,27 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
   free number with 8 concurrent first saves, drawings, broken files, ids that leave the folder,
   test-runs/ unchanged after every test) and 16 unit tests of the id rule. 543 unit,
   258 integration, 19 architecture tests pass.
+
+# Result of Step 2 (2026-11-20)
+
+- Domain/Scenarios: `ScenarioLevel` and `ScenarioLevels` (the chain 1d/4h/1h and 4h/1h/15m, the
+  level of a timeframe, what a level shows, SC21), `ScenarioPointName` and `ScenarioPoints`
+  (level, snap kind and field of each point; long only: wave 1 start, ii, iv, b of a three and a,
+  c of wave 2 are lows), `ScenarioSnap` (the containing candle, found by binary search; the snap
+  of each kind), `ScenarioCodes`, `ExpertScenarioReading`, `ScenarioFormProblem` and
+  `ScenarioFormRules` (SC15).
+- Form rules decided while writing them: the internals of a wave lie after the point the wave
+  starts at and before the close of the context candle of the point it ends at (they sit on
+  smaller candles inside it); the entry is after the open of the candle of the end of wave 2;
+  add and stop moves after the entry, exits not before it, both in time order; a point is inside
+  the span when its candle opens within from..to; prices are finite and above 0, shares above 0
+  and at most 100. A pattern of wave 1 with points of the other pattern reports each such point.
+- The mapping from the file's record to the Domain view (`ExpertScenarioReadings`, feature
+  Scenarios) is brought forward from step 3 so the 13 files could be checked: none of them has
+  a form problem.
+- Checking the drawings with `DrawingRules` stays in step 3, where they are mapped to Domain
+  drawings.
+- 62 new unit tests (605 unit, 258 integration, 19 architecture pass).
 
 # Proposals
 
