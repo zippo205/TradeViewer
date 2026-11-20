@@ -907,6 +907,11 @@ volumes
 - One image for linux/arm64 and linux/amd64; the .NET output is framework-dependent and has no
   runtime identifier
 - Port 8080, http only, no authentication (NF8)
+- Over http in the home network the browser has no secure context: Web APIs that need one
+  (`crypto.randomUUID`, the clipboard API, service workers) are not used
+- The files of the client (page, chart module, Blazor files) are answered with
+  `Cache-Control: no-cache`: the browser asks with the ETag on every load, so after an update it
+  never runs an old chart module against a new client
 - The container reaches the Downloader (8081) and the EWTS instances (8082-8089, several are normal)
   through `http://host.docker.internal:<port>`; the compose file maps the name with `extra_hosts`
   (`host-gateway`), which the Docker engine on the Pi needs
