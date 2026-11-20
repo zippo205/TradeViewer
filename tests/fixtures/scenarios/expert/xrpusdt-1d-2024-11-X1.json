@@ -1,0 +1,111 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "xrpusdt-1d-2024-11-X1",
+  "source": "binance",
+  "symbol": "XRPUSDT",
+  "contextTimeframe": "1d",
+  "direction": "long",
+  "verdict": "trade-win",
+  "draft": true,
+  "reason": "Lower-degree 1-2 at the start of the higher-degree wave 3 (expert): higher-degree wave 1 2024-07-05 -> 07-31, wave 2 a complex (expanded) flat to 2024-10-25, then this 1-2 (10-25 -> 10-29 -> 11-03). Wave 2 wicks to 86.7 % but closes inside 78.6 % (EM1), a zigzag on H4, and a strong H1 break of B on 11-06. Wave 3 extends to 3.40 (2025-01-16, 22x wave 1). With EM20 half the position is held for the higher-degree 161.8 % target (1.1718): about +9.3R, against +3.4R with the plain EM12 exit at the target of the small wave 1.",
+  "notes": "Source: the expert's count of the big XRP move, given in the review of Shortlist #14 (2024-11-17 1.0026 -> 11-23 1.63, wave 2 11-24 1.2775), which is an inner 1-2 of the extending wave 3 of this setup, not a trade of its own (see below). The scan missed this 1-2 until 2026-10-26: it judged the 78.6 % limit by the wick (86.7 %), EM1 by the close (fixed). Expert count: higher-degree wave 1 0.3823 (07-05 03:00) -> 0.6586 (07-31 02:00); wave 2 a complex flat: a 0.4319 (08-05), b 0.6649 (09-29, beyond the start of the flat: expanded), c 0.4860 (10-25), 55.9 % (log) of wave 1. Higher-degree wave 3 is initiated by this lower-degree 1-2; its lower-degree wave 3 extends to 3.40 (2025-01-16). Higher-degree wave 4 is ugly and ends on 2025-05-07 (its lowest low is 1.6134 on 04-07), wave 5 runs to 3.6607 (2025-07-18). 1-2 (D1): wave 1 0.4860 -> 0.5305, wave 2 to 0.4917 = 86.7 % by the wick, but the deepest D1 close 0.5030 is 60.8 % and the deepest H4 close 0.4971 (11-03 12:00) is 74.2 %, so EM1 holds (78.6 % = 0.4952). Wave 2 on H4: A 0.5031 (10-31 16:00, H1 18:00), B 0.5244 (11-01 08:00, H1 09:00, 69 % of A), C 0.4917 (11-03 12:00, H1 15:00, volume 4.2x), C/A 1.21: a zigzag (EM2). The retest 0.4957 on 11-04 21:00 stays above C (EM3). EM3: wave 2 lasted 5 D1 candles; the trigger came 2.5 days after it. Trigger (the US election night): 11-06 02:00 closes 0.5295, 0.0051 (1.0 ATR) above B, body 2.0 ATR, close in the top 15 % of the range, volume 2.54x: strong. Add 11-06 03:00 at 0.5340. Stop distance 7.3 % (entry) and 8.1 % (add). Targets of the 1-2 (log, from 0.4917, wave 1 = 0.4860 -> 0.5305): 100 % = 0.5367 (EM19), 127.2 % = 0.5497, 161.8 % = 0.5666, 261.8 % = 0.6185. Higher-degree targets (EM20, from 0.4860, wave 1 = 0.3823 -> 0.6586): 161.8 % = 1.1718, 261.8 % = 2.0186. EM19: the 100 % level is reached on 11-06 04:00; the low until the close beyond 127.2 % (11-07 02:00, 0.5520) is 0.5264, far above the protective swing low (0.4957, 11-04 21:00): no CHOCH, so the warning is lifted. No inner wave 2 or 4 reaches its minimum before the exit, so the stop stays at 0.4908 until then (EM8/EM10 note). Stops after the first exit (EM20 as decided on 2026-10-30): the held 40 % keeps only the EM8/EM10 stops, so it stays at 0.4908 up to the higher-degree target. The EM13 trail starts with the runner on 11-16 (swing lows with swings of 3 ATR(H1), at least 38.2 % of the move from the low the stop lies beyond into a new high, confirmed by an H1 close above that high, the lowest low of the whole pullback, stop 0.25 ATR(H1) below). Measured from 0.4917 no pullback of the extension reaches 38.2 % (11-17 1.0026 24.9 %, 11-24 1.2775 20.3 %, 12-10 1.9000 24.0 %). The first is the higher-degree wave 4 low 1.6134 (2025-04-07 06:00, 38.6 % of 0.4917 -> 3.4000), confirmed by the close above 3.4000 on 2025-07-17 21:00: stop 1.5996, hit by the crash wick of 2025-10-10 21:00 (low 1.2543). The runner outlives wave 3 and rides wave 5. Earlier versions of this trade (kept for comparison): with EM13 on the held part from the first exit and the swing rule of 2026-10-30, the stop trailed the extension from 11-10 (0.5389 ... 1.8768) and the runner went out on 2025-02-03 at 1.8768 (about +10.0R); with the fractal confirmation before 2026-10-30, on 2024-12-10 at 1.9820 (+10.3R). Results (R of the maximum loss, before slippage; first position and add each risk half): - EM20 (as traded above): 50 % at 0.5666 (+7.0 % / +6.1 %, 0.86R for the full size), 40 % at 1.1718 (+121 % / +119 %, 15.7R), 10 % runner at 1.5996 (+202 % / +200 %, 26.2R): about +9.3R. - Before EM20 (EM12): 90 % at 0.5666 and the same runner: about +3.4R; 90 % of the position leaves after 7 % of a move of more than 500 %. Inner 1-2s of the extending wave 3 (Shortlist #14 and the 2024-12-10 low): measured against the whole wave from 0.4917, no pullback after the first week retraces more than 25 % (11-17 1.0026 24.9 %, 11-24 1.2775 20.3 %, 12-10 1.90 24.0 %). Against their own last leg some reach EM1 (#14 50.1 %, 12-10 51.8 %, 2025-01-08 57.4 %, 01-13 66.0 %), but they are small 1-2s of a lower degree inside wave 3 (strategy.md, Counting Across 1-2s), and #14 had only a weak close above B (11-25 08:00, 0.12 ATR beyond, volume 1.24x) before EM3 ran out. They are no new setups; EM9 would allow an inner add there only within freed risk. Open questions (for the strategy): - Trailing in an extended wave 3 (option B, not adopted yet): lowering the EM13 minimum to 23.6 % once price is beyond 161.8 % makes the H1 stop tighter, not looser, here (runner out on 11-24 at 1.3376). The swing timeframe matters more: H4 swings with 38.2 % hold the runner to 2025-04-07 (1.743), H4 with 23.6 % to 2024-12-09 (2.151), D1 swings with 23.6 % to 2025-01-27 (2.813). Should the part held for the higher degree be trailed on the setup timeframe? - EM20 split 50 % / 40 % / 10 %: tested on this one case only. - MCO momentum method (SMA 9/21 cross on H4, docs/backlog.md, Extended Wave 3 Detection, note of 2026-10-26): the H4 cross exit holds the trade to 1.0832 (11-20, +14.3R single entry); 50 % at 161.8 % and the rest on the cross gives +7.6R without needing the higher-degree count. A possible way for trailing in strong wave 3s, not a rule yet. - Detecting an extending wave 3 (docs/backlog.md, Extended Wave 3 Detection): EM20 works here only because the expert's higher-degree count was known at the entry. The system needs a way to see the extension while it runs (closes beyond 161.8 % / 261.8 % without a pullback reaching the minimum, nested inner 1-2s, expanding volume), to keep the position, pick the trailing degree and tell inner 1-2s from new setups.",
+  "from": "2024-09-19T00:00:00Z",
+  "to": "2025-11-15T00:00:00Z",
+  "waves": {
+    "timeframe": "1d",
+    "wave1Start": {
+      "time": "2024-10-25T00:00:00Z",
+      "price": 0.486
+    },
+    "wave1End": {
+      "time": "2024-10-29T00:00:00Z",
+      "price": 0.5305
+    },
+    "wave2End": {
+      "time": "2024-11-03T00:00:00Z",
+      "price": 0.4917
+    }
+  },
+  "wave2": {
+    "timeframe": "4h",
+    "pattern": "zigzag",
+    "aEnd": {
+      "time": "2024-10-31T16:00:00Z",
+      "price": 0.5031
+    },
+    "bEnd": {
+      "time": "2024-11-01T08:00:00Z",
+      "price": 0.5244
+    }
+  },
+  "trade": {
+    "timeframe": "1h",
+    "entry": {
+      "time": "2024-11-06T02:00:00Z",
+      "price": 0.5295,
+      "why": "EM4: close 1.0 ATR above B (0.5244), body 2.0 ATR, close in the top 15 %, volume 2.5x"
+    },
+    "stop": {
+      "price": 0.4908,
+      "why": "EM6: 0.4917 - 0.25 ATR(H1) 0.0009 (ATR 0.0036 at the end of wave 2)"
+    },
+    "add": {
+      "time": "2024-11-06T03:00:00Z",
+      "price": 0.534,
+      "why": "EM7: first H1 close above the end of wave 1 (0.5305), volume 4.4x"
+    },
+    "stopMoves": [
+      {
+        "time": "2024-11-14T17:00:00Z",
+        "price": 0.6011,
+        "why": "EM8 on the held part (EM20): swing low 0.6062 after the high 0.7548, 51 % of the move from 0.4917, confirmed by the close above 0.7548; never hit"
+      },
+      {
+        "time": "2025-07-17T21:00:00Z",
+        "price": 1.5996,
+        "why": "runner, EM13: lowest low of the pullback from 3.4000, 1.6134 (2025-04-07 06:00, 38.6 % log of 0.4917 -> 3.4000), confirmed by the close above 3.4000"
+      }
+    ],
+    "exits": [
+      {
+        "time": "2024-11-07T03:00:00Z",
+        "price": 0.5666,
+        "why": "EM20: 50 % out at the EM11 outer 161.8 % (log) of the small wave 1 (high 0.5785); the next 40 % at the higher-degree 161.8 % 1.1718 on 2024-11-16 14:00 (high 1.1999)",
+        "share": 50,
+        "kind": "target"
+      },
+      {
+        "time": "2024-11-16T14:00:00Z",
+        "price": 1.1718,
+        "why": "EM20: down to the 10 % runner at the higher-degree 161.8 % (wave 1 0.3823 -> 0.6586 from 0.4860)",
+        "share": 40,
+        "kind": "target"
+      },
+      {
+        "time": "2025-10-10T21:00:00Z",
+        "price": 1.5996,
+        "why": "runner stop hit by the crash wick (low 1.2543)",
+        "share": 10,
+        "kind": "stop"
+      }
+    ]
+  },
+  "legacy": {
+    "sourceId": "xrpusdt-d1-2024-11-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "timezone": "UTC",
+    "known_at": "2024-11-06 02:00",
+    "expected": {
+      "count": "1-2",
+      "setup": "approved",
+      "path": "EM4",
+      "watch": "trigger",
+      "trade": "as traded",
+      "why": "wave 2 wick 86.7 %, closes inside 78.6 %; EM20 split"
+    },
+    "comments": {
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

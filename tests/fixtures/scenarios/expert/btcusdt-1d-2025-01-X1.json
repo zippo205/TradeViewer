@@ -1,0 +1,82 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "btcusdt-1d-2025-01-X1",
+  "source": "binance",
+  "symbol": "BTCUSDT",
+  "contextTimeframe": "1d",
+  "direction": "long",
+  "verdict": "trade-loss",
+  "draft": true,
+  "reason": "D1 1-2 with wave 2 at 56 % (log), a zigzag on H4 whose wave B is a contracting triangle (a-b-c-d-e) ending at e 105500. The trigger is the first H1 close beyond e (01-30 14:00), a strong break by the EM4 thresholds (body 0.67, close location 0.81, volume 2.1x). Wave 3 never came: price fell back and the stop beyond the end of wave 2 was hit on 02-02 17:00, -7.9 %. Read with B at its high 107240.81 instead, no close beyond B came and the setup is a no-trade (the expert chose the triangle).",
+  "notes": "EM1: wave 2 retraces 55.6 % (log) of wave 1 (78.6 % = 93263.76); the lowest D1 close in wave 2 is 102082.83 (01-27) and the lowest H4 close before the exit is 98761.13 (01-27 08:00). EM2: A 109588 -> 100119.04 (01-21 00:00 H4), B 107240.81 (01-21 16:00, 76 % of A), C 97777.77 (01-27 04:00 H4). C/A is 1.02 (log), a very good zigzag shape. A second top at 107120 (01-24 16:00) sits just below B (double top). Expert reading of B: wave B is read as a contracting triangle (EM18 describes it for shorts) rather than a plain zigzag leg: a 107240.81 (01-21 16:00), b low 101262.28 (01-23 08:00), c 107120 (01-24 16:00), d low 104106.09 (01-25 08:00), e 105500 (01-26 04:00). The highs fall and the lows rise, and H4 volume dries up (0.9k to 2.0k on 01-25 and 01-26 against 21.2k on 01-20 04:00). The thrust down from the triangle (01-26 20:00) is wave C. With this reading the trigger level is the end of leg e, not 107240.81 (confirmed by the expert, 2026-10-25). A triangle as wave B is allowed (docs/knowledge/elliott-wave-patterns.md, Triangles, Position); C measured from e is 0.84x A (log). Wave 2 lasted 7 days (01-20 04:00 to 01-27 04:00); the EM3 time limit would run to 02-03 04:00. Trigger (EM4): A lower-degree 1-2 (EM14) is not needed because wave 2 is a zigzag. The first H1 close beyond e (105500) is 01-30 14:00 at 105920.57 (open 104879.99, high 106222.08, low 104660.00): body ratio 0.67, close location 0.81, volume 2.1x, 0.6 ATR beyond e. By the configured thresholds (strong break body 0.6, close 0.7, volume 2.0x) it is a strong break. Two more closes stay beyond e (105564.00, 105696.96) before 17:00 closes back below it; D1 volume that day is 19374 against 89529 on 01-20 and 50758 on 01-27. The missing follow-through and the small distance beyond e are not part of EM4; a minimum distance was discussed and not added from a single case (BTC 2024-03 broke by 0.80 ATR). With B at its high 107240.81 no trigger comes: the highest H1 close after the end of C is 105920.57, 1.2 % below B, and the highest high 106457.44 (01-30 15:00), 0.73 % below B. The first position risks 50 % of the maximum loss (EM5); the stop distance is 7.9 %. Exit: the stop 97574.37 is hit on 02-02 17:00 (low 97019.00); the same candle is the first H1 close beyond the end of C (97228.85). The move then went to 91231 (02-03 00:00) and recovered to 102500 the same day. Outcome: max 0.41x wave 1 from the end of wave 2 (log), no close beyond the end of wave 1 (109588), so wave 3 never confirmed. Wave 1 itself is questionable: 01-13 low 89256.69 was a one-day wick, and the first leg to 109588 (01-20 04:00) came after a drop to 99550 inside wave 1 on 01-19 to 01-20. I have not checked it as a 5-wave move.",
+  "from": "2025-01-10T00:00:00Z",
+  "to": "2025-02-05T00:00:00Z",
+  "waves": {
+    "timeframe": "1d",
+    "wave1Start": {
+      "time": "2025-01-13T00:00:00Z",
+      "price": 89256.69
+    },
+    "wave1End": {
+      "time": "2025-01-20T00:00:00Z",
+      "price": 109588.0
+    },
+    "wave2End": {
+      "time": "2025-01-27T00:00:00Z",
+      "price": 97777.77
+    }
+  },
+  "wave2": {
+    "timeframe": "4h",
+    "pattern": "zigzag",
+    "aEnd": {
+      "time": "2025-01-21T00:00:00Z",
+      "price": 100119.04
+    },
+    "bEnd": {
+      "time": "2025-01-26T04:00:00Z",
+      "price": 105500.0,
+      "why": "end of leg e of the B triangle; the high of B is 107240.81 (leg a)"
+    }
+  },
+  "trade": {
+    "timeframe": "1h",
+    "entry": {
+      "time": "2025-01-30T14:00:00Z",
+      "price": 105920.57,
+      "why": "EM4: first H1 close above the end of B (leg e, 105500)"
+    },
+    "stop": {
+      "price": 97574.37,
+      "why": "EM6: 97777.77 - 0.25 ATR(H1) 813.60 (at the end of wave 2, 01-27 07:00) = 203.40"
+    },
+    "stopMoves": [],
+    "exits": [
+      {
+        "time": "2025-02-02T17:00:00Z",
+        "price": 97574.37,
+        "why": "stop hit (low 97019.00, close 97228.85); no add, no close above the end of wave 1",
+        "share": 100,
+        "kind": "stop"
+      }
+    ]
+  },
+  "legacy": {
+    "sourceId": "btcusdt-d1-2025-01-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "timezone": "UTC",
+    "known_at": "2025-01-30 14:00",
+    "expected": {
+      "count": "1-2",
+      "setup": "rejected",
+      "path": "EM4",
+      "watch": "-",
+      "trade": "none",
+      "why": "wave 1 is no five and no diagonal on H4 (EM21, 2026-11-10); before EM21: traded on the close beyond e of the triangle B, a loss"
+    },
+    "comments": {
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

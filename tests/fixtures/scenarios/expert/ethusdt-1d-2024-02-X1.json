@@ -1,0 +1,93 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "ethusdt-1d-2024-02-X1",
+  "source": "binance",
+  "symbol": "ETHUSDT",
+  "contextTimeframe": "1d",
+  "direction": "long",
+  "verdict": "trade-win",
+  "draft": true,
+  "reason": "D1 1-2 with wave 2 at 67 % (log), no D1 or H4 close beyond 78.6 %. Wave 2 is a clean zigzag on H4 (C/A 1.01, B at 63 % of A), so the trigger is the close beyond B on H1 (EM4). The trigger came 5.75 days after the end of wave 2 (0.94 times wave 1 after its end, inside the EM3 window of 4.236 times), after a 5-day sideways range above the end of wave 2. Wave 3 then ran far beyond all targets. Wave 1 itself is a weak 5-wave candidate (see notes).",
+  "notes": "Outer 1-2 (D1): wave 2 retraces 67 % (log) of wave 1 (78.6 % = 2214.15, 50 % = 2277.27); the lowest D1 close in wave 2 is 2283.14 and the lowest H4 close 2257.21. On H4 wave 2 is a zigzag: A 2391.98 -> 2280.77 (01-31 08:00), B 2350.30 (01-31 16:00, 63 % of A), C 2240.00 (02-01 00:00 H4, 02-01 01:00 H1); C/A is 1.01 (log), a very clean EM2 shape. No EM14 needed. Wave 1 is questionable: the low 2168.07 (01-23 12:00) is followed by a 5-day double bottom (2171.30 on 01-25) and a sideways range up to 2308 (01-28), and only the last 2 days (01-29 to 01-30) are a thrust. It is no clean 5-wave move (to be confirmed). EM3 time limit: wave 2 lasted 28 hours (01-30 21:00 to 02-01 01:00); the limit runs to 02-02 05:00. After the low price moved sideways between 2240 and 2338 for 5 days; no new low below 2240 (lows 2266 on 02-04 and 2269 on 02-05 are higher). The trigger comes 138 hours after the end of wave 2, 4.9 times its length. Measured by the EM3 rule of 2026-10-30 (4.236 times wave 1 from its end): wave 1 lasted 177 hours (01-23 12:00 to 01-30 21:00), the trigger comes 166 hours after its end (0.94 times), well inside. Trigger: the first H1 close beyond B 2350.30 is 02-06 17:00 (2353.84, 3.5 beyond B, body 6.9 = 0.4 ATR, volume 1.24x): weak. 02-06 18:00 (close 2363.95, volume 0.85x) is moderate. The first strong close is 02-06 19:00 at 2379.12: open 2363.95, body 15.2 = 0.85 ATR(H1) 17.8, close at 96 % of the range, volume only 1.13x; the next candles hold above 2371.91. The volume expansion is weak, so the entry is a judgment call (expert to confirm). The alternative is the 02-07 16:00 close at 2398.24 (body 28.6, volume 2.0x), which is also the add; then there would be one entry only, with the stop at 2234.58. Add: the trigger candle does not close beyond the end of wave 1 (2391.98); the first H1 close beyond it is 02-07 16:00 at 2398.24. Risk: the stop is 6.1 % from the entry and 6.8 % from the add. At exit the first entry has +10.4 % (1.7 R), the add +9.5 % (1.4 R). EM19: the 100 % level (2471.34) was reached on 02-09 12:00 (high 2525.00) before the target; the move to it is not an A-B-C and the D1 close of 02-12 (2659.99) is clearly beyond it, so the warning is lifted. Inner waves: no inner wave 2 or 4 retraced the minimum, so the stop of EM8/EM10 does not move before the runner. Swing lows of the inner waves: 2471.57 (02-10, 21 % of the move up to 2539.63), 2719.01 (02-17, 22 %), 2906.05 (02-23, 14 %), 3200.00 (03-05, 33 % of the move 2240 -> 3822.04). All are below the 38.2 % minimum of EM13 / the EM8 and EM10 note, so the stop stays at 2234.58. Target: no inner wave 4 count, so the target is the outer 161.8 % = 2626.10 (EM11), hit on 02-12 18:00. 261.8 % is 2897.31 (02-19 04:00), the inner-wave-1 projection (100 %) is 2471.34. Runner (EM13): wave 3 ended at 4093.92 (03-12 00:00), 6.1 times wave 1 (log) from the end of wave 2. Since 2026-10-30 a swing low counts only once an H1 close beyond the high before it confirms it, and then the lowest low of the whole pullback counts (strategy.md, meaningful swing low). No H1 close above 4093.92 comes before the 2024-08-05 crash, so the pullbacks to 3150.88 (03-19, 43 %), 3056.56 (03-20, 48 %) and lower never count. The runner stop stays at 2234.58 and is hit on 2024-08-05 01:00: runner about -0.10R instead of +0.50R. (Before the change the stop went below 3150.88 after a 3 % bounce and was hit on 03-20 04:00 at 3145.00, +32.2 % on the first entry.)",
+  "from": "2024-01-03T00:00:00Z",
+  "to": "2024-08-25T00:00:00Z",
+  "waves": {
+    "timeframe": "1d",
+    "wave1Start": {
+      "time": "2024-01-23T00:00:00Z",
+      "price": 2168.07
+    },
+    "wave1End": {
+      "time": "2024-01-30T00:00:00Z",
+      "price": 2391.98
+    },
+    "wave2End": {
+      "time": "2024-02-01T00:00:00Z",
+      "price": 2240.0
+    }
+  },
+  "wave2": {
+    "timeframe": "4h",
+    "pattern": "zigzag",
+    "aEnd": {
+      "time": "2024-01-31T08:00:00Z",
+      "price": 2280.77
+    },
+    "bEnd": {
+      "time": "2024-01-31T16:00:00Z",
+      "price": 2350.3
+    }
+  },
+  "trade": {
+    "timeframe": "1h",
+    "entry": {
+      "time": "2024-02-06T19:00:00Z",
+      "price": 2379.12,
+      "why": "EM4: first strong H1 close above B (2350.30), see notes"
+    },
+    "stop": {
+      "price": 2234.58,
+      "why": "EM6: 2240.00 - 0.25 ATR(H1) 21.66 (at the end of wave 2, 02-01 01:00)"
+    },
+    "add": {
+      "time": "2024-02-07T16:00:00Z",
+      "price": 2398.24,
+      "why": "EM7: first H1 close above the end of wave 1 (2391.98)"
+    },
+    "stopMoves": [],
+    "exits": [
+      {
+        "time": "2024-02-12T18:00:00Z",
+        "price": 2626.1,
+        "why": "outer 161.8 % target (log, from 2240 with wave 1 = 2168.07 -> 2391.98), high of the candle 2633.64",
+        "share": 90,
+        "kind": "target"
+      },
+      {
+        "time": "2024-08-05T01:00:00Z",
+        "price": 2234.58,
+        "why": "runner stop hit (EM6 stop, never moved): no H1 close above 4093.92 confirms a swing low of the pullback",
+        "share": 10,
+        "kind": "stop"
+      }
+    ]
+  },
+  "legacy": {
+    "sourceId": "ethusdt-d1-2024-01-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "timezone": "UTC",
+    "known_at": "2024-02-06 19:00",
+    "expected": {
+      "count": "1-2",
+      "setup": "approved",
+      "path": "EM4",
+      "watch": "trigger",
+      "trade": "as traded",
+      "why": "trigger 5.75 days after wave 2, 0.94 times wave 1 (EM3 window 4.236 times)"
+    },
+    "comments": {
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

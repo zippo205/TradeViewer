@@ -1,0 +1,60 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "xrpusdt-4h-2026-08-X1",
+  "source": "binance",
+  "symbol": "XRPUSDT",
+  "contextTimeframe": "4h",
+  "direction": "long",
+  "verdict": "no-trade",
+  "draft": true,
+  "reason": "Looks like a 1-2 (wave 2 at 69.6 %, an A-B-C on H1), but the \"wave 1\" is the extended fifth wave of an impulse from the 0.9862 low of 08-14, ending in a liquidation spike (high 1.6999 and the A low 1.3780 in the same 15M candle). Wave 2 is the correction of that impulse, not the start of a wave 3. By the rules alone no trigger comes either: B (1.5505) is never closed above within EM3, and the end of wave 2 breaks on 08-30.",
+  "notes": "Shortlist #19 of candidates.md (\"FAIL 2026-08-30; spike wave 1, 15M available\"). Chain H4 / H1 / 15M. Count (confirmed by the expert): the rise from 0.9862 (08-14 22:15, the end of the C diagonal of xrpusdt-h4-2026-08-short) is an impulse: 1 to 1.1363 (08-19 20:00), 2 to 1.0879 (08-20 00:00, 30.7 %), 3 to 1.3441 (08-20 16:00), 4 to 1.2303 (08-20 20:00, 41.8 %, above the end of wave 1), 5 to 1.6999 (08-22 05:00). Log lengths 0.142 / 0.212 / 0.323: an extended fifth. The scan flags the candidate as \"chained: W5 or later\" (strategy.md, Counting Across 1-2s): its wave 1 is wave 5, and 1.6999 -> 1.3574 corrects the whole impulse (41.3 % of 0.9862 -> 1.6999). Wave 1 of the candidate: 1.2303 -> 1.6999 = log 0.323; the last two H4 candles (from 1.4229) hold 55 % of it. The top is a liquidation spike: 08-22 05:00 (15M) runs from 1.6628 to 1.6999 and down to 1.3780 at 7.1x volume and closes 1.5286. Wave 2: 69.6 % by the wick (78.6 % = 1.3184), no close beyond it (EM1). On 15M and H1: A 1.3780 (in the spike candle), B 1.5505 (08-25 02:30, 56 % of A), C 1.3574 (08-26 15:00), C/A 0.63: a zigzag (EM2). Because A sits in the same 15M candle as the end of wave 1, the scan cannot see it on H4 (tools/README.md, Limit). EM3: wave 2 lasted 4.4 days (08-22 05:00 to 08-26 15:00); the window ends about 08-31 01:00. EM4: after C the highest 15M close is 1.4732 (08-27 16:30), far below B: no trigger. The end of wave 2 breaks on 08-30 20:00 (low 1.3352). Afterwards: 1.3098 (09-02) and 1.2468 (09-16, 57 % of 0.9862 -> 1.6999), a rally to 1.6581 (09-23) below the spike high, and back to 1.2546 (10-24): a range of 1.25 to 1.70, no wave 3 so far. What the case shows: a spike wave 1 puts B high (here at 1.5505, 71.5 % back up wave 1), so the trigger needs most of the spike back, as in xrpusdt-d1-2025-03-long. The counting step (W5 or later) would have flagged it already. Open question (for the strategy): - A wave 1 whose end is a single liquidation wick (one 15M candle with the high of wave 1 and the low of A): should the end of wave 1 be measured from the highest close (1.6628) instead of the wick? EM1 would then read 67.4 %.",
+  "from": "2026-08-20T00:00:00Z",
+  "to": "2026-08-27T20:00:00Z",
+  "waves": {
+    "timeframe": "4h",
+    "wave1Start": {
+      "time": "2026-08-20T20:00:00Z",
+      "price": 1.2303
+    },
+    "wave1End": {
+      "time": "2026-08-22T04:00:00Z",
+      "price": 1.6999
+    },
+    "wave2End": {
+      "time": "2026-08-26T12:00:00Z",
+      "price": 1.3574
+    }
+  },
+  "wave2": {
+    "timeframe": "1h",
+    "pattern": "zigzag",
+    "aEnd": {
+      "time": "2026-08-22T05:00:00Z",
+      "price": 1.378,
+      "why": "15M 05:00, the same candle as the end of wave 1"
+    },
+    "bEnd": {
+      "time": "2026-08-25T02:00:00Z",
+      "price": 1.5505,
+      "why": "15M 02:30, the trigger level"
+    }
+  },
+  "legacy": {
+    "sourceId": "xrpusdt-h4-2026-08-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "timezone": "UTC",
+    "expected": {
+      "count": "none",
+      "setup": "none",
+      "path": "EM4",
+      "watch": "-",
+      "trade": "none",
+      "why": "wave 1 is wave 5 of an impulse (Counting Across 1-2s)"
+    },
+    "comments": {
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

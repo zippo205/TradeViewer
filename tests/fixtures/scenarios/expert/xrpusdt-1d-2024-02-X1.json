@@ -1,0 +1,106 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "xrpusdt-1d-2024-02-X1",
+  "source": "binance",
+  "symbol": "XRPUSDT",
+  "contextTimeframe": "1d",
+  "direction": "long",
+  "verdict": "trade-win",
+  "draft": true,
+  "reason": "D1 1-2 at the start of the move from 2024-01-31 (expert): wave 2 at 55 % (log), a clean zigzag on H4 (C/A 1.27), trigger on H1 by EM4. Wave 3 turned out to be the three-wave wave 3 of an expanding diagonal (expert). It reached the EM19 100 % level with C about equal to A, but no CHOCH came before the close beyond 127.2 %, so the warning was lifted and the stop stayed below inner wave 2. The wave 4 wick of 2024-03-05 missed it, and the 161.8 % target was reached on 03-11: about +1.58R.",
+  "notes": "Source: the expert's count, found in the review of xrpusdt-d1-2024-03-long; the scan lists it in the Full List of candidates.md (XRPUSDT D1, deg 2.0: W1 2024-01-31 0.4853 -> 02-16 0.5791, W2 02-23 0.5251, 55.4 %, max 1.97x), not in the Shortlist. Higher degree (expert): an expanding diagonal 0.4853 (01-31) -> 0.5791 (1, 02-16) -> 0.5251 (2, 02-23) -> 0.6685 (3, 03-05) -> 0.5386 (4, 03-05 19:00) -> 0.7440 (5, 03-11). Log lengths 0.177 / 0.098 / 0.241 / 0.216 / 0.323: each wave longer than the one before, wave 4 longer than wave 2 and overlapping wave 1 (0.5386 below 0.5791), the 1-3 and 2-4 lines diverge (0.0079 against 0.0022 log per day). Wave 5 throws over the 1-3 line (0.705 at that time) on rising volume. The 04-13 low 0.4188 lies below the start 0.4853, so in hindsight it is an ending diagonal (wave 5 or C), not a leading one (elliott-wave-patterns.md: price returns to the start of an ending diagonal; a leading diagonal as wave 1 would be broken by it). 0.7440 retests the 2023-11-13 high 0.75 (98 %); the higher-degree context is not counted here. That every leg subdivides into three is not checked. None of this was known at the entry: at 02-27 the setup is a plain 1-2. Outer 1-2 (D1): wave 1 0.4853 -> 0.5791 is choppy and overlapping (no clean 5-wave move, fits a diagonal leg). Wave 2 to 0.5251 = 55.4 % (log); 78.6 % = 0.5040; the lowest D1 close in wave 2 is 0.5342 (02-23). Wave 2 on H4: A 0.5392 (02-17 12:00, H1 14:00), B 0.5751 (02-20 12:00, H1 13:00, 90 % of A), C 0.5251 (02-23 16:00), C/A 1.27: a clean zigzag, so EM4 (not EM14). EM3: wave 2 lasted 8 D1 candles; the trigger came 4 days after its end. Trigger: 02-27 18:00 closes at 0.5790, 0.0039 (0.6 ATR) above B, body 0.8 ATR, close in the top 6 % of the range, volume 1.02x: strong by price, only average by volume. If the volume threshold rejects it, the entry is 02-27 19:00 at 0.5937 (volume 3.95x, also above the end of wave 1) and the add follows at the next close. Risk: the first position risks 50 % of the maximum loss (EM5), stop distance 9.5 %; the add fills the rest (stop distance 11.8 %). Risk/reward at the start of the watch (entry at B 0.5751, stop 0.5239, target 0.6989): 2.4; at the fill 2.2. Targets (log, from 0.5251, wave 1 = 0.4853 -> 0.5791): 100 % = 0.6266 (EM19), 127.2 % = 0.6576 (EM19 lift), 161.8 % = 0.6989, 261.8 % = 0.8340. Wave 3: inner wave 1 0.5251 -> 0.6059 (02-28 17:00); in the same H1 candle a flash wick to 0.5300 (93.5 %, inner wave 2), 0.0061 above the initial stop. The close above 0.6059 on 02-29 16:00 moves the stop to 0.5270 (EM8). Later swing lows are no inner wave 4 (0.5770 on 02-29 22:00 and 0.5900 on 03-03 overlap inner wave 1) and retrace less than 50 % (49.0 % and 47.5 %), so they do not move the stop (EM8/EM10 note). No EM9 inner add. EM19: on 03-02 02:00 price reaches 0.6266 (high 0.6333). The move is A 0.5251 -> 0.6059, B 0.5300, C to the level 1.17 times A, and wave 1 is no clean 5-wave move: condition 1 (C ending) is met. Condition 2 is not: with swings of 3 ATR(H1) the protective swing low is not closed below before 03-04 11:00, when H1 closes at 0.6599, beyond 127.2 % (0.6576). The warning is lifted and the stop stays at 0.5270. (With swings of 2 ATR a CHOCH comes on 03-03 07:00, close 0.6105 below 0.6253, and the stop would move to about 0.5745, hit by the wick on 03-05; this is why the swing size is 3 ATR.) Wave 3 ends at 0.6685 (03-05 02:00, 1.37x wave 1). The wave 4 wick on 03-05 19:00 goes to 0.5386, 0.0116 above the stop. The close 0.6933 on 03-11 15:00 passes 0.6685, so the stop moves below 0.5386 to 0.5356 (EM8 note, no clear count: 93 % of 0.5300 -> 0.6685). 0.5386 is no inner wave 4 (it overlaps inner wave 1), so the target stays the outer 161.8 %. Exit: 03-11 16:00 reaches 0.6989 (high 0.7374): 90 % out, +20.7 % on the first entry, +17.7 % on the add before slippage, about +1.66R. Runner (10 %, EM13): wave 5 of the diagonal runs to 0.7440 (03-11 18:00, 1.97x wave 1). The pullback to 0.6585 (03-12 17:00) is only 37.8 % of 0.5386 -> 0.7440; the low 0.5960 (03-15 09:00, 68.7 %) is deep enough, but since 2026-10-30 it counts only once an H1 close above 0.7440 confirms it (strategy.md, meaningful swing low), and none comes. The runner stop stays at 0.5356 and is hit on 04-12 18:00: -7.5 % on the first entry, -9.8 % on the add (runner -0.08R). In total about +1.58R. (Before the change the stop moved to 0.5930 after the bounce to 0.6479 and was hit on 03-16 21:00: +1.67R.) With the EM19 of before this change (the stop moved on the first touch of the 100 % level when C is close to A): the stop moves to 0.5748 on 03-02 02:00 (below the meaningful swing low 0.5770), is hit by the wick on 03-05 19:00, and the trade ends at about -0.17R. This scenario led to the change to EM19 (CHOCH and 127.2 %, 2026-10-26). Open questions (for the strategy): - The trigger close was strong by price but only average by volume (1.02x): is that enough for EM4?",
+  "from": "2024-01-23T00:00:00Z",
+  "to": "2024-04-21T00:00:00Z",
+  "waves": {
+    "timeframe": "1d",
+    "wave1Start": {
+      "time": "2024-01-31T00:00:00Z",
+      "price": 0.4853
+    },
+    "wave1End": {
+      "time": "2024-02-16T00:00:00Z",
+      "price": 0.5791
+    },
+    "wave2End": {
+      "time": "2024-02-23T00:00:00Z",
+      "price": 0.5251
+    }
+  },
+  "wave2": {
+    "timeframe": "4h",
+    "pattern": "zigzag",
+    "aEnd": {
+      "time": "2024-02-17T12:00:00Z",
+      "price": 0.5392
+    },
+    "bEnd": {
+      "time": "2024-02-20T12:00:00Z",
+      "price": 0.5751
+    }
+  },
+  "trade": {
+    "timeframe": "1h",
+    "entry": {
+      "time": "2024-02-27T18:00:00Z",
+      "price": 0.579,
+      "why": "EM4: first H1 close above B (0.5751), see notes on its strength"
+    },
+    "stop": {
+      "price": 0.5239,
+      "why": "EM6: 0.5251 - 0.25 ATR(H1) 0.0045 (ATR at the end of wave 2)"
+    },
+    "add": {
+      "time": "2024-02-27T19:00:00Z",
+      "price": 0.5937,
+      "why": "EM7: first H1 close above the end of wave 1 (0.5791), volume 3.95x"
+    },
+    "stopMoves": [
+      {
+        "time": "2024-02-29T16:00:00Z",
+        "price": 0.527,
+        "why": "EM8, close 0.6117 above the end of inner wave 1 (0.6059, 02-28 17:00); stop below the low of inner wave 2 (0.5300, same candle, 93.5 % log)"
+      },
+      {
+        "time": "2024-03-11T15:00:00Z",
+        "price": 0.5356,
+        "why": "EM8 note (no count), close 0.6933 above the swing high 0.6685; stop below the swing low 0.5386 (03-05 19:00, 93 % of 0.5300 -> 0.6685), 0.25 ATR(H1) 0.0121"
+      }
+    ],
+    "exits": [
+      {
+        "time": "2024-03-11T16:00:00Z",
+        "price": 0.6989,
+        "why": "EM11 outer 161.8 % (log) of wave 1 from the end of wave 2, high of the candle 0.7374; no inner wave 4 exists",
+        "share": 90,
+        "kind": "target"
+      },
+      {
+        "time": "2024-04-12T18:00:00Z",
+        "price": 0.5356,
+        "why": "runner stop hit; no H1 close above 0.7440 confirms a swing low of the pullback",
+        "share": 10,
+        "kind": "stop"
+      }
+    ]
+  },
+  "legacy": {
+    "sourceId": "xrpusdt-d1-2024-02-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "verdictComment": "DRAFT: confirm with expert",
+    "timezone": "UTC",
+    "known_at": "2024-02-27 18:00",
+    "expected": {
+      "count": "1-2",
+      "setup": "approved",
+      "path": "EM4",
+      "watch": "trigger",
+      "trade": "as traded",
+      "why": "clean zigzag, trigger by EM4"
+    },
+    "comments": {
+      "verdict": "DRAFT: confirm with expert",
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

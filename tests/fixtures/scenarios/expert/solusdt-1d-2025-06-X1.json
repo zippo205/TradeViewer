@@ -1,0 +1,69 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "solusdt-1d-2025-06-X1",
+  "source": "binance",
+  "symbol": "SOLUSDT",
+  "contextTimeframe": "1d",
+  "direction": "long",
+  "verdict": "no-trade",
+  "draft": true,
+  "reason": "Wave 2 was 5 waves (only inner wave A done), so no clean zigzag, reached only 38.2 % retracement, no volume",
+  "notes": "The wave 2 was not a clean zigzag, looked more like only the inner wave A is complete, and it reached only the 38.2% retracement level with low volume. Checked against the Binance candles: all points match (wicks). Wave 2 retraces 41.6 % (log) of wave 1, below the EM1 zone of 50 % to 78.6 % (linear it is 50.0 %, so the log scale decides). The decisive rule is EM1. The first H1 close beyond B (163.64) is 06-10 18:00 (163.95, 0.13 ATR beyond, volume 3.3x); the H4 candle of 06-10 16:00 closes at 163.61, just below B. Trigger volume was high, so \"low volume\" holds only for wave 2 itself. Taken anyway, the EM6 stop 141.53 - 0.25 ATR(H1) 2.42 = 140.93 would have been hit 06-13 (low 140.21). The same wave 2 later extends to 126.00 (06-22): see solusdt-d1-2025-04-2-long.",
+  "from": "2025-03-13T00:00:00Z",
+  "to": "2025-12-04T00:00:00Z",
+  "waves": {
+    "timeframe": "1d",
+    "wave1Start": {
+      "time": "2025-04-07T00:00:00Z",
+      "price": 95.26
+    },
+    "wave1End": {
+      "time": "2025-05-23T00:00:00Z",
+      "price": 187.71
+    },
+    "wave2End": {
+      "time": "2025-06-05T00:00:00Z",
+      "price": 141.53
+    }
+  },
+  "wave2": {
+    "timeframe": "4h",
+    "pattern": "zigzag",
+    "aEnd": {
+      "time": "2025-06-01T08:00:00Z",
+      "price": 150.59
+    },
+    "bEnd": {
+      "time": "2025-06-03T12:00:00Z",
+      "price": 163.64
+    }
+  },
+  "legacy": {
+    "sourceId": "solusdt-d1-2025-04-1-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "verdictComment": "required: trade-win | trade-loss | no-trade",
+    "timezone": "UTC",
+    "known_at": "2025-06-10 18:00",
+    "expected": {
+      "count": "1-2",
+      "setup": "rejected",
+      "path": "EM4",
+      "watch": "-",
+      "trade": "none",
+      "why": "wave 2 only 38.2 % (EM1)"
+    },
+    "comments": {
+      "id": "required, unique, free text",
+      "symbol": "required",
+      "timezone": "required: timezone of every time below (TradingView chart setting)",
+      "context_tf": "required: the context timeframe (strategy.md, Multi-Timeframe Analysis)",
+      "direction": "required: long | short",
+      "verdict": "required: trade-win | trade-loss | no-trade",
+      "reason": "required: one or two sentences in your words (why good, why no trade)",
+      "known_at": "optional: the moment you would have acted (e.g. the trigger candle)",
+      "waves_tf": "the timeframe you read these points on",
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

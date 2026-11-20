@@ -1,0 +1,115 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "solusdt-1d-2025-06-X2",
+  "source": "binance",
+  "symbol": "SOLUSDT",
+  "contextTimeframe": "1d",
+  "direction": "long",
+  "verdict": "trade-loss",
+  "draft": true,
+  "reason": "Wave 2 was a clean zigzag, reached nearly 61,8% retracement, volume increased",
+  "notes": "After Wave 2 the assuming 3rd wave did not develop as expected, it reached only 100% of Wave 1's length and turned down, hitting the stop-loss. I assume it was not an impulsive wave but just a corrective move. Checked against the Binance candles: trade values are the H1 rule points. Wave 2 retraces 58.8 % (log) of wave 1; no close comes near 78.6 % (110.15). A is a clean 5 (187.71, 169.14, 179.41, 150.59, 163.64, 141.53); B retraces 61 % of A (log), C/A = 0.92. Inside C the bounce to 142.60 (06-21) is above the 140.21 low (06-13), so C is no clean 5 (a diagonal at most). EM4: the first H1 close beyond B (168.36) at 07-16 15:00 (168.45, 0.06 ATR beyond, volume 2.4x) is weak, no trigger; 07-16 16:00 closes 172.56, volume 4.5x. Wave 2 lasted 30 D1 candles, the trigger came 24 later (EM3 ok). EM6 stop 126.00 - 0.25 ATR(H1) 2.29 (at the end of wave 2, 06-22 20:00) = 125.43. EM7 add at the first H1 close beyond wave 1 (187.71): 07-21 05:00. The actual trade entered at 174.16 (07-16 19:00 close), stop 125, add 190.07 (07-21 07:00 close), stop 155 (decided after the high of 08-14), exit 152.26 (11-04 18:00 low). A first stop move to 146 was a mistake and is removed. EM8 would move the stop at the add (07-21 05:00) to 144.19, below the 07-01 low 144.85; it is never hit, so the result is the same. EM10: inner wave 3 ends 206.30 (07-22), inner wave 4 155.83 (08-02 18:00), passed 08-14 02:00. 155.83 lies below 159.99, so if 159.99 is inner wave 1, 155.83 overlaps it; the count 126 -> 146.92 (inner 1), 137.14 (inner 2) avoids the overlap. EM11 gap again (as in solusdt-d1-2026-06-long): the inner target (181.7 or 197.9, log) is already passed when inner wave 4 is confirmed. The outer 161.8 % (log) = 377.5 is never reached; the high 253.51 (09-18) is 102 % (log) of wave 1. No later rule moves the stop, so it sits at 154.94 until hit 11-04 17:00 (low 153.05). Result at EM5/EM7 sizing (0.5 R each part): about -0.45 R. Expert reading afterwards: the move from 126 is a corrective A-B-C, not wave 3: A 126 -> 206.30, B 155.83, C 253.51 (C = 101 % of A, log). So the whole move from 95.26 is an A-B-C too: outer C (126 -> 253.51) = 103 % of outer A (95.26 -> 187.71, log), and the trade was in fact taken on wave C. A 1-2 setup can always turn out to be corrective, so after entry watch the 100 % extension of wave 1 (log 248.3), especially when wave 1 is no clean 5. A diagonal is the alternative, but then wave 3 goes clearly beyond 100 % of wave 1. EM19 as changed on 2026-10-26 (CHOCH with swings of 3 ATR(H1), lift at a close beyond 127.2 %): the 100 % level 248.28 is reached on 09-14 02:00 and the move is a C ending by the expert reading (C = 101 % of A), so condition 1 holds. No close beyond 127.2 % follows; the CHOCH comes on 09-15 08:00 (close 232.07 below the protective swing low 235.73). The stop moves from 154.94 to 184.58, below the last meaningful swing low 185.33 (08-25 22:00), 0.25 ATR(H1) 3.02, and is hit on 10-10 21:00. Result +7.0 % on the first entry, -2.0 % on the add: about +0.10R instead of -0.45R. The trade values above are kept as they were traded. Trade by the rules of 2026-11-05 (entry model step 6b, about +0.27R): no target reached; the stop follows four EM8 lows (the last three overlap the inner wave 1 before them, so each starts a new inner wave 2) and is hit on 2025-09-25 17:00 at 193.63. As traded: stop moved to 154.94 (2025-08-14 02:00, inner wave 4 155.83), hit 2025-11-04 17:00 at 154.94 (about -0.45R).",
+  "from": "2025-03-20T00:00:00Z",
+  "to": "2025-10-13T00:00:00Z",
+  "waves": {
+    "timeframe": "1d",
+    "wave1Start": {
+      "time": "2025-04-07T00:00:00Z",
+      "price": 95.26
+    },
+    "wave1End": {
+      "time": "2025-05-23T00:00:00Z",
+      "price": 187.71
+    },
+    "wave2End": {
+      "time": "2025-06-22T00:00:00Z",
+      "price": 126.0
+    }
+  },
+  "wave2": {
+    "timeframe": "4h",
+    "pattern": "zigzag",
+    "aEnd": {
+      "time": "2025-06-05T20:00:00Z",
+      "price": 141.53
+    },
+    "bEnd": {
+      "time": "2025-06-11T12:00:00Z",
+      "price": 168.36
+    }
+  },
+  "trade": {
+    "timeframe": "1h",
+    "entry": {
+      "time": "2025-07-16T16:00:00Z",
+      "price": 172.56
+    },
+    "stop": {
+      "price": 125.43
+    },
+    "add": {
+      "time": "2025-07-21T05:00:00Z",
+      "price": 188.3
+    },
+    "stopMoves": [
+      {
+        "time": "2025-08-24T04:00:00Z",
+        "price": 155.25,
+        "why": "EM8: inner wave 2 155.83 after 206.30, 56.9 % of the move from 126"
+      },
+      {
+        "time": "2025-08-25T02:00:00Z",
+        "price": 175.12,
+        "why": "EM8: inner wave 2 175.69 after 211.99, 61.0 %"
+      },
+      {
+        "time": "2025-08-28T08:00:00Z",
+        "price": 184.49,
+        "why": "EM8: inner wave 2 185.33 after 213.60, 72.7 %"
+      },
+      {
+        "time": "2025-09-09T06:00:00Z",
+        "price": 193.63,
+        "why": "EM8: inner wave 2 194.19 after 218.00, 71.2 %"
+      }
+    ],
+    "exits": [
+      {
+        "time": "2025-09-25T17:00:00Z",
+        "price": 193.63,
+        "why": "stop hit; EM19 fired on 2025-09-15 08:00 (C/A 0.96, close 232.07 below the protective swing low 235.73) but the stop already lay above the last meaningful swing low",
+        "share": 100,
+        "kind": "stop"
+      }
+    ]
+  },
+  "legacy": {
+    "sourceId": "solusdt-d1-2025-04-2-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "verdictComment": "required: trade-win | trade-loss | no-trade",
+    "timezone": "UTC",
+    "known_at": "2025-07-16 16:00",
+    "expected": {
+      "count": "1-2",
+      "setup": "approved",
+      "path": "EM4",
+      "watch": "trigger",
+      "trade": "as traded",
+      "why": "valid by the rules, stopped out"
+    },
+    "comments": {
+      "id": "required, unique, free text",
+      "symbol": "required",
+      "timezone": "required: timezone of every time below (TradingView chart setting)",
+      "context_tf": "required: the context timeframe (strategy.md, Multi-Timeframe Analysis)",
+      "direction": "required: long | short",
+      "verdict": "required: trade-win | trade-loss | no-trade",
+      "reason": "required: one or two sentences in your words (why good, why no trade)",
+      "known_at": "optional: the moment you would have acted (e.g. the trigger candle)",
+      "waves_tf": "the timeframe you read these points on",
+      "trade": "by the rules of 2026-11-05 (plan step 6b); the traded values are in the notes",
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

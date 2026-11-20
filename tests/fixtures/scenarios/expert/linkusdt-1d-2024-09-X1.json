@@ -1,0 +1,105 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "linkusdt-1d-2024-09-X1",
+  "source": "binance",
+  "symbol": "LINKUSDT",
+  "contextTimeframe": "1d",
+  "direction": "long",
+  "verdict": "trade-win",
+  "draft": true,
+  "reason": "Clean 1-2 by the rules (wave 2 a zigzag at 69.4 %, C = A, strong H1 break of B on 09-13), but in the expert's count the move is a three: A 8.08 -> 12.70, B a running flat (a 9.28, b 12.98, c 10.07 on 11-04), C a 5-wave move to 30.94 (12-13). The entry lies in leg b. The stop below 9.28 survives leg c because no stop moves before a close beyond 127.2 % of wave 2 (strategy.md, Manage Inside Wave 3): about +2.9R.",
+  "notes": "Shortlist #20 of candidates.md (\"wave 3, max 2.66x, but the close beyond wave 1 only on 09-28; EM3 window\"). The late close beyond wave 1 is the add (09-27 04:00 on H1); the trigger itself comes 6.7 days after the end of wave 2, inside EM3 (wave 2 lasted 11.5 days, 08-26 08:00 to 09-06 21:00). Setup by the rules: wave 1 8.08 (08-05, the crash low) -> 12.70 (08-26). Wave 2 to 9.28 (09-06 21:00 on H1) = 69.4 % (log); no close beyond 78.6 % (EM1). On H4: A 10.50 (08-30 16:00), B 11.21 (08-31 12:00, 34 % of A), C 9.28, C/A 0.99: a clean zigzag (EM2). Trigger 09-13 15:00 (11.31), strong by all four measures (EM4). Stop distance 18.3 % (entry) and 27.4 % (add). Targets (log, from 9.28, wave 1 = 8.08 -> 12.70): 100 % = 14.59 (EM19), 127.2 % = 16.50, 161.8 % = 19.29, 261.8 % = 30.32. Expert count (2026-10-26): the whole move from 8.08 is a three. A 8.08 -> 12.70; B a running flat: a 12.70 -> 9.28, b -> 12.98 (09-28 20:00, 107 % of a, beyond the start of the flat), c -> 10.07 (11-04 21:00 on H1, H4 20:00; the expert reads 11-04 16:00; c 81 % of a, ends above the end of a); C a 5-wave move from 10.07 to 30.94 (12-13 02:00 on H1). Inner count of C (a reading): 1 to 15.34 (11-12), 2 to 12.71 (11-15, 44.7 %), 3 to 27.41 (12-08), 4 to 19.56 (12-09, 43.9 %), 5 to 30.94. C = 2.48 A (C = 1.618 A from 10.07 = 20.93, 2.618 A = 32.90). So \"wave 2\" of the setup is only leg a of B, and the entry lies in leg b. The move to 30.94 is still the move the setup aims for, so the trade is valid; it is a trade-win only because the stop survives leg c. Stop management, the case that set the rule (strategy.md, Manage Inside Wave 3: the stop moves only after a close beyond 127.2 % of wave 2; then the existing swing lows are checked, also those formed before EM7): - Before the add, wave \"3\" already holds the swing lows 10.29 (09-18 15:00, 53 % of 9.28 -> 11.56) and 10.84 (09-22 22:00, 60.5 % of 9.28 -> 11.74), both followed by closes above the highs before them. Counted at the add, they would move the stop to 10.81; leg c hits it on 10-02 13:00 (low 10.78), with the add sized to the full maximum loss: -1.0R, followed by a 2.7x move. - With the rule: b reaches only 107 % of a (127.2 % = 13.83), so the stop stays at 9.24 through leg c (lows 10.34 on 10-03, 10.25 on 10-10, 10.07 on 11-04). The first close beyond 12.98 (11-08 11:00) is no stop move yet; 11-10 02:00 closes 13.90 beyond 13.83. The existing lows are checked then: 10.29 and 10.84 are broken by leg c; 12.12 (11-07 14:00) follows 12.71, no new high of the move; 10.07 is 75.7 % of 9.28 -> 12.98, whose high was passed on 11-08. The stop goes below 10.07 (10.03). With 138.2 % (14.32) the close comes 11-10 04:00, with the same stop. - Before the target no inner wave reaches its minimum above 10.07: 12.71 is 44.7 % of 10.07 -> 15.34 (EM8 needs 50 %), 13.83 31 %, 16.10 22 %, 16.18 25 %. EM19: the 100 % level is reached 11-10 05:00. The protective swing low trails to 13.61 (11-11 06:00); 11-13 03:00 closes 13.40 below it (a CHOCH) before the close beyond 127.2 % (11-22 23:00). Whether the move 9.28 -> 12.98 -> 10.07 -> 15.34 is a C ending (C/A 1.25) is a judgment; if the warning fires, the stop goes below the last meaningful swing low 10.07, where it already is: no change. EM20 does not apply: the expert's higher degree is an A-B-C, not a nested 1-2. Exit: 90 % at 19.29 (11-30 19:00): +70.6 % on the entry, +51.7 % on the add. Runner (10 %): EM10 stop 19.33 after the close above 27.41 (12-12), hit on 2025-01-09 13:00. The 20.02 low (12-20, 95 % of 19.56 -> 30.94) does not count since 2026-10-30: no H1 close above 30.94 confirms it (strategy.md, meaningful swing low); before, the stop went to 19.83 and was hit 12-31. Total about +2.9R (2.58R from the 90 %, 0.29R from the runner instead of 0.31R). The peak 30.94 is 261.8 % of wave 1 from 9.28 (30.32) within 2 %. Open questions (for the strategy): - The flat threshold (127.2 %, expert 2026-10-26) in the finished scenarios: no result changes. Measured from the wave 2 of the trade (for EM14 the lower-degree wave 2), the first stop move comes later in btcusdt-d1-2026-07-long (1 hour), solusdt-d1-2024-09-long (19 hours) and solusdt-d1-2025-04-2-long (10 days, 08-14 -> 08-24); none of the moved stops is touched in between. A running flat with b beyond 127.2 % of a (up to 138.2 % by the source) is not covered. - The target 19.29 is 161.8 % from the end of leg a; from the end of B (10.07) the C projections are 20.93 / 32.90. The whole C ran to 2.48 A; an extending wave 3 (docs/backlog.md, Extended Wave 3 Detection) would have kept more of it.",
+  "from": "2024-07-20T00:00:00Z",
+  "to": "2025-01-26T00:00:00Z",
+  "waves": {
+    "timeframe": "1d",
+    "wave1Start": {
+      "time": "2024-08-05T00:00:00Z",
+      "price": 8.08
+    },
+    "wave1End": {
+      "time": "2024-08-26T00:00:00Z",
+      "price": 12.7
+    },
+    "wave2End": {
+      "time": "2024-09-06T00:00:00Z",
+      "price": 9.28
+    }
+  },
+  "wave2": {
+    "timeframe": "4h",
+    "pattern": "zigzag",
+    "aEnd": {
+      "time": "2024-08-30T16:00:00Z",
+      "price": 10.5
+    },
+    "bEnd": {
+      "time": "2024-08-31T12:00:00Z",
+      "price": 11.21,
+      "why": "H1 12:00, the trigger level"
+    }
+  },
+  "trade": {
+    "timeframe": "1h",
+    "entry": {
+      "time": "2024-09-13T15:00:00Z",
+      "price": 11.31,
+      "why": "EM4: close 0.79 ATR above B (11.21), body 1.74 ATR, close at 82 % of the range, volume 5.2x"
+    },
+    "stop": {
+      "price": 9.24,
+      "why": "EM6: 9.28 - 0.25 ATR(H1) 0.04 (ATR 0.150 at the end of wave 2)"
+    },
+    "add": {
+      "time": "2024-09-27T04:00:00Z",
+      "price": 12.72,
+      "why": "EM7: first H1 close above the end of wave 1 (12.70)"
+    },
+    "stopMoves": [
+      {
+        "time": "2024-11-10T02:00:00Z",
+        "price": 10.03,
+        "why": "EM8 (no count): close 13.90 beyond 127.2 % of wave 2 (13.83); stop below the swing low 10.07 (11-04 21:00, 75.7 % of 9.28 -> 12.98), 0.25 ATR(H1) 0.04"
+      },
+      {
+        "time": "2024-12-12T04:00:00Z",
+        "price": 19.33,
+        "why": "runner, EM10: close 28.24 above the end of inner wave 3 (27.41, 12-08 13:00); stop below inner wave 4 19.56 (12-09 21:00, 43.9 % of 12.71 -> 27.41), 0.25 ATR(H1) 0.23"
+      }
+    ],
+    "exits": [
+      {
+        "time": "2024-11-30T19:00:00Z",
+        "price": 19.29,
+        "why": "EM11 outer 161.8 % (log) of wave 1 from the end of wave 2 (high 19.36); no inner wave 4 by then",
+        "share": 90,
+        "kind": "target"
+      },
+      {
+        "time": "2025-01-09T13:00:00Z",
+        "price": 19.33,
+        "why": "runner EM10 stop hit; the 20.02 low (12-20) never counts, no H1 close above 30.94 confirms it",
+        "share": 10,
+        "kind": "stop"
+      }
+    ]
+  },
+  "legacy": {
+    "sourceId": "linkusdt-d1-2024-08-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "timezone": "UTC",
+    "known_at": "2024-09-13 15:00",
+    "expected": {
+      "count": "1-2",
+      "setup": "rejected",
+      "path": "EM4",
+      "watch": "-",
+      "trade": "none",
+      "why": "wave 1 is no five and no diagonal on H4 (EM21, 2026-11-10), as in the expert's count (a three); before EM21: traded, about +2.9R"
+    },
+    "comments": {
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

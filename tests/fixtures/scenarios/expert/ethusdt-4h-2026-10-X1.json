@@ -1,0 +1,47 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "ethusdt-4h-2026-10-X1",
+  "source": "binance",
+  "symbol": "ETHUSDT",
+  "contextTimeframe": "4h",
+  "direction": "long",
+  "verdict": "no-trade",
+  "draft": true,
+  "reason": "MCO (2026-10-21) shows a possible new 5-wave advance with a 1-2 setup, low conviction. Wave 2 closed beyond 78.6 % on H4 on 10-18 (87 % by 10-24) and the start of wave 1 broke on 10-24, so EM1/EM3 cancel the setup. MCO tolerates up to 88.7 %.",
+  "notes": "Source: MCO 1-2 setups report (ETH, invalidation 2327, resistance 2493). Wave 1 is implied from the MCO Fibs (2316 -> 2493.5) and matched to Binance H4 (low 2318.00 on 10-15 00:00, high 2494.00 on 10-16 08:00). Expert reading to be confirmed. EM1: 78.6 % (log) is 2354.59, 50 % is 2404.39. First H4 close beyond 78.6 % is 10-18 16:00 at 2338.25 (87 %). The lowest H4 close is 2306.41 and the lowest low 2282.46 (both 10-24 12:00), below the start of wave 1 (121 %). Difference: MCO tolerates wave 2 up to 88.7 %, EM1/EM3 reject any H4 close beyond 78.6 %. With the MCO tolerance the setup was still alive on 10-21 (publication) and was invalidated only on 10-24. Trigger: no strong close beyond B. The only close above the end of wave 1 is the H4 candle of 10-21 12:00 (2512.54, high 2526.62), which failed; it came after the 78.6 % close, so EM3 had already cancelled the setup. Wave 2 is not a clean zigzag, and H4 wave 1 is only 7.6 % (about 1.5 daily ranges), so a lower-degree 1-2 (EM14) would be needed; not read yet. Context: broad market flush on 10-24 12:00 hit ETH, NEAR, DOT, VIRTUAL and XRP.",
+  "from": "2026-10-14T00:00:00Z",
+  "to": "2026-10-24T12:00:00Z",
+  "waves": {
+    "timeframe": "4h",
+    "wave1Start": {
+      "time": "2026-10-15T00:00:00Z",
+      "price": 2318.0
+    },
+    "wave1End": {
+      "time": "2026-10-16T08:00:00Z",
+      "price": 2494.0
+    },
+    "wave2End": {
+      "time": "2026-10-24T12:00:00Z",
+      "price": 2282.46
+    }
+  },
+  "legacy": {
+    "sourceId": "ethusdt-h4-2026-10-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "timezone": "UTC",
+    "known_at": "2026-10-18 16:00",
+    "expected": {
+      "count": "1-2",
+      "setup": "rejected",
+      "path": "EM4",
+      "watch": "-",
+      "trade": "none",
+      "why": "H4 close beyond 78.6 % (EM1, EM3); wave 2 also lasts 6.1 times wave 1, beyond the EM3 window of 4.236"
+    },
+    "comments": {
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

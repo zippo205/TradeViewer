@@ -1,0 +1,58 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "btcusdt-4h-2026-08-X1",
+  "source": "binance",
+  "symbol": "BTCUSDT",
+  "contextTimeframe": "4h",
+  "direction": "long",
+  "verdict": "no-trade",
+  "draft": true,
+  "reason": "Wave 2 reaches 91.7 % (log) of wave 1 and three H4 closes are beyond 78.6 %, so EM1 and EM3 drop the setup before any trigger. The only 15M close beyond B (08-17 23:45) has weak volume and fails back.",
+  "notes": "Wave 1 and wave 2 are the expert's reading (the lower-degree 1-2 of btcusdt-d1-2026-07-long); an earlier reading with wave 1 08-03 08:00 62300 and wave 2 end 08-11 16:00 63238 (70 %) was dropped. It never got a trigger either. EM1: wave 2 retraces 91.7 % (log) of wave 1 by the low (62535.24 on H1 08-14 14:00, H4 candle of 12:00); 78.6 % = 62946. H4 closes beyond it: 62920.78 (08-14 04:00), 62868.83 (08-14 08:00) and 62900.0 (08-16 20:00). EM3 drops the setup with the first one, which closes on 08-14 08:00, before the end of wave 2. Wave 2 on H1 (a possible count): A 65474 -> 63238 (08-11 19:00), B 64500 (08-12 12:00, 57 % of A), C 62535 (08-14 14:00); C/A is 0.89 (log), a good zigzag shape, but it does not help because the depth is out of range. Wave 2 lasted about 4.7 days (08-09 22:00 to 08-14 14:00). Trigger: the first 15M close above B after the end of C is 08-17 23:45 at 64532.1, only 32 above B, volume 1.3x the 20-candle average: a weak break (EM4), no trigger. Price fell back afterwards (see btcusdt-d1-2026-07-long). This move was later traded as the lower-degree 1-2 of the D1 setup (entry 08-18 14:00); that trade is documented there.",
+  "from": "2026-07-28T08:00:00Z",
+  "to": "2026-09-13T12:00:00Z",
+  "waves": {
+    "timeframe": "4h",
+    "wave1Start": {
+      "time": "2026-08-01T16:00:00Z",
+      "price": 62275.0
+    },
+    "wave1End": {
+      "time": "2026-08-09T20:00:00Z",
+      "price": 65474.46
+    },
+    "wave2End": {
+      "time": "2026-08-14T12:00:00Z",
+      "price": 62535.0
+    }
+  },
+  "wave2": {
+    "timeframe": "1h",
+    "pattern": "zigzag",
+    "aEnd": {
+      "time": "2026-08-11T19:00:00Z",
+      "price": 63238.0
+    },
+    "bEnd": {
+      "time": "2026-08-12T12:00:00Z",
+      "price": 64500.0
+    }
+  },
+  "legacy": {
+    "sourceId": "btcusdt-h4-2026-08-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "timezone": "UTC",
+    "expected": {
+      "count": "1-2",
+      "setup": "rejected",
+      "path": "EM4",
+      "watch": "-",
+      "trade": "none",
+      "why": "H4 closes beyond 78.6 % before the end of wave 2 (EM1, EM3)"
+    },
+    "comments": {
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

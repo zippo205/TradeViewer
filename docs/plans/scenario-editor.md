@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Scenario Editor (P1 - Workstation)
-Status:   Plan revised 2026-11-20 after the owner's answers (decision 0012); no step done
+Status:   In work; plan approved by the owner 2026-11-20; step 1 done
 Branch:   feature/scenario-editor
-Next:     the owner's review of the revised plan, then step 1
+Next:     step 2 (Domain/Scenarios: levels, point names, snap rules, form checks)
 Baseline: docs as of commit 692f02c (main)
 ```
 
@@ -236,6 +236,32 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
 ```
 
 ---
+
+# Result of Step 1 (2026-11-20)
+
+- The 13 converted files are in `tests/fixtures/scenarios/expert/` (copied from the shared folder
+  on WSL); tests copy them into a temporary folder and never read the shared one.
+- Contracts/Scenarios: `ExpertScenarioRecord` with the sections waves, wave1, wave2, trade and
+  drawings (`ScenarioDrawingRecord`: the drawing record without the asset, plus its level), and
+  `ExpertScenarioSummary` for the list. Port `IExpertScenarioStore` in Abstractions/Ewts with
+  `ExpertScenarioRead` and `ExpertScenarioSave`.
+- Domain/Scenarios: `ExpertScenarioId` (the id rule, the strict check, the next free number),
+  brought forward from step 2 because the store needs it.
+- Infrastructure/Scenarios: `ExpertScenarioJson` lays the known fields over the JSON of the file
+  (proposal 4); a known field whose value is unchanged keeps its text, so saving an unchanged
+  converted file changes no line: only `createdAt` and `updatedAt` are added at its end
+  (proposal 5). Times are written in UTC with `Z`, text is not escaped. `ExpertScenarioStore`
+  writes `<id>.json.part` and renames it, all writes under one lock; the first save renames
+  without overwriting, so a file made meanwhile is never replaced and the next number is taken.
+  A file it cannot read is listed with its error and never overwritten. Heads are cached by size
+  and modified time.
+- The comments about `*.expert.json` in Options, StorageLocations and StorageInitializer are
+  corrected.
+- Tests: 23 integration tests of the store (all 13 read and saved without a change of a line,
+  unknown fields kept at every depth and by position in the exits, removed known fields, next
+  free number with 8 concurrent first saves, drawings, broken files, ids that leave the folder,
+  test-runs/ unchanged after every test) and 16 unit tests of the id rule. 543 unit,
+  258 integration, 19 architecture tests pass.
 
 # Proposals
 

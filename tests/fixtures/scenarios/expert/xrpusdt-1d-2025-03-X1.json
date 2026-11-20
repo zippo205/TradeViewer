@@ -1,0 +1,60 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "xrpusdt-1d-2025-03-X1",
+  "source": "binance",
+  "symbol": "XRPUSDT",
+  "contextTimeframe": "1d",
+  "direction": "long",
+  "verdict": "no-trade",
+  "draft": true,
+  "reason": "Looks like a 1-2 (wave 2 a zigzag at 70.8 %), but wave 1 is corrective (expert: an A-B-C whose C is a news spike, 70 % of wave 1 in two H1 candles on the US crypto reserve announcement of 2025-03-02) and no H1 close ever comes above B (2.7159): no trigger by EM4, so no trade. Wave 2 breaks on 03-09. In context it is the C of a zigzag from 02-03 (C = 0.91 A) inside the ugly higher-degree wave 4 (expert).",
+  "notes": "Shortlist #15 of candidates.md (\"FAIL 2025-03-09; wave 1 is a news spike, a false positive?\"). The rules do not trade it. Higher degree (expert): wave 3 ended at 3.40 (2025-01-16); wave 4 is ugly and lasts until 2025-05-07, wave 5 runs to 3.6607 (2025-07-18). This 1-2 lies inside that wave 4. One reading: an expanded-flat-like wave 4 with a 3.40 -> 1.7711 (02-03), b 2.999 (03-02, 80.8 % of a), c to 1.6134 (04-07), then a complex end to 05-07. Counting across 1-2s: wave 1 starts at the end of an earlier 1-2 of about the same size (D1 deg 2.0: 1.7711 (02-03) -> 2.8356 (02-14) -> 1.951 (02-28), 79.4 % by the wick, 59.3 % by the close), confirmed by the close 2.9396 of 03-02. Wave 2 (2.2123) lies below 2.8356: overlap, so the impulse count 1-2-3-4 is invalid. The two counts left are a nested 1-2, i-ii (i 1.951 -> 2.999 goes beyond 2.8356, ii stays above 1.951) and a zigzag (A 1.7711 -> 2.8356, B 1.951, C 2.999 with C = 0.91 A in log, a C ending) or a diagonal. The higher-degree wave 4 favours the zigzag: the move up is a correction, not wave 3. The scan does not flag it as chained because the two 1-2s come from different zigzag degrees (2.0 and 1.4 ATR). Wave 1 (H1): 1.951 (02-28 08:00) -> 2.2199 (03-01 04:00) -> 2.1356 (03-01 14:00) -> 2.2851 (03-02 06:00) -> 2.2202 (03-02 14:00) -> 2.999. The last leg is the announcement: 03-02 15:00 runs from 2.2231 to 2.725 on 30x volume and 16:00 to 2.999 (13.8x); it holds 69.9 % of wave 1 (log). Wave 1 is corrective (expert): A 1.951 -> 2.2851 (03-02 06:00), B 2.2202 (03-02 14:00, only 18 % of A), C the spike to 2.999 (C = 1.9 A, log). As a 5-wave move it fails (the leg before the spike would make wave 3 the shortest). A corrective wave 1 is no impulse, so the move is no wave 1 at all; it fits the zigzag count below (it is its C, subdivided). Wave 2: 70.8 % by the wick (78.6 % = 2.1390); the deepest closes are D1 2.3873 (53.1 %), H4 2.2983 (61.9 %), H1 2.2827 (63.5 %), so EM1 holds. On H4 and H1 a zigzag: A 2.999 -> 2.5259 (03-03 09:00 H1), B 2.7159 (03-03 13:00, 42 % of A), C 2.2123 (03-04 02:00), C/A 1.19 (EM2). Wave 2 took 34 hours against 56 for wave 1. Volume rises in C (2.7x and 2.9x on 03-03 18:00 and 19:00) instead of drying up: no selling exhaustion at the end of wave 2, a lower score. Plan at the start of the watch: entry at B 2.7159 (76.9 % up wave 1 again), stop 2.1896 (2.2123 - 0.25 ATR(H1) 0.0907), outer 161.8 % = 4.4356 (log, from 2.2123): risk/reward 3.3. 100 % = 3.4007 (EM19), 127.2 % = 3.8225. EM4: after C the highest H1 close is 2.6313 (03-06 10:00, high 2.6461), below B. EM3: wave 2 lasted about 1.4 D1 candles (8.5 H4 candles), so the old window ended on 03-05. By the rule of 2026-10-30 (4.236 times wave 1 of 56 hours from 03-02 16:00) it ends 03-12 13:13; no close beyond B comes before the end of wave 2 breaks (03-09 13:00, low 2.1637), which cancels it. Price then fell to 1.90 (03-11) and 1.6134 (04-07). What the case shows: the trigger at B protects here. A fast wave 2 after a spike puts B high up in wave 1 (77 %), so the trigger needs most of the spike back; that is a strict but fitting filter for a wave 1 made by one news candle. Open questions (for the strategy): - Score: should a corrective wave 1 (an A-B-C, here with a news spike as C: 70 % of it in two H1 candles, 30x volume) lower the score or even reject the setup? It is no 5-wave move; today only EM19 treats such a wave 1 as a warning. - Counting across 1-2s across zigzag degrees: the earlier 1-2 is found at 2.0 ATR, the candidate at 1.4 ATR, though both wave 1s are about the same size (log 0.47 and 0.43). Should the scan compare the size of the waves instead of the degree?",
+  "from": "2025-02-26T00:00:00Z",
+  "to": "2025-03-11T00:00:00Z",
+  "waves": {
+    "timeframe": "1d",
+    "wave1Start": {
+      "time": "2025-02-28T00:00:00Z",
+      "price": 1.951
+    },
+    "wave1End": {
+      "time": "2025-03-02T00:00:00Z",
+      "price": 2.999
+    },
+    "wave2End": {
+      "time": "2025-03-04T00:00:00Z",
+      "price": 2.2123
+    }
+  },
+  "wave2": {
+    "timeframe": "4h",
+    "pattern": "zigzag",
+    "aEnd": {
+      "time": "2025-03-03T08:00:00Z",
+      "price": 2.5259,
+      "why": "H1 09:00"
+    },
+    "bEnd": {
+      "time": "2025-03-03T12:00:00Z",
+      "price": 2.7159,
+      "why": "H1 13:00, the trigger level"
+    }
+  },
+  "legacy": {
+    "sourceId": "xrpusdt-d1-2025-03-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "timezone": "UTC",
+    "expected": {
+      "count": "1-2",
+      "setup": "rejected",
+      "path": "EM4",
+      "watch": "-",
+      "trade": "none",
+      "why": "wave 1 is no five and no diagonal on H1 (EM21, 2026-11-10), the expert's corrective wave 1; before EM21: no close beyond B"
+    },
+    "comments": {
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

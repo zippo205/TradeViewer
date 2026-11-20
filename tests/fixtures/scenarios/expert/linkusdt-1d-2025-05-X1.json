@@ -1,0 +1,78 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "linkusdt-1d-2025-05-X1",
+  "source": "binance",
+  "symbol": "LINKUSDT",
+  "contextTimeframe": "1d",
+  "direction": "long",
+  "verdict": "no-trade",
+  "draft": true,
+  "reason": "Wave 2 retraces 62 %, but in the expert's count its B ends early, on 05-13 at 17.81. The setup is watched, but no H1 close above B ever comes (the highest close after wave 2 is 17.12), so there is no entry. Taken with B at 16.54 instead, the trade loses -0.5R (trade below). Looking back, wave 1 is wave C of an A-B-C from 04-07.",
+  "notes": "Shortlist #23 of candidates.md (\"FAIL 2025-05-30; same move as #8 SOLUSDT\"). No 15M data for 2025-05. Expert count (H4): an impulse from 04-07 (10.10): 1 11.89 (04-07), 2 10.44 (04-09), 3 13.29 (04-12), 4 11.89 (04-16), 5 15.36 (04-25), either a higher-degree A or a 1. Then a complex WXY: W 13.83 (04-30), X 15.04 (05-01), Y 13.20 (05-06), a higher-degree B or 2, only 36 % of the impulse (log): too shallow to trade. From 13.20 a small H4 1-2 (14.09 on 05-07 00:00, 13.46 on 05-07 16:00) is followed by strong momentum and volume, a possibility at the time. Looking back, the move from 04-07 to 05-12 is an A-B-C (C/A 0.74, log), followed by a complex WXYXZ correction down to 06-22 (10.94). On an even higher degree this could be the 1-2 of a leading diagonal, or waves A and B of an A-B-C. Measured by the rules: wave 1 13.20 -> 17.98 is a reasonable 5 on H4 (i 14.09, ii 13.46, iii 16.73, iv 15.74, v 17.98). Wave 2 to 14.84 = 62.1 % (log); 78.6 % = 14.10, with no D1 or H4 close below it before 05-30. Wave 2 lasted 7 D1 candles; the old EM3 window ended 05-26. By the rule of 2026-10-30 (4.236 times wave 1 of 138 hours from 05-12 07:00) it ends 06-05 15:34, so the setup is cancelled by the new low below C on 05-30 00:00 (14.19); the 05-25 low 14.86 stays 2 cents above C. On H4, wave 2 can be read three ways: - reading 1: A 15.69, B 16.54, C 14.84, C/A 0.80. The A contains the bounce 16.03 -> 17.81 (92 %), unusual for a 5. - reading 2: A 15.07 (05-17), B 16.40 (05-18 16:00), C/A 0.57; the close 05-22 08:00 (16.56, 0.6 ATR, volume 1.2x) is borderline, 14:00 the clear trigger; same result. - reading 3: a regular flat, a 16.03, b 17.81 (92 % of a), c 14.84 (1.59 x a): no close above 17.81 follows, no-trade. Expert (2026-10-30): B is on 05-13 (reading 3); the setup would be watched, but never entered because price does not reach B. As a flat, wave 2 is no zigzag, so EM14 would also apply: the H1 move 14.84 -> 17.16 and its correction to 15.24 (05-24, B 16.48 on 05-23 14:00) bring no close above 16.48 before 05-30, so EM14 gives no entry either. Reading 1 by the rules: after the entry the high is 17.16 (05-23 03:00, +0.16R); no close beyond the end of wave 1 (EM7) and none beyond 127.2 % of wave 2 (18.94), so the stop never moves. Stop distance 12.3 %; result at EM5 sizing: -0.5R. With reading 1 the setup would be taken on what turns out to be wave C, like solusdt-d1-2025-04-2-long; the shallow B (36 %) before wave 1 is a hint, but the impulse from 04-07 could just as well be a wave 1.",
+  "from": "2025-05-02T00:00:00Z",
+  "to": "2025-06-07T00:00:00Z",
+  "waves": {
+    "timeframe": "1d",
+    "wave1Start": {
+      "time": "2025-05-06T00:00:00Z",
+      "price": 13.2
+    },
+    "wave1End": {
+      "time": "2025-05-12T00:00:00Z",
+      "price": 17.98
+    },
+    "wave2End": {
+      "time": "2025-05-19T00:00:00Z",
+      "price": 14.84
+    }
+  },
+  "wave2": {
+    "timeframe": "4h",
+    "pattern": "flat",
+    "aEnd": {
+      "time": "2025-05-12T16:00:00Z",
+      "price": 16.03,
+      "why": "H1 18:00 (again 05-13 04:00)"
+    },
+    "bEnd": {
+      "time": "2025-05-13T16:00:00Z",
+      "price": 17.81,
+      "why": "H1 19:00, the trigger level: never closed above"
+    }
+  },
+  "legacy": {
+    "sourceId": "linkusdt-d1-2025-05-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "alternativeTrade": {
+      "tf": "H1",
+      "_comment_entry": "EM4: close 1.2 ATR above B (16.54), body 94 % of the range, volume 2.1x",
+      "entry": {
+        "time": "2025-05-22 14:00",
+        "price": "16.84"
+      },
+      "_comment_stop": "EM6: 14.84 - 0.25 ATR(H1) 0.293 (at the end of wave 2, 05-19 07:00) = 0.073",
+      "stop": "14.77",
+      "exit": {
+        "time": "2025-05-30 00:00",
+        "price": "14.77",
+        "why": "EM6 stop hit (low 14.19)"
+      }
+    },
+    "timezone": "UTC",
+    "known_at": "2025-05-19 07:00",
+    "expected": {
+      "count": "1-2",
+      "setup": "approved",
+      "path": "EM4",
+      "watch": "cancel",
+      "trade": "none",
+      "why": "with the expert B 17.81 no close beyond B comes; C breaks on 05-30, inside the EM3 window (06-05)"
+    },
+    "comments": {
+      "wave2_internal": "reading 3, the expert's: B on 05-13, 92 % of A (flat by the B ratio)",
+      "trade": "reading 1: B = 16.54, not the expert's choice",
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using TradeViewer.Application.Abstractions.Ewts;
 using TradeViewer.Application.Abstractions.MarketData;
 using TradeViewer.Application.Abstractions.Workspace;
 using TradeViewer.Infrastructure.Configuration;
@@ -13,6 +14,7 @@ using TradeViewer.Infrastructure.MarketData.Import;
 using TradeViewer.Infrastructure.MarketData.Store;
 using TradeViewer.Infrastructure.MarketData.Symbols;
 using TradeViewer.Infrastructure.MarketData.Sync;
+using TradeViewer.Infrastructure.Scenarios;
 using TradeViewer.Infrastructure.Storage;
 using TradeViewer.Infrastructure.Workspace;
 using TradeViewer.Infrastructure.Workspace.Backups;
@@ -82,6 +84,7 @@ public static class DependencyInjection
         services.AddSingleton<IImportQueue>(provider => provider.GetRequiredService<ImportService>());
         services.AddSingleton<IDownloaderReachability, DownloaderReachability>();
         services.AddSingleton<MarketDataSync>();
+        services.AddSingleton<IExpertScenarioStore, ExpertScenarioStore>();
 
         // Hosted services start in registration order: the folders first, then the workspace, then what uses it.
         services.AddHostedService<StorageInitializer>();

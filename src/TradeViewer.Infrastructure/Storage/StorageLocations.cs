@@ -27,12 +27,12 @@ public sealed class StorageLocations
     /// <summary>The backups of workspace.db (WS3).</summary>
     public string BackupsPath => Path.Combine(DataPath, "backups");
 
-    /// <summary>The folder of EWTS's scenario files, or null when the feature is off.</summary>
+    /// <summary>The scenario folder shared with EWTS (expert/ and test-runs/), or null when the feature is off.</summary>
     public string? ScenariosRoot { get; }
 
     /// <summary>
-    /// True when TradeViewer can write its *.expert.json files into <see cref="ScenariosRoot"/>.
-    /// Set by the start-up checks; false switches off only SC10 to SC13.
+    /// True when TradeViewer can write the expert scenarios into <see cref="ScenariosRoot"/>.
+    /// Set by the start-up checks; false switches off only the editor's writing (SC9 to SC16, SC20).
     /// </summary>
     public bool ScenariosWritable { get; internal set; }
 

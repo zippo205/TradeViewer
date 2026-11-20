@@ -49,7 +49,7 @@ public sealed class StorageInitializer : IHostedService
             if (!_locations.ScenariosWritable)
             {
                 _logger.LogWarning(
-                    "The scenario folder {Path} is not writable: own analysis of scenarios (SC10 to SC13) is switched off.",
+                    "The scenario folder {Path} is not writable: the scenario editor cannot save (SC9 to SC16, SC20).",
                     _locations.ScenariosRoot);
             }
         }

@@ -43,7 +43,7 @@ public sealed class ScenariosOptions
 {
     public const string SectionName = "Scenarios";
 
-    /// <summary>The folder of EWTS's scenario drawing files. Optional; TradeViewer writes only its *.expert.json there.</summary>
+    /// <summary>The scenario folder shared with EWTS. Optional; TradeViewer writes only in its expert/ folder (decision 0010).</summary>
     public string? RootPath { get; set; }
 }
 

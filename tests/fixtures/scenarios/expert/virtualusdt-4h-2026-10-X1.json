@@ -1,0 +1,47 @@
+{
+  "format": "ewts-expert-scenario",
+  "version": 1,
+  "id": "virtualusdt-4h-2026-10-X1",
+  "source": "binance",
+  "symbol": "VIRTUALUSDT",
+  "contextTimeframe": "4h",
+  "direction": "long",
+  "verdict": "no-trade",
+  "draft": true,
+  "reason": "MCO (2026-10-18, 12h) shows a 1-2 setup testing 78.6 % (\"not a clear uptrend\"). The first H4 close beyond 78.6 % is 10-18 16:00 (0.6245), so EM1/EM3 cancel it; wave 2 reached 85 % by 10-24 with no trigger. MCO tolerates up to 88.7 %.",
+  "notes": "Source: MCO 1-2 setups report (VIRTUAL, 78.6 % at 0.62693, invalidation 0.575). MCO's implied wave 1 is 0.5765 -> 0.853; on Binance the 0.8538 high (09-28 00:00) was exceeded by 0.8861 (10-05 08:00), so I read wave 1 to the later high. Both readings give the same result. Expert reading to be confirmed. EM1: 78.6 % (log) is 0.6306, 50 % is 0.7137. First H4 close below 50 % is 10-08 12:00 (0.6952). First H4 close beyond 78.6 % is 10-18 16:00 at 0.6245. The lowest H4 close is 0.6135 and the lowest low 0.6058 (both 10-24 12:00, 88 %), just above the MCO 88.7 % tolerance and 0.5748 (start of wave 1). Wave 2 is a long decline of 19 days with no clean zigzag; no lower-degree 1-2 (EM14) or trigger has been read. Closes stay below the 10-21 high 0.7065. Difference: MCO tolerates wave 2 up to 88.7 %, EM1/EM3 reject any H4 close beyond 78.6 %. Context: broad market flush on 10-24 12:00.",
+  "from": "2026-09-06T20:00:00Z",
+  "to": "2026-12-23T12:00:00Z",
+  "waves": {
+    "timeframe": "4h",
+    "wave1Start": {
+      "time": "2026-09-16T16:00:00Z",
+      "price": 0.5748
+    },
+    "wave1End": {
+      "time": "2026-10-05T08:00:00Z",
+      "price": 0.8861
+    },
+    "wave2End": {
+      "time": "2026-10-24T12:00:00Z",
+      "price": 0.6058
+    }
+  },
+  "legacy": {
+    "sourceId": "virtualusdt-h4-2026-10-long",
+    "converted": "2026-11-20 by tools/convert-expert-scenarios.py; a draft until confirmed",
+    "timezone": "UTC",
+    "known_at": "2026-10-18 16:00",
+    "expected": {
+      "count": "1-2",
+      "setup": "rejected",
+      "path": "EM4",
+      "watch": "-",
+      "trade": "none",
+      "why": "H4 close beyond 78.6 % (EM1, EM3)"
+    },
+    "comments": {
+      "expected": "acceptance test, checked stage by stage (confirmed 2026-10-30)"
+    }
+  }
+}
