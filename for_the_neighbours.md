@@ -47,6 +47,10 @@ to `updatedAt` = the time of that save. Please confirm or say otherwise.
    converted files already follow this. A file with other section timeframes still opens.
 3. The 4h chain has 15m as trigger, so a 4h scenario with a trade has `trade.timeframe` `15m`.
 
+**Received (2026-11-20):** the optional section `wave1` (internals of wave 1, five or three).
+Taken over into docs/knowledge/ewts-interface.md and specification SC8, SC10-SC12, SC15. The
+proposal above (`drawings`, level timeframes, `createdAt`/`updatedAt`) is still unanswered.
+
 **Still waiting for:** one example test-run file in the new format (`T<n>` id, verdict `draft`)
 until the Scenarios epic writes real ones (needed only by the Test-Run Viewer).
 

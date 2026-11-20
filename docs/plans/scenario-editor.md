@@ -112,8 +112,8 @@ Infrastructure/Scenarios/
 ```text
 ExpertScenarioId        <symbol>-<context tf>-<yyyy-MM>-X<n>, next free number of a prefix
 ScenarioLevels          context, setup, trigger from the context timeframe (1d/4h/1h, 4h/1h/15m)
-ScenarioPointName       wave1Start, wave1End, wave2End, aEnd, bEnd, cEnd, entry, add, stop,
-                        stopMove, exit; with its level and, for a wave point, whether it is a low
+ScenarioPointName       wave1Start, wave1End, wave2End; wave 1 iEnd-vEnd or aEnd-cEnd; wave 2
+                        aEnd-cEnd; entry, add, stop, stopMove, exit; with its level and, for a wave point, whether it is a low
                         or a high (long only, SC9)
 ScenarioSnap            the snap rules of the format on candles of the section's timeframe
 ScenarioFormRules       SC15: order of the times, fields the verdict and the pattern require,
@@ -165,7 +165,7 @@ primitives/overlays/     one series primitive for all overlay shapes: line, labe
                          marker, verticalLine; colours from the role (OV6, theme.ts); groups hidden
                          by key; hit test for the detail text (price, time, reason)
 tools/scenarioPoints.ts  the named points of an expert scenario as handles over the shapes:
-                         place with a point tool ("1-2" and "A-B-C" place several in a row), move
+                         place with a point tool ("1-2", "i-v", "a-c" place several in a row), move
                          by dragging, remove with Delete; reports pointPlaced(name, index, time,
                          price) and pointRemoved(name, index)
 ```
@@ -217,7 +217,7 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
    Unit tests of the handlers with in-memory ports; endpoint tests against the fixtures.
 4  Chart module, overlay shapes: the six types, groups, roles to colours, detail on pointing,
    setOverlays; Vitest; browser check that draws all 13 fixtures' shapes.
-5  Chart module, named points: handles, point tools ("1-2", "A-B-C", trade tools), drag,
+5  Chart module, named points: handles, point tools ("1-2", "i-v", "a-c", trade tools), drag,
    Delete, events; Vitest; browser check.
 6  Web, scenario chart and list: ScenarioChart, list with filter and sort, previous and next,
    the three levels with their visibility, log scale, reload and the 30-second check, menu entry
@@ -254,15 +254,20 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
 6. **What is drawn from the points** (roles of OV6):
    - waves: a strong line wave 1 start -> wave 1 end -> wave 2 end (role `wave`) with the labels
      0, 1 and 2;
-   - wave 2: the line wave 1 end -> A -> B -> C (or wave 2 end) with the labels A, B, C (role
-     `lowerDegree`);
+   - wave 1 (EWTS added the section on 2026-11-20): the line wave 1 start -> i -> ii -> iii -> iv
+     -> v (or wave 1 end), or -> a -> b -> c, with the labels i-v or a-c (role `lowerDegree`);
+   - wave 2: the line wave 1 end -> a -> b -> c (or wave 2 end) with the labels a, b, c (role
+     `lowerDegree`; lower case like wave 1, one degree below the waves);
    - trade: markers entry and add (`entry`, `add`); the stop as a level from the entry to the
      first stop move, each stop move as the next step of that level (`stop`); a marker per exit
      with its share (`target` or `stop` by its kind).
    Every shape carries the point's reason as its detail text.
 7. **A new scenario is a draft** (`draft: true`) until the owner removes the mark.
 8. **The list shows unreadable files** with their error and no actions besides delete.
-9. **Undo and redo** per scenario as on the chart page (Ctrl+Z, Ctrl+Y), for points and fields.
+9. **Changing the pattern of wave 1** between a five and a three removes the points of the
+   other pattern after a confirmation (EWTS treats a file with both as invalid); undo brings
+   them back.
+10. **Undo and redo** per scenario as on the chart page (Ctrl+Z, Ctrl+Y), for points and fields.
 
 ---
 

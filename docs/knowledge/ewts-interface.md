@@ -385,6 +385,8 @@ head       format ("ewts-expert-scenario"), version (1), id, source, symbol,
            contextTimeframe (1d | 4h), direction (long), verdict (trade-win | trade-loss |
            no-trade), draft, reason, notes, from, to, createdAt, updatedAt
 waves      timeframe; wave1Start, wave1End, wave2End                   point { time, price, why }
+wave1      timeframe, pattern (impulse | leading-diagonal | three);
+           iEnd, iiEnd, iiiEnd, ivEnd, vEnd (a five) or aEnd, bEnd, cEnd (a three)   optional
 wave2      timeframe, pattern (zigzag | flat | expanded-flat | running-flat | triangle |
            complex); aEnd, bEnd, cEnd                                   optional
 trade      timeframe; entry, stop { price, why }, add, stopMoves[],
@@ -404,11 +406,17 @@ drawings   TradeViewer's free drawings of the scenario, each with its level (con
   time and the close of the candle that closes beyond the level. An exit is the open time of the
   candle that reaches the level, at the level's price. `stop` and `stopMoves[].price` are prices;
   a stop move's time is the candle whose close led to it.
-- `aEnd` and `bEnd` are required for a zigzag and the flats. Without `cEnd`, the end of C is
+- `wave1` (added by EWTS on 2026-11-20, still version 1): the internals of wave 1, which starts
+  at `waves.wave1Start`. Its points snap like the other wave points on the section's timeframe.
+  `iEnd` to `ivEnd` are required for a five (impulse, leading diagonal), `aEnd` and `bEnd` for a
+  three; until they are set EWTS reports the file as incomplete. `vEnd` and `cEnd` are optional:
+  without them the last point is `waves.wave1End`. A file with points of the other pattern is
+  invalid for EWTS. TradeViewer draws them as i-v or a-c.
+- `aEnd` and `bEnd` of `wave2` are required for a zigzag and the flats. Without `cEnd`, the end of C is
   `wave2End`. `add` and `stopMoves` are optional; the `share` of the exits, in percent, adds up
   to 100.
-- TradeViewer rebuilds its drawing from the points and stores no drawing records in the file. It
-  keeps `legacy` and any field it does not know unchanged when it saves.
+- TradeViewer rebuilds the drawing of the points from the points; it stores no drawing of the
+  points in the file. It keeps `legacy` and any field it does not know unchanged when it saves.
 - Rule checks (is a point a real extreme, does the entry follow the strategy) are EWTS's;
   TradeViewer checks only the form.
 - Agreed with EWTS on 2026-11-20, not yet in its architecture: the id is fixed at the first save
