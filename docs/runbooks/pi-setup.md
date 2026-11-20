@@ -173,4 +173,11 @@ Rules for the agent:
              subscriptions, 5 of them TradeViewer's; the five assets have no confirmed gaps within
              their history. After the owner's approval the same day the Pi was switched to main (merge
              commit 295a9a5); the image was unchanged, so the container kept running.
+
+2026-11-20   Fix of drawing ids deployed by the agent at the owner's request: main at merge commit
+             4116518, with DOWNLOADER_ENABLED=true (passed inline). Before, no drawing could be
+             created on the Pi: the page is opened over plain HTTP, where browsers have no
+             crypto.randomUUID. The arm64 image built and started in 184 seconds; schema unchanged
+             (7); the container is healthy and uses 87 MB of 512 MB. Proved in the headless browser
+             from WSL: two trend lines created and saved side by side, then deleted again.
 ```

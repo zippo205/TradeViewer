@@ -2,6 +2,7 @@ import { defaultStyle, NEW_NOTE_TEXT, type Anchor, type Drawing, type DrawingSty
 import { HANDLE_HIT, type PaneSize } from "../primitives/shape";
 import { shapeOf } from "../primitives/shapes";
 import { hasDragged, movedAnchors, type AnchorStart } from "./drag";
+import { newId as randomId } from "./newId";
 import { labelsOf } from "../primitives/shapes/polyline";
 import { WAVE_DEGREES, type WaveDegree, type WaveSide } from "../primitives/waveNotation";
 import { patternLabels, withSides } from "../primitives/wavePatterns";
@@ -92,7 +93,7 @@ export class DrawingInteraction {
   constructor(
     private readonly surface: DrawingSurface,
     private readonly events: DrawingEvents,
-    private readonly newId: () => string = () => crypto.randomUUID(),
+    private readonly newId: () => string = randomId,
     private readonly refine: (drawing: Drawing, changed: readonly number[]) => Promise<Drawing> | undefined = () => undefined,
   ) {}
 
