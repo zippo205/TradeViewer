@@ -16,11 +16,12 @@
             }
             @if (SaveText != null)
             {
-                <span class="@(SaveBad ? "status-bad" : "muted") scenario-save">@SaveText</span>
+                <span class="@(SaveBad ? "status-bad" : SaveText == "saved" ? "muted" : "status-warn") scenario-save">@SaveText</span>
             }
             <span class="spacer"></span>
             @if (!ReadOnly)
             {
+                <button type="button" class="primary scenario-save-button" disabled="@(!CanSave)" title="@SaveTitle" @onclick="() => OnSave.InvokeAsync()">Save</button>
                 <button type="button" class="danger" title="Delete this scenario after a confirmation (SC16)" @onclick="() => OnDelete.InvokeAsync()">Delete</button>
             }
         </div>
@@ -182,6 +183,17 @@
 
     [Parameter]
     public EventCallback OnDelete { get; set; }
+
+    /// <summary>SC13: enabled only while there is an unsaved change that can be written.</summary>
+    [Parameter]
+    public bool CanSave { get; set; }
+
+    /// <summary>Why Save is (not) enabled.</summary>
+    [Parameter]
+    public string? SaveTitle { get; set; }
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
 
     private string SetupTimeframe => Response?.Levels.FirstOrDefault(level => level.Level == ScenarioPoints.Setup)?.Timeframe ?? "";
 

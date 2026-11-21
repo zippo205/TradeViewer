@@ -7,6 +7,7 @@
 @inject DrawingSaveQueue Saves
 
 @inject WorkspaceApi Workspace
+@inject ScenariosApi Scenarios
 @inject WorkspaceEvents Events
 @inject WindowIdentity Window
 @inject NavigationManager Navigation
@@ -74,6 +75,7 @@
             <DrawingToolbar Tool="@_tool" Magnet="@_magnet" Hidden="@_hidden"
                             CanUndo="@Session.CanUndo" CanRedo="@Session.CanRedo" Problem="@(_drawingError ?? Saves.Problem)"
                             Pattern="@_pattern" LastPattern="@_lastPattern" OnPattern="ChoosePatternAsync"
+                            RangeShown="@_scenariosWritable" RangeEnabled="@RangeEnabled" RangeActive="@_rangeTool" OnRange="ChooseRangeToolAsync"
                             OnTool="ChooseToolAsync" OnMagnet="SetMagnetAsync" OnHidden="SetHiddenAsync"
                             OnUndo="() => Session.Undo()" OnRedo="() => Session.Redo()" />
             <div class="chart-canvas-area">
@@ -91,6 +93,8 @@
                            OnSelectionChanged="OnSelectionChanged"
                            OnToolChanged="OnToolChanged"
                            OnIndicatorAction="OnIndicatorActionAsync"
+                           OnRangeSelected="OnRangeSelected"
+                           OnRangeToolChanged="on => _rangeTool = on"
                            OnKey="OnKey" />
                 @if (_editing != null)
                 {
@@ -137,6 +141,8 @@
     // Drawings (DR1-DR6): the tool in use, magnet and "all hidden", the asset whose drawings are shown.
     private string? _tool;
     private bool _magnet = true;
+    private bool _scenariosWritable;
+    private bool _rangeTool;
     private bool _hidden;
     private string? _drawingsAsset;
     private string? _drawingError;
@@ -197,6 +203,10 @@
         var defaults = await IndicatorsApi.GetDefaultsAsync();
         _indicatorDefaults = defaults.Value ?? new List<IndicatorRecord>();
 
+        // SC22: the range tool is offered only with a scenario folder that can be written.
+        var scenarios = await Scenarios.GetStatusAsync();
+        _scenariosWritable = scenarios.Value is { Enabled: true, Writable: true };
+
         await LoadAssetsAsync();
         _settingsRead = true;
         OpenChart();
@@ -207,6 +217,11 @@
         // The address changed (selector, back and forward, a link): the same page shows another chart.
         _asset = _assets?.FirstOrDefault(asset => asset.Source == Source && asset.Symbol == Symbol);
         OpenChart();
+        if (_rangeTool && !RangeEnabled && _chart != null)
+        {
+            return _chart.SetRangeToolAsync(false); // a timeframe that is no context puts the range tool away (SC22)
+        }
+
         return Task.CompletedTask;
     }
 
@@ -803,6 +818,43 @@
                 Session.Redo();
                 break;
         }
+    }
+
+    /// <summary>SC22: the context timeframes of an expert scenario.</summary>
+    private bool RangeEnabled => Timeframe == "1d" || Timeframe == "4h";
+
+    private async Task ChooseRangeToolAsync(bool on)
+    {
+        if (on)
+        {
+            _pattern = null; // the range tool is no Elliott pattern; putting it away leaves the tool just chosen alone
+        }
+
+        if (_chart != null)
+        {
+            await _chart.SetRangeToolAsync(on && RangeEnabled); // the chart answers with RangeToolChanged
+        }
+    }
+
+    /// <summary>
+    /// SC22: the range becomes the dialog of a new expert scenario: this asset, this timeframe as the context, the
+    /// days from the first candle to the end of the day of the last one (UTC).
+    /// </summary>
+    private void OnRangeSelected((DateTimeOffset From, DateTimeOffset To) range)
+    {
+        var from = range.From.UtcDateTime.Date;
+        var to = range.To.UtcDateTime.Date;
+        if (range.To.UtcDateTime.TimeOfDay > TimeSpan.Zero || to <= from)
+        {
+            to = to.AddDays(1); // the day of the last candle stays inside the span
+        }
+
+        Navigation.NavigateTo("scenarios/expert?new"
+            + "&source=" + Uri.EscapeDataString(Source)
+            + "&symbol=" + Uri.EscapeDataString(Symbol)
+            + "&context=" + Uri.EscapeDataString(Timeframe)
+            + "&from=" + from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            + "&to=" + to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
     }
 
     private async Task ChooseToolAsync(string? tool)

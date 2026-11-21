@@ -528,7 +528,14 @@ DeleteAsync(id)                       delete expert/<id>.json (SC16)
   (`ScenarioLevelView`: the groups a level hides, SC21) are client state of Web. A scenario opens
   on its context, positioned on its span (`showTimeRange`, which loads older candles as far as
   needed and lowers the smallest bar spacing for a long span); switching the level keeps the
-  dates in view (`ChartHost.KeepTimesOnTimeframeChange`), not the rule of the chart page (CH3).
+  time in the middle and the number of candles in view (`ChartHost.KeepCentreOnTimeframeChange`:
+  the window in view scaled around its middle by the ratio of the timeframes), not the rule of the
+  chart page (CH3). The chart shows only the candles of the span (`ChartHost.Window`, the
+  `window` of setSeries: the module asks for pages ending at the span and keeps only the candles
+  inside it). A history the span needs (SC6) is sent as the asset's history change as soon as the
+  answer names it; the page shows "Data is downloading" over the chart, waits for the import,
+  then checks with `ScenarioCoverage` (Web) that the first and last stored candle of each level
+  cover the span, and shows the span again.
   The log scale is on by default and not saved (SC3). The menu entry exists only when
   `/api/scenarios` says the folder is configured. The chart is apart from the chart page: it
   takes asset, timeframe and time span from the file.
@@ -681,9 +688,11 @@ Blazor -> chart    createPane, setSeries(asset, timeframe), setIndicators, setDr
                    setOverlays, setTool(tool, style), setDrawingOptions(magnet, hidden),
                    selectDrawing, setOptions, refresh, dispose;
                    setScenarioPoints(points), setScenarioTool(tool), selectScenarioPoint(key),
-                   showTimeRange(from, to, margin), visibleTimeRange
+                   showTimeRange(from, to, margin), visibleTimeRange, setRangeTool(on);
+                   setSeries takes an optional window (from, to) for the scenario pages
 chart  -> Blazor   drawingCreated, drawingChanged, selectionChanged, toolChanged, indicatorAction(id, action);
-                   pointPlaced(field, index, time, price, kind), pointSelected(key), scenarioToolChanged
+                   pointPlaced(field, index, time, price, kind), pointSelected(key), scenarioToolChanged;
+                   rangeSelected(from, to), rangeToolChanged(on)
 ```
 
 Deleting a drawing is an action of Web (the bar of the selected drawing, the Delete key): Web
@@ -849,6 +858,14 @@ context menu; the bar of the selected drawing does what one would.
   page; Web saves them, with their level, into the expert file instead of the workspace. What a
   level holds is drawn on its own timeframe and the lower ones (SC21). Toolbars, the instance selector and the corner display (OV5) are
   Blazor components next to the canvas.
+- The range tool of the chart page (SC22, `tools/rangeSelection.ts`, `primitives/rangeBand.ts`):
+  a press starts a band at the candle under the pointer, the band follows the pointer by whole
+  candles, letting go reports the open times of the first and the last candle (rangeSelected)
+  and puts the tool away. It is one more target of `PointerInput`, before the drawings; choosing
+  it puts the drawing tool away and the other way round. The chart page then opens
+  `/scenarios/expert?new&source=&symbol=&context=&from=&to=` (days, UTC); the editor reads the
+  query once, opens the dialog of a new scenario with these values and removes the query from
+  the address.
 
 ---
 

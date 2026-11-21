@@ -1,9 +1,9 @@
 @* The tool rail at the left of the chart, as in TradingView (DR1, DR2, DR6): the pointer and the tools, then
    magnet, hide all, undo and redo, and the mark of saves that did not reach the server. *@
-<nav class="tool-rail" aria-label="Drawing tools">
+<nav class="tool-rail" aria-label="Drawing tools" @onclick="OnRailClickAsync">
     @foreach (var tool in Tools)
     {
-        var active = Tool == tool.Code;
+        var active = Tool == tool.Code && !(tool.Code == null && RangeActive); // the range tool is no drawing tool, but the pointer is not in use either
         <button type="button"
                 class="@(active ? "selected" : "")"
                 title="@tool.Title"
@@ -47,6 +47,20 @@
             </div>
         }
     </div>
+
+    @if (RangeShown)
+    {
+        @* SC22: a time range of a 1d or 4h chart becomes a new expert scenario. *@
+        <button type="button" class="@(RangeActive ? "selected" : "")" aria-pressed="@(RangeActive ? "true" : "false")"
+                disabled="@(!RangeEnabled)"
+                title="@(RangeEnabled ? "New expert scenario from a range: drag across the chart (Escape cancels)" : "New expert scenario from a range: on 1d or 4h only")"
+                @onclick="() => { _open = false; _rangeClicked = true; return OnRange.InvokeAsync(!RangeActive); }">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+                <rect x="5" y="3" width="10" height="14" opacity="0.25" />
+                <path class="line" d="M5 2v16M15 2v16M2 10h3M15 10h3" />
+            </svg>
+        </button>
+    }
 
     <span class="tool-rail-gap"></span>
 
@@ -108,6 +122,30 @@
 
     [Parameter]
     public string? Tool { get; set; }
+
+    /// <summary>The range tool is offered: a scenario folder that can be written (SC22).</summary>
+    [Parameter]
+    public bool RangeShown { get; set; }
+
+    /// <summary>The chart shows 1d or 4h, the context timeframes.</summary>
+    [Parameter]
+    public bool RangeEnabled { get; set; }
+
+    [Parameter]
+    public bool RangeActive { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnRange { get; set; }
+
+    private bool _rangeClicked;
+
+    /// <summary>SC22: a click on any other button of the rail (a tool, the pointer, magnet, hide, undo) puts the range tool away.</summary>
+    private Task OnRailClickAsync()
+    {
+        var range = _rangeClicked;
+        _rangeClicked = false;
+        return !range && RangeActive ? OnRange.InvokeAsync(false) : Task.CompletedTask;
+    }
 
     /// <summary>The wave pattern in use; null when none is.</summary>
     [Parameter]

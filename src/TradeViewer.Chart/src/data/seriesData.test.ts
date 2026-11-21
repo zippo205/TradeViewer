@@ -182,3 +182,47 @@ describe("shouldLoadOlder", () => {
     expect(shouldLoadOlder(10, false, false)).toBe(false);
   });
 });
+
+describe("SeriesData with a time window (SC2)", () => {
+  const window = { from: 100 * STEP, to: 200 * STEP }; // candles 100 to 199
+
+  it("keeps only the candles inside the window and has nothing more once its start is reached", () => {
+    const data = new SeriesData(window);
+
+    data.setLatest(page(50, 150), 2000); // 50 .. 199: the request ended at the window, the page reaches before it
+
+    expect(data.bars[0]!.time).toBe(100 * STEP);
+    expect(data.bars[data.bars.length - 1]!.time).toBe(199 * STEP);
+    expect(data.hasMore).toBe(false);
+  });
+
+  it("loads older pages until the start of the window and drops what lies before it", () => {
+    const data = new SeriesData(window);
+    data.setLatest(page(160, 40), 40); // a full page inside the window: there may be more
+
+    expect(data.hasMore).toBe(true);
+    data.addOlder(page(90, 70), 70);
+
+    expect(data.bars.length).toBe(100);
+    expect(data.bars[0]!.time).toBe(100 * STEP);
+    expect(data.hasMore).toBe(false);
+  });
+
+  it("a current candle after the window is not part of it", () => {
+    const data = new SeriesData(window);
+
+    data.setLatest(page(150, 60, true), 2000); // 150 .. 209, the last one in progress
+
+    expect(data.bars[data.bars.length - 1]!.time).toBe(199 * STEP);
+    expect(data.partial).toBe(false);
+  });
+
+  it("a window without candles is empty", () => {
+    const data = new SeriesData(window);
+
+    data.setLatest(page(300, 10), 2000);
+
+    expect(data.bars.length).toBe(0);
+    expect(data.hasMore).toBe(false);
+  });
+});

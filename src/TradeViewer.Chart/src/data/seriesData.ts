@@ -18,14 +18,23 @@ export interface RefreshResult {
   readonly reset: boolean;
 }
 
+/** A time window of a series (SC2): candles that open from `from` on and before `to` (Unix seconds). */
+export interface SeriesWindow {
+  readonly from: number;
+  readonly to: number;
+}
+
 /**
  * The candles of one asset and timeframe that the window holds: the newest page first, older pages
- * added in front while the user scrolls back. Times are unique and increasing.
+ * added in front while the user scrolls back. Times are unique and increasing. With a time window (the
+ * scenario pages) only the candles inside it are kept, and there is nothing more once its start is reached.
  */
 export class SeriesData {
   private items: Bar[] = [];
   private partialLast = false;
   private more = true;
+
+  constructor(private readonly window?: SeriesWindow) {}
 
   get bars(): readonly Bar[] {
     return this.items;
@@ -51,7 +60,8 @@ export class SeriesData {
    * from its first candle on; older candles stay. When the page does not reach back to the candles in
    * memory (the window slept for a long time), they are replaced as a whole.
    */
-  setLatest(page: BarPage, pageSize: number = FIRST_PAGE_SIZE): RefreshResult {
+  setLatest(full: BarPage, pageSize: number = FIRST_PAGE_SIZE): RefreshResult {
+    const page = this.clip(full);
     const first = page.bars[0];
     const last = this.items[this.items.length - 1];
 
@@ -67,7 +77,7 @@ export class SeriesData {
       const hadBars = this.items.length > 0;
       this.items = [...page.bars];
       this.partialLast = page.partial;
-      this.more = closedCount(page) >= pageSize;
+      this.more = closedCount(full) >= pageSize && !this.reachesStart(full);
       return { firstChanged: 0, reset: hadBars };
     }
 
@@ -97,13 +107,33 @@ export class SeriesData {
   }
 
   /** Adds an older page in front. A page shorter than asked for means the start of the history is reached. */
-  addOlder(page: BarPage, pageSize: number = OLDER_PAGE_SIZE): number {
+  addOlder(full: BarPage, pageSize: number = OLDER_PAGE_SIZE): number {
+    const page = this.clip(full);
     const oldest = this.oldestTime;
     const older = oldest === undefined ? [...page.bars] : page.bars.filter((bar) => bar.time < oldest);
 
     this.items = [...older, ...this.items];
-    this.more = page.bars.length >= pageSize;
+    this.more = full.bars.length >= pageSize && !this.reachesStart(full);
     return older.length;
+  }
+
+  /** The candles of a page inside the time window; a page without a window is taken as it is. */
+  private clip(page: BarPage): BarPage {
+    const window = this.window;
+    if (window === undefined) {
+      return page;
+    }
+
+    const bars = page.bars.filter((bar) => bar.time >= window.from && bar.time < window.to);
+    const last = page.bars[page.bars.length - 1];
+    const partial = page.partial && last !== undefined && bars[bars.length - 1] === last;
+    return { ...page, bars, partial };
+  }
+
+  /** True when the page reaches back to the start of the time window: older candles are not wanted. */
+  private reachesStart(page: BarPage): boolean {
+    const first = page.bars[0];
+    return this.window !== undefined && first !== undefined && first.time <= this.window.from;
   }
 }
 

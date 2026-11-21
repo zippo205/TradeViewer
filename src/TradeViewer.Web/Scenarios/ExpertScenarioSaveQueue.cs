@@ -51,8 +51,8 @@ public sealed class ExpertScenarioSaveQueue
     /// <summary>Something changed that the page shows: waiting saves, a failure, a refusal.</summary>
     public event Action? StateChanged;
 
-    /// <summary>A save was confirmed: the key of the scenario and the scenario as stored (with its id).</summary>
-    public event Action<Guid, ExpertScenarioRecord>? Saved;
+    /// <summary>A save was confirmed: the key of the scenario, the state that was sent, and the scenario as stored (with its id).</summary>
+    public event Action<Guid, ExpertScenarioRecord, ExpertScenarioRecord>? Saved;
 
     /// <summary>True while a change has not been confirmed by the server: leaving the page would lose it.</summary>
     public bool HasUnsaved => _unsent.Count > 0;
@@ -209,7 +209,7 @@ public sealed class ExpertScenarioSaveQueue
                         _unsent.Remove(key);
                     }
 
-                    Saved?.Invoke(key, outcome.Saved);
+                    Saved?.Invoke(key, scenario, outcome.Saved);
                 }
 
                 StateChanged?.Invoke();

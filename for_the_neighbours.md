@@ -36,6 +36,11 @@ the level timeframes `waves` = context, `wave1` and `wave2` = setup, `trade` = t
 1h -> 15m; other section timeframes reported by EWTS as notes, SW1) and `createdAt`/`updatedAt`
 as TradeViewer's optional fields, UTC with `Z` when present.
 
+**Answered by EWTS (2026-11-21), taken over into docs/knowledge/ewts-interface.md:** `wave1.start`
+and `wave2.start` accepted (optional, version 1), with the rule for them and for `vEnd`/`cEnd` and
+`wave2.cEnd` (earliest candle on ties). Open on EWTS's side: the chain of assets with exchange
+hours.
+
 **Received (2026-11-20):** the optional section `wave1` (internals of wave 1, five or three).
 Taken over into docs/knowledge/ewts-interface.md and specification SC8, SC10-SC12, SC15.
 

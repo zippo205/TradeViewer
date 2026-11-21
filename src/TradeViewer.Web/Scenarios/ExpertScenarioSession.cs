@@ -39,6 +39,9 @@ public sealed class ExpertScenarioSession
     /// <summary>True once the user has drawn, changed or written something; viewing changes nothing (SC13).</summary>
     public bool Changed { get; private set; }
 
+    /// <summary>True while there is a change the server has not confirmed as saved: Save is offered (SC13).</summary>
+    public bool Dirty { get; private set; }
+
     public bool CanUndo => _undo.Count > 0;
 
     public bool CanRedo => _redo.Count > 0;
@@ -61,6 +64,7 @@ public sealed class ExpertScenarioSession
         _redo.Clear();
         Response = Keep(after);
         Changed = true;
+        Dirty = true;
     }
 
     /// <summary>The same scenario answered again (e.g. after its asset loaded): new shapes and asset state, no change of the user.</summary>
@@ -87,6 +91,7 @@ public sealed class ExpertScenarioSession
         _redo.Push(Scenario);
         Response = Keep(response);
         Changed = true;
+        Dirty = true;
     }
 
     /// <summary>The server's answer for <see cref="RedoTarget"/>.</summary>
@@ -101,16 +106,23 @@ public sealed class ExpertScenarioSession
         _undo.AddLast(Scenario);
         Response = Keep(response);
         Changed = true;
+        Dirty = true;
     }
 
     /// <summary>
     /// A save was confirmed: the id it took and its times are kept; the rest of the scenario stays as the user has it,
-    /// because a newer change may be on its way.
+    /// because a change may have been made after Save. Sent is the state that was saved: when it is still the one
+    /// shown, nothing is left to save.
     /// </summary>
-    public void Saved(ExpertScenarioRecord saved)
+    public void Saved(ExpertScenarioRecord sent, ExpertScenarioRecord saved)
     {
+        var unchanged = ReferenceEquals(Scenario, sent);
         Response = Response with { Scenario = Stamp(Scenario, saved) };
         _saved = saved;
+        if (unchanged)
+        {
+            Dirty = false;
+        }
     }
 
     private ExpertScenarioResponse Keep(ExpertScenarioResponse response)

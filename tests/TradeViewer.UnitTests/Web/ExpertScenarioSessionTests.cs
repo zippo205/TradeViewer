@@ -65,7 +65,8 @@ public class ExpertScenarioSessionTests
         session.Change(Response(Scenario(null, "b", wave2End: true)));
         var created = new DateTimeOffset(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
 
-        session.Saved(Scenario(null, "b", wave2End: true) with { Id = "btcusdt-1d-2024-03-X1", CreatedAt = created, UpdatedAt = created });
+        var sent = session.Scenario;
+        session.Saved(sent, sent with { Id = "btcusdt-1d-2024-03-X1", CreatedAt = created, UpdatedAt = created });
 
         Assert.Equal("btcusdt-1d-2024-03-X1", session.Scenario.Id);
         Assert.Equal("b", session.Scenario.Reason);
@@ -80,11 +81,29 @@ public class ExpertScenarioSessionTests
     {
         var session = new ExpertScenarioSession(Response(Scenario("x", "a")));
         session.Change(Response(Scenario("x", "b")));
+        var sent = session.Scenario;
         session.Change(Response(Scenario("x", "c")));
 
-        session.Saved(Scenario("x", "b"));
+        session.Saved(sent, sent);
 
         Assert.Equal("c", session.Scenario.Reason);
+        Assert.True(session.Dirty); // c is not saved yet
+    }
+
+    [Fact]
+    public void Opening_is_clean_a_change_is_unsaved_and_saving_the_state_shown_makes_it_clean_again()
+    {
+        var session = new ExpertScenarioSession(Response(Scenario("x", "a")));
+        Assert.False(session.Dirty);
+
+        session.Change(Response(Scenario("x", "b")));
+        Assert.True(session.Dirty);
+
+        session.Saved(session.Scenario, session.Scenario);
+        Assert.False(session.Dirty);
+
+        session.Undone(Response(session.UndoTarget()!));
+        Assert.True(session.Dirty); // undo is a change of its own that needs Save
     }
 
     private static ExpertScenarioRecord Scenario(string? id, string reason, bool wave2End = false)

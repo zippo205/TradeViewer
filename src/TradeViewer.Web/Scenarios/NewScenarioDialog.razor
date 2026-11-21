@@ -61,6 +61,17 @@
     [Parameter]
     public string? Symbol { get; set; }
 
+    /// <summary>The context timeframe to start with, e.g. the timeframe of a range chosen on the chart page (SC22).</summary>
+    [Parameter]
+    public string? Context { get; set; }
+
+    /// <summary>The span to start with (days, UTC); without them the last year.</summary>
+    [Parameter]
+    public DateTime? From { get; set; }
+
+    [Parameter]
+    public DateTime? To { get; set; }
+
     /// <summary>Why the server refused the new scenario; the dialog stays open.</summary>
     [Parameter]
     public string? Problem { get; set; }
@@ -80,6 +91,9 @@
     protected override void OnInitialized()
     {
         var start = Choices.FirstOrDefault(asset => asset.Source == Source && asset.Symbol == Symbol) ?? Choices.FirstOrDefault();
+        _context = Context == "4h" ? "4h" : "1d";
+        _from = From ?? _from;
+        _to = To ?? _to;
         ChooseAsset(start == null ? null : KeyOf(start));
     }
 

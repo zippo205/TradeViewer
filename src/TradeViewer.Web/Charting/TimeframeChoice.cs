@@ -28,6 +28,38 @@ public static class TimeframeChoice
         return larger ?? known[known.Count - 1];
     }
 
+    /// <summary>The length of a candle in seconds, null for a code TradeViewer does not know.</summary>
+    public static long? Seconds(string timeframe)
+    {
+        return timeframe switch
+        {
+            "15m" => 15 * 60,
+            "1h" => 3600,
+            "4h" => 4 * 3600,
+            "1d" => 86400,
+            "1w" => 7 * 86400,
+            _ => null
+        };
+    }
+
+    /// <summary>
+    /// The window to show after the timeframe changed on the scenario pages (SC2): the time in the middle stays in the
+    /// middle and about as many candles stay in view, so a lower timeframe zooms in and a higher one out. Times in Unix
+    /// seconds; null when a timeframe is unknown.
+    /// </summary>
+    public static (long From, long To)? CentredWindow(long from, long to, string before, string after)
+    {
+        if (Seconds(before) is not long old || Seconds(after) is not long next)
+        {
+            return null;
+        }
+
+        var middle = from + (to - from) / 2;
+        var half = (long)((to - from) / 2.0 * next / old);
+        half = Math.Max(half, 5 * next); // at least ten candles
+        return (middle - half, middle + half);
+    }
+
     private static int IndexOf(string timeframe)
     {
         for (var i = 0; i < Order.Count; i++)

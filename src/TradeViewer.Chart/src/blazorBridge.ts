@@ -31,6 +31,14 @@ export function bindScenarioEvents(pane: ChartPane, target: DotNetTarget): void 
   });
 }
 
+/** Reports the range tool of the chart page to ChartHost (SC22): RangeSelected(from, to), RangeToolChanged(on). */
+export function bindRangeEvents(pane: ChartPane, target: DotNetTarget): void {
+  pane.onRangeEvents({
+    rangeSelected: (from, to) => void target.invokeMethodAsync("RangeSelected", from, to),
+    rangeToolChanged: (on) => void target.invokeMethodAsync("RangeToolChanged", on),
+  });
+}
+
 /** Reports the actions of the indicator legends to ChartHost: IndicatorAction(id, "hide" | "settings" | "remove"). */
 export function bindIndicatorActions(pane: ChartPane, target: DotNetTarget): void {
   pane.onIndicatorActions((id, action) => void target.invokeMethodAsync("IndicatorAction", id, action));

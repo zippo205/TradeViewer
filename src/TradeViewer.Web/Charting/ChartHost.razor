@@ -14,6 +14,10 @@
     private IJSObjectReference? _keys;
     private DotNetObjectReference<ChartHost>? _self;
     private string? _shownSeries;
+
+    /// <summary>The switch to the series of the parameters that is on its way (or done).</summary>
+    private Task _switching = Task.CompletedTask;
+
     private bool _shownLogScale;
     private bool? _warning;
 
@@ -46,11 +50,16 @@
     public IReadOnlyList<string> Timeframes { get; set; } = Array.Empty<string>();
 
     /// <summary>
-    /// When only the timeframe changes, show the same dates as before instead of the chart page's rule (CH3): the
-    /// scenario pages go down from the context to the trigger on the dates the user looks at (SC2, SC21).
+    /// When only the timeframe changes, keep the time in the middle of the chart and about as many candles in view,
+    /// instead of the chart page's rule (CH3): the scenario pages go down from the context to the trigger on the time
+    /// the user looks at, zoomed in (SC2, SC21).
     /// </summary>
     [Parameter]
-    public bool KeepTimesOnTimeframeChange { get; set; }
+    public bool KeepCentreOnTimeframeChange { get; set; }
+
+    /// <summary>Only the candles that open within this span, both ends included (a scenario, SC2); null: the whole history.</summary>
+    [Parameter]
+    public (DateTimeOffset From, DateTimeOffset To)? Window { get; set; }
 
     /// <summary>Logarithmic price scale instead of the linear one (CH1).</summary>
     [Parameter]
@@ -94,6 +103,14 @@
     /// <summary>A key of the chart page: delete, undo or redo.</summary>
     [Parameter]
     public EventCallback<string> OnKey { get; set; }
+
+    /// <summary>The range tool of the chart page (SC22): the open times of the first and the last candle chosen.</summary>
+    [Parameter]
+    public EventCallback<(DateTimeOffset From, DateTimeOffset To)> OnRangeSelected { get; set; }
+
+    /// <summary>The range tool was chosen or put away (after a range, Escape, or another tool).</summary>
+    [Parameter]
+    public EventCallback<bool> OnRangeToolChanged { get; set; }
 
     public bool IsReady => _pane != null;
 
@@ -148,9 +165,13 @@
         }
     }
 
-    /// <summary>Positions the chart on a time span, loading older candles as far as it needs (SC2).</summary>
+    /// <summary>
+    /// Positions the chart on a time span, loading older candles as far as it needs (SC2). The series the parameters
+    /// name is shown first, so the span is never measured on the candles of the asset before.
+    /// </summary>
     public async Task ShowTimeRangeAsync(DateTimeOffset from, DateTimeOffset to)
     {
+        await ApplyAsync();
         if (_pane != null)
         {
             await _pane.InvokeVoidAsync("showTimeRange", from.ToUnixTimeSeconds(), to.ToUnixTimeSeconds());
@@ -198,6 +219,15 @@
         if (_pane != null)
         {
             await _pane.InvokeVoidAsync("setDrawingOptions", new { magnet, hidden });
+        }
+    }
+
+    /// <summary>The range tool on or off (SC22); choosing it puts the drawing tool away.</summary>
+    public async Task SetRangeToolAsync(bool on)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("setRangeTool", on);
         }
     }
 
@@ -262,6 +292,18 @@
     }
 
     [JSInvokable]
+    public Task RangeSelected(double from, double to)
+    {
+        return OnRangeSelected.InvokeAsync((DateTimeOffset.FromUnixTimeSeconds((long)from), DateTimeOffset.FromUnixTimeSeconds((long)to)));
+    }
+
+    [JSInvokable]
+    public Task RangeToolChanged(bool on)
+    {
+        return OnRangeToolChanged.InvokeAsync(on);
+    }
+
+    [JSInvokable]
     public Task Key(string key)
     {
         return OnKey.InvokeAsync(key);
@@ -278,6 +320,7 @@
             await _module.InvokeVoidAsync("bindDrawingEvents", _pane, _self);
             await _module.InvokeVoidAsync("bindIndicatorActions", _pane, _self);
             await _module.InvokeVoidAsync("bindScenarioEvents", _pane, _self);
+            await _module.InvokeVoidAsync("bindRangeEvents", _pane, _self);
             _keys = await _module.InvokeAsync<IJSObjectReference>("bindPageKeys", _self);
             await ApplyAsync();
             await OnReady.InvokeAsync();
@@ -340,17 +383,40 @@
         }
 
         var asset = Source + "/" + Symbol + "/";
-        var series = asset + Timeframe;
+        var window = Window == null ? "" : "@" + Window.Value.From.ToUnixTimeSeconds() + "-" + Window.Value.To.ToUnixTimeSeconds();
+        var series = asset + Timeframe + window;
         if (_shownSeries != series && Source.Length > 0 && Symbol.Length > 0 && Timeframe.Length > 0)
         {
-            var sameAsset = _shownSeries != null && _shownSeries.StartsWith(asset, StringComparison.Ordinal);
-            var window = KeepTimesOnTimeframeChange && sameAsset ? await _pane.InvokeAsync<TimeWindow?>("visibleTimeRange") : null;
+            // Taken before the first await: a second render meanwhile must not switch the series again, and whoever
+            // positions the chart waits for this switch.
+            var before = _shownSeries;
             _shownSeries = series;
-            await _pane.InvokeVoidAsync("setSeries", new { source = Source, symbol = Symbol, timeframe = Timeframe, tickSize = TickSize, timeframes = Timeframes });
-            if (window != null)
-            {
-                await _pane.InvokeVoidAsync("showTimeRange", window.From, window.To, false);
-            }
+            _switching = SwitchSeriesAsync(_pane, before, asset);
+        }
+
+        await _switching;
+    }
+
+    /// <summary>The series of the parameters; on the scenario pages a new timeframe of the same asset keeps the time in the middle (SC2).</summary>
+    private async Task SwitchSeriesAsync(IJSObjectReference pane, string? before, string asset)
+    {
+        var timeframe = Timeframe;
+        var span = Window;
+        var sameAsset = before != null && before.StartsWith(asset, StringComparison.Ordinal);
+        var window = KeepCentreOnTimeframeChange && sameAsset ? await pane.InvokeAsync<TimeWindow?>("visibleTimeRange") : null;
+        var limits = span == null ? null : new { from = span.Value.From.ToUnixTimeSeconds(), to = span.Value.To.ToUnixTimeSeconds() + 1 }; // to is exclusive in the module
+        await pane.InvokeVoidAsync("setSeries", new { source = Source, symbol = Symbol, timeframe, tickSize = TickSize, timeframes = Timeframes, window = limits });
+        var shownBefore = sameAsset ? before!.Substring(asset.Length).Split('@')[0] : null;
+        var centred = window == null || shownBefore == null ? null : TimeframeChoice.CentredWindow(window.From, window.To, shownBefore, timeframe);
+        if (centred != null && span != null)
+        {
+            // Not beyond the span: there are no candles outside it.
+            centred = (Math.Max(centred.Value.From, span.Value.From.ToUnixTimeSeconds()), Math.Min(centred.Value.To, span.Value.To.ToUnixTimeSeconds()));
+        }
+
+        if (centred != null && shownBefore != timeframe)
+        {
+            await pane.InvokeVoidAsync("showTimeRange", centred.Value.From, centred.Value.To, false);
         }
     }
 }

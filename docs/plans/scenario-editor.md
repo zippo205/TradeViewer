@@ -430,6 +430,60 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
 - 30 new unit tests, 1 new integration test (645 unit, 271 integration, 19 architecture, 238 Vitest
   pass).
 
+# The Owner's Look at Step 7 (2026-11-21)
+
+- The list of scenarios: the ids touched the left border; the first column now has the inset of
+  the filters.
+- SC6 as written: the history a scenario's span needs is loaded without asking, on opening, on
+  creating and when the span is moved back in the panel (step 6 had put it behind a "Load it"
+  button); a failure shows "Try again". Only adding an asset still asks.
+- SC2 changed by the owner: switching the level keeps the time in the middle of the chart and about
+  as many candles in view, so a lower level zooms in on that time (`TimeframeChoice.CentredWindow`,
+  `ChartHost.KeepCentreOnTimeframeChange`, replacing "the dates in view stay").
+- Found while checking it: two renders could switch the series at the same time, and the page
+  could position a new asset's span on the candles of the asset before. ChartHost now claims a
+  series switch before its first await, and `ShowTimeRangeAsync` waits for that switch.
+- Checked: `editor-check` and `scenario-page-check` (zoom by 6 and 4 around the middle; the history
+  of ADAUSDT loaded without a button) ALL OK; a new LINKUSDT scenario of 2023 loads 4h and 1h from
+  2023-01-01 and shows the span. 3 new unit tests (648 unit).
+- New wish of the owner, SC22: a tool "scenario from a range" in the tool rail of the chart page
+  (shown with a writable scenario folder, usable on 1d and 4h). Dragging draws a band by whole
+  candles (`tools/rangeSelection.ts`, `primitives/rangeBand.ts`, a target of `PointerInput`
+  before the points and drawings; one tool at a time); letting go opens
+  `/scenarios/expert?new&source&symbol&context&from&to`, and the editor opens the dialog of a new
+  scenario with these values and takes the query from the address. The span ends after the day
+  of the last candle when that candle is not at midnight (4h), so its day stays inside.
+  `range-check.mjs` ALL OK (enabled on 1d and 4h only, Escape, no pan, band, the dialog filled in
+  for 1d and 4h, nothing written); `tools-check` still OK. 5 new Vitest tests (243).
+- The owner on the data of a scenario: only the span counts. SC2 changed: the scenario chart
+  shows only the candles from `from` to `to` (`ChartHost.Window` -> `setSeries({ window })`;
+  `SeriesData` keeps only the candles inside it and has nothing more once its start is reached;
+  the centred window of a level change is kept inside the span). The download from `from` to now
+  stays as it is. SC6: while it loads, "Data is downloading" lies over the chart and the point
+  tools are hidden; afterwards `ScenarioCoverage` (Web) checks the first and last stored candle of
+  each level against the span (one candle of slack, four days more with exchange hours). Missing
+  candles: an existing scenario says so and cannot be edited, a new one is not created (an alert
+  names the levels). SC9: the editor has no "New" button; new scenarios come from a range of the
+  chart page (SC22), whose dialog stays for the confirmation.
+- The owner: clicking any other button of the tool rail puts the range tool away (pointer,
+  magnet, hide, undo, drawing tools); the tool just clicked stays in use.
+- Checked: `range-check`, `editor-check` (new scenario through the address of a range),
+  `scenario-page-check` (only the candles of the span are loaded) and `tools-check` ALL OK;
+  VIRTUALUSDT 2023 is refused with the levels named (its candles start 2025-04-11); ETHUSDT 2022
+  shows "Data is downloading" and then the span only. 5 new unit tests (653), 4 new Vitest (247).
+- The owner: the user decides when to save. SC13 and SC14 changed: a Save button beside Delete,
+  always visible, enabled only while there is an unsaved change that can be written (a new
+  scenario needs wave 2 end for its id); the panel says "unsaved changes"; leaving the page or
+  opening another scenario with unsaved changes asks. Form problems do not disable Save (SC15,
+  incomplete files agreed with EWTS). `ExpertScenarioSession.Dirty`, cleared when the state that
+  was sent is still the one shown; the save queue stays for retry and keepalive.
+- Subscription (asked by the owner): already as wanted. One subscription per asset (client
+  `tradeviewer`); a history change replaces it with a PUT, only for the timeframes whose start lies
+  after `from`; a complete history or an earlier start changes nothing.
+- Checked: `editor-check` (nothing written before Save, Save disabled after saving, undo and redo
+  need Save, a new scenario cannot be saved before wave 2 end, leaving with unsaved changes asks)
+  and `scenario-page-check`, `range-check` ALL OK. 1 new unit test (654).
+
 # Proposals
 
 1. **The Api snaps, not the browser** (accepted 2026-11-20; architecture chapters 8 and 10

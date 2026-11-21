@@ -337,10 +337,13 @@ Pine script loaded in TradingView). Decisions 0010, 0011 and 0012.
 - **SC1** There are two pages: the scenario editor for the expert scenarios (`expert/` of the
   scenario folder, written by TradeViewer) and the test-run viewer for the scenarios of a test run
   (`test-runs/<run id>/`, written by EWTS).
-- **SC2** Opening a scenario shows a chart of its asset on its context timeframe, positioned on
-  the time span of the scenario, with the scenario drawn in groups. The user can switch the
-  timeframe (in the editor among the three levels of SC11); the drawing stays. The user shows
-  and hides each group; the choice stays while stepping through scenarios.
+- **SC2** Opening a scenario shows a chart of its asset on its context timeframe with only the
+  candles of the time span of the scenario (from and to as the user chose them, nothing before or
+  after), with the scenario drawn in groups. The user can switch the
+  timeframe (in the editor among the three levels of SC11); the drawing stays, and the time in
+  the middle of the chart stays in the middle with the same number of candles in view, so a lower
+  timeframe shows that time zoomed in and a higher one zoomed out. The user shows and hides each
+  group; the choice stays while stepping through scenarios.
 - **SC3** The chart of a scenario uses the logarithmic price scale by default, because the
   levels of a scenario are measured in log scale. The choice is not saved in the chart
   settings of the asset (CP2).
@@ -352,7 +355,11 @@ Pine script loaded in TradingView). Decisions 0010, 0011 and 0012.
   every 30 seconds and has a reload button.
 - **SC6** When the asset of a scenario is not in TradeViewer, the page says so and offers to add
   the asset (only after the user agrees). When the candles of the scenario's time span are not
-  stored, TradeViewer loads the history it needs, whatever the default history of AS3 is.
+  stored, TradeViewer loads the history it needs on all three levels without asking, whatever
+  the default history of AS3 is: on opening, on creating a scenario and when its span is moved
+  back. While it loads, the chart says "Data is downloading". When a level still has no candles
+  for the whole span afterwards, the page says which; such a scenario cannot be edited, and a new
+  one is not created.
 
 **Scenario editor**
 
@@ -367,7 +374,8 @@ copied by hand to the development machine, where EWTS's code is adjusted against
   together with its free drawings (SC20). Every scenario opens ready to edit; there is no
   separate view mode.
 - **SC9** The user creates an expert scenario: asset, context timeframe (1d, or 4h for an asset
-  without exchange hours, decision 0008) and time span. Every expert scenario is long.
+  without exchange hours, decision 0008) and time span, from a range of the chart page (SC22);
+  the editor itself has no "new" button. Every expert scenario is long.
 - **SC10** The editor has a tool per named point, offered only on the timeframe of the point's
   level (SC11): a "1-2" tool that places wave 1 start, wave 1 end and wave 2 end with three clicks,
   an "i-v" tool and an "a-c" tool for the internals of wave 1 (the five or the three), and an
@@ -389,14 +397,17 @@ copied by hand to the development machine, where EWTS's code is adjusted against
   (choosing the other pattern of wave 1 removes the points of the first after confirmation), a
   reason for every point (optional), and the price, share and kind of every exit. A no-trade is
   the waves, the reason why there is no trade, and the time span (`to`: no trade until here).
-- **SC13** The scenario is saved automatically, and only once the user has drawn, changed or
-  written something: viewing writes nothing. It is the file `expert/<id>.json` in EWTS's format.
+- **SC13** The user decides when the scenario is saved: the panel has a Save button beside
+  Delete. It is always visible; it is enabled only while there is a change that is not saved and
+  the scenario can be written (SC14), and the panel shows that there are unsaved changes. Viewing
+  writes nothing, and leaving the page or opening another scenario with unsaved changes asks
+  first. The scenario is the file `expert/<id>.json` in EWTS's format.
   Reopening it rebuilds the drawing from the named points. Fields TradeViewer does not know
   (e.g. `legacy` of converted scenarios) are kept unchanged.
 - **SC14** The id is built by EWTS's rule (`<symbol>-<context tf>-<yyyy-MM>-X<n>`, the month of
-  wave 2 end, the next free number) when the scenario is first saved, so a new scenario is saved
-  from the moment its wave 2 end is placed; until then the page warns before it is left. The id
-  does not change afterwards.
+  wave 2 end, the next free number) when the scenario is first saved, so a new scenario can be
+  saved once its wave 2 end is placed; until then Save stays disabled and says why. The id does
+  not change afterwards.
 - **SC15** The editor checks the form and shows each problem at its field or point: the order of
   the times, the fields the verdict and the patterns require (a reason for a no-trade, i-iv of a
   five, a and b of a three), exit shares that do not add up to 100 %, a point outside the time
@@ -410,6 +421,12 @@ copied by hand to the development machine, where EWTS's code is adjusted against
 - **SC21** What belongs to a level (its points and drawings) is shown on its own timeframe and on
   the lower levels, never on a higher one. The user hides and shows each level; the choice stays
   while stepping through scenarios.
+- **SC22** The tool rail of the chart page has a tool "scenario from a range", shown when the
+  scenario folder can be written and usable on 1d and 4h only, the two context timeframes. The
+  user drags across the chart to select a time range (shown as a band while dragging; Escape
+  cancels). Letting go opens the scenario editor with the dialog of a new scenario filled in:
+  the asset and the timeframe of the chart as asset and context, the days of the range as the
+  span. Nothing is created until the user confirms the dialog.
 
 **Test-run viewer**
 

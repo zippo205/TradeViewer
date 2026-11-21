@@ -25,7 +25,11 @@ public class ExpertScenarioSaveQueueTests
     {
         var key = Guid.NewGuid();
         var saved = new List<string?>();
-        _queue.Saved += (_, scenario) => saved.Add(scenario.Id);
+        _queue.Saved += (_, sent, scenario) =>
+        {
+            Assert.Null(sent.Id); // the state the page sent, before it had its id
+            saved.Add(scenario.Id);
+        };
 
         _queue.Put(key, Scenario(null, "a"));
         await _queue.WhenIdleAsync();

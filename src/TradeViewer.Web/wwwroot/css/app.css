@@ -1191,6 +1191,12 @@ button.fold {
     cursor: pointer;
 }
 
+/* The same inset as the filters above, so the ids do not touch the border and the mark of the selected row. */
+.scenario-list-table th:first-child,
+.scenario-list-table td:first-child {
+    padding-left: 8px;
+}
+
 .scenario-list-table tbody tr:hover,
 .scenario-list-table tbody tr.selected {
     background: var(--surface);
@@ -1340,4 +1346,33 @@ button.fold {
 
 .scenario-head-line .spacer {
     flex: 1;
+}
+
+/* SC6: over the chart of a scenario while the history of its span is downloaded and imported. */
+.scenario-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 16px 24px;
+    transform: translate(-50%, -50%);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+}
+
+/* SC13: the Save button of the scenario panel, always visible, coloured only while there is something to save. */
+.scenario-save-button.primary:not(:disabled) {
+    color: #ffffff;
+    background: var(--link);
+    border-color: var(--link);
+}
+
+.scenario-save-button:disabled {
+    cursor: not-allowed;
 }

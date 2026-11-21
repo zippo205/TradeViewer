@@ -385,10 +385,10 @@ head       format ("ewts-expert-scenario"), version (1), id, source, symbol,
            contextTimeframe (1d | 4h), direction (long), verdict (trade-win | trade-loss |
            no-trade), draft, reason, notes, from, to, createdAt, updatedAt
 waves      timeframe; wave1Start, wave1End, wave2End                   point { time, price, why }
-wave1      timeframe, pattern (impulse | leading-diagonal | three);
+wave1      timeframe, pattern (impulse | leading-diagonal | three); start;
            iEnd, iiEnd, iiiEnd, ivEnd, vEnd (a five) or aEnd, bEnd, cEnd (a three)   optional
 wave2      timeframe, pattern (zigzag | flat | expanded-flat | running-flat | triangle |
-           complex); aEnd, bEnd, cEnd                                   optional
+           complex); start; aEnd, bEnd, cEnd                            optional
 trade      timeframe; entry, stop { price, why }, add, stopMoves[],
            exits[] { time, price, share, kind (target | stop), why }   for trade-win, trade-loss
 legacy     only in converted scenarios: the old fields with no place here; ignored by EWTS
@@ -416,6 +416,16 @@ drawings   TradeViewer's free drawings of the scenario, each with its level (con
   three; until they are set EWTS reports the file as incomplete. `vEnd` and `cEnd` are optional:
   without them the last point is `waves.wave1End`. A file with points of the other pattern is
   invalid for EWTS. TradeViewer draws them as i-v or a-c.
+- `start` of `wave1` and `wave2` (agreed with EWTS on 2026-11-21, optional, still version 1): the
+  same turning point as `waves.wave1Start` (wave 1) or `waves.wave1End` (wave 2) on the section's
+  timeframe. Rule: the candle of the section's timeframe whose open time lies inside the context
+  candle of that point and whose low (or high) equals the point's price; on ties the earliest
+  candle, as EWTS's swing detection does. `vEnd`/`cEnd` of wave 1 and `cEnd` of wave 2 are the
+  same rule applied to `waves.wave1End` / `waves.wave2End`. With the rule the point follows from
+  the context point. EWTS checks `start`, `vEnd`/`cEnd` and `wave2.cEnd` this way and reports a
+  deviation; it does not measure from them, the points of `waves` stay the reading it tests.
+  Files without them stay valid. Without a candle that meets the rule (a gap in the data) such a
+  point cannot be written. Assets with exchange hours: open until EWTS decides their chain.
 - `aEnd` and `bEnd` of `wave2` are required for a zigzag and the flats. Without `cEnd`, the end of C is
   `wave2End`. `add` and `stopMoves` are optional; the `share` of the exits, in percent, adds up
   to 100.

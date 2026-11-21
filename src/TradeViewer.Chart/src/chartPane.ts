@@ -8,6 +8,7 @@ import {
   type HistogramData,
   type IChartApi,
   type ISeriesApi,
+  type Logical,
   type LogicalRange as ChartLogicalRange,
   type MouseEventParams,
   type UTCTimestamp,
@@ -15,11 +16,13 @@ import {
 import type { Bar } from "./data/bars";
 import { CandleRequestError, fetchCandles, type SeriesKey } from "./data/candleClient";
 import { fetchGaps, gapText, placeGaps, type Gap } from "./data/gaps";
-import { FIRST_PAGE_SIZE, OLDER_PAGE_SIZE, REFRESH_PAGE_SIZE, SeriesData, shouldLoadOlder } from "./data/seriesData";
+import { FIRST_PAGE_SIZE, OLDER_PAGE_SIZE, REFRESH_PAGE_SIZE, SeriesData, shouldLoadOlder, type SeriesWindow } from "./data/seriesData";
 import { GAP_ID_PREFIX, GapMarkers } from "./gapMarkers";
 import { parseGroups, type OverlayGroupRecord } from "./primitives/overlays/overlay";
 import { OverlayLayer } from "./primitives/overlays/overlayLayer";
 import { ScenarioHandles } from "./primitives/scenarioHandles";
+import { RangeBand } from "./primitives/rangeBand";
+import { RangeSelection, type RangeEvents } from "./tools/rangeSelection";
 import { ScenarioPointInteraction, type ScenarioHandle, type ScenarioPointEvents, type ScenarioTool } from "./tools/scenarioPoints";
 import type { IndicatorInstance } from "./indicators/indicator";
 import { IndicatorSet } from "./indicators/indicatorSet";
@@ -41,6 +44,8 @@ export interface SeriesRequest extends SeriesKey {
   readonly tickSize: number;
   /** The timeframes of the asset with candles; the smallest gives anchors their exact times (step 9). */
   readonly timeframes?: readonly string[];
+  /** Only the candles of this time window (the span of a scenario, SC2); without it the whole history. */
+  readonly window?: SeriesWindow | null;
 }
 
 export interface PaneOptions {
@@ -85,6 +90,8 @@ export interface PaneStats {
   readonly scenarioNext: string | undefined;
   readonly selectedPoint: string | undefined;
   readonly pointsPlaced: number;
+  readonly rangeTool: boolean;
+  readonly rangeBand: { from: number; to: number } | undefined;
 }
 
 /**
@@ -118,6 +125,9 @@ export class ChartPane {
   private readonly scenarioPoints: ScenarioPointInteraction;
   private scenarioListener: Partial<ScenarioPointEvents> = {};
   private pointsPlaced = 0;
+  private readonly rangeBand: RangeBand;
+  private readonly rangeSelection: RangeSelection;
+  private rangeListener: Partial<RangeEvents> = {};
   private seriesLoaded: Promise<void> = Promise.resolve();
   private readonly pointerInput: PointerInput;
   private drawingListener: Partial<DrawingEvents> = {};
@@ -266,7 +276,25 @@ export class ChartPane {
     });
     this.scenarioHandles.bind(this.scenarioPoints);
     this.candles.attachPrimitive(this.scenarioHandles);
-    this.pointerInput = new PointerInput(canvasHost, this.chart, [this.scenarioPoints, this.drawingInteraction]);
+
+    // The range tool of the chart page (SC22): a band while dragging, the range reported when let go.
+    const rangeSurface = {
+      anchorAt: (point: Point, magnet: boolean) => this.drawingLayer.anchorAt(point, magnet),
+      xOf: (time: number) => {
+        const index = this.drawingLayer.indexOf(time);
+        const x = index === undefined ? null : this.chart.timeScale().logicalToCoordinate(index as Logical);
+        return x === null ? undefined : x;
+      },
+      redraw: () => this.rangeBand.redraw(),
+    };
+    this.rangeBand = new RangeBand(rangeSurface, () => this.chart.timeScale().options().barSpacing);
+    this.rangeSelection = new RangeSelection(rangeSurface, {
+      rangeSelected: (from, to) => this.rangeListener.rangeSelected?.(from, to),
+      rangeToolChanged: (on) => this.rangeListener.rangeToolChanged?.(on),
+    });
+    this.rangeBand.bind(this.rangeSelection);
+    this.candles.attachPrimitive(this.rangeBand);
+    this.pointerInput = new PointerInput(canvasHost, this.chart, [this.rangeSelection, this.scenarioPoints, this.drawingInteraction]);
     this.latestButton = document.createElement("button");
     this.latestButton.type = "button";
     this.latestButton.className = "tv-chart-latest";
@@ -356,8 +384,8 @@ export class ChartPane {
 
     let data: SeriesData;
     try {
-      data = new SeriesData();
-      data.setLatest(await this.fetchPage(request, undefined, FIRST_PAGE_SIZE));
+      data = new SeriesData(request.window ?? undefined);
+      data.setLatest(await this.fetchPage(request, request.window?.to, FIRST_PAGE_SIZE));
     } catch (error) {
       if (generation === this.generation) {
         this.showError(error);
@@ -412,7 +440,7 @@ export class ChartPane {
     void this.indicatorSet.refresh();
     let page;
     try {
-      page = await this.fetchPage(request, undefined, FIRST_PAGE_SIZE);
+      page = await this.fetchPage(request, request.window?.to, FIRST_PAGE_SIZE);
     } catch {
       return; // the chart keeps what it shows; the next event or a reload tries again
     }
@@ -512,6 +540,10 @@ export class ChartPane {
       this.scenarioPoints.setTool(undefined); // one tool at a time
     }
 
+    if (tool !== null && tool !== undefined) {
+      this.rangeSelection.setActive(false);
+    }
+
     this.drawingInteraction.setTool(tool ?? undefined, style ?? undefined, extras ?? {});
   }
 
@@ -527,9 +559,24 @@ export class ChartPane {
   setScenarioTool(tool: ScenarioTool | null | undefined): void {
     if (tool !== null && tool !== undefined) {
       this.drawingInteraction.setTool(undefined);
+      this.rangeSelection.setActive(false);
     }
 
     this.scenarioPoints.setTool(tool ?? undefined);
+  }
+
+  /** The range tool of the chart page (SC22), on or off. Choosing it puts the other tools away. */
+  setRangeTool(on: boolean | null | undefined): void {
+    if (on === true) {
+      this.drawingInteraction.setTool(undefined);
+      this.scenarioPoints.setTool(undefined);
+    }
+
+    this.rangeSelection.setActive(on === true);
+  }
+
+  onRangeEvents(listener: Partial<RangeEvents>): void {
+    this.rangeListener = listener;
   }
 
   /** Selects a point by its key ("<field>" or "<field>#<index>"), or none. */
@@ -628,6 +675,8 @@ export class ChartPane {
       scenarioNext: this.scenarioPoints.nextField(),
       selectedPoint: this.scenarioPoints.selected(),
       pointsPlaced: this.pointsPlaced,
+      rangeTool: this.rangeSelection.isActive(),
+      rangeBand: this.rangeSelection.band(),
     };
   }
 
