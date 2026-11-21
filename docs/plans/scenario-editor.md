@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Scenario Editor (P1 - Workstation)
-Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 8 done
+Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 8 done, step 9 done up to the owner's look
 Branch:   feature/scenario-editor
-Next:     step 9 (finish: NF1, Docker, README, runbook, roadmap, outdated browser scripts, the owner's look)
+Next:     the owner's look at the whole epic and the decision on NF1 (first change); then merge, roadmap
 Baseline: docs as of commit 692f02c (main)
 ```
 
@@ -528,6 +528,30 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
   `elliott-check`, `editor-check`, `nested-check`, `scenario-page-check` still OK; `fib-check`
   OK on a fresh workspace (the dev workspace's retracement preset was changed by hand).
 - 8 new unit tests (670 unit, 275 integration, 19 architecture, 251 Vitest pass).
+
+# Result of Step 9 (2026-11-21)
+
+```text
+NF1        scenario page, Docker on WSL, headless Chromium (~/tools/browser/scenario-measure.mjs):
+           Next and Previous, click to painted candles and shapes: median 104 ms; the first change
+           after the page is loaded 162 to 167 ms (over the 150 ms); level switch 40 to 72 ms.
+           The server answers within 5 ms; the time is the browser running the page's code, on the
+           first change for the first time (profile: .NET in WebAssembly, no layout cost). The
+           asset list is now read alongside the scenario (about 10 ms less). Chart page for
+           comparison: worst 131 ms, median 77 ms.
+Docker     amd64 image with docker-compose.scenarios.yml and SCENARIOS_PATH=/home/admin/data/ewts/
+           scenarios: the 13 scenarios listed and opened, the folder unchanged (checksums) after
+           opening and stepping; 112 MB of 512 MB. A read-only mount: writable false and a warning.
+Found      the start-up check wrote a test file into the root of the scenario folder (against
+           decision 0010). It now asks the system (`access`) for expert/ (or the root while expert/
+           does not exist); the start leaves the folder untouched. 2 unit tests.
+Scripts    chart-check, measure (the asset is chosen in the watchlist now), waves-check (a click
+           on the time axis) brought up to date; drawing-check passes unchanged.
+Docs       architecture (measurement, the write check), runbook (checking the scenario folder);
+           README unchanged (it has the command already). Roadmap after the owner's approval.
+Tests      672 unit, 275 integration, 19 architecture, 251 Vitest.
+Open       the owner's look; NF1 on the first change; the Pi only with the owner's go-ahead.
+```
 
 # Proposals
 

@@ -67,6 +67,53 @@ public class StorageTests : IDisposable
     }
 
     [Fact]
+    public async Task The_check_of_the_scenario_folder_writes_nothing_there()
+    {
+        var locations = Locations(scenarios: true);
+        var expert = Directory.CreateDirectory(Path.Combine(locations.ScenariosRoot!, "expert")).FullName;
+        File.WriteAllText(Path.Combine(expert, "x-1d-2024-01-X1.json"), "{}");
+        var rootWritten = Directory.GetLastWriteTimeUtc(locations.ScenariosRoot!);
+        var expertWritten = Directory.GetLastWriteTimeUtc(expert);
+        Thread.Sleep(20); // a test file written and deleted would move the folders' times
+
+        await new StorageInitializer(locations, NullLogger<StorageInitializer>.Instance).StartAsync(CancellationToken.None);
+
+        Assert.True(locations.ScenariosWritable);
+        Assert.Equal(new[] { "expert" }, Directory.GetFileSystemEntries(locations.ScenariosRoot!).Select(Path.GetFileName));
+        Assert.Equal(new[] { "x-1d-2024-01-X1.json" }, Directory.GetFiles(expert).Select(Path.GetFileName));
+        Assert.Equal(rootWritten, Directory.GetLastWriteTimeUtc(locations.ScenariosRoot!));
+        Assert.Equal(expertWritten, Directory.GetLastWriteTimeUtc(expert));
+    }
+
+    [Fact]
+    public async Task An_expert_folder_that_is_not_writable_switches_the_writing_off()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return; // the file mode cannot be set there; the application runs on Linux
+        }
+
+        var locations = Locations(scenarios: true);
+        var expert = Directory.CreateDirectory(Path.Combine(locations.ScenariosRoot!, "expert")).FullName;
+        File.SetUnixFileMode(expert, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        try
+        {
+            if (Environment.UserName == "root")
+            {
+                return; // root ignores the mode: nothing to prove here
+            }
+
+            await new StorageInitializer(locations, NullLogger<StorageInitializer>.Instance).StartAsync(CancellationToken.None);
+
+            Assert.False(locations.ScenariosWritable); // the root is writable, but the editor writes in expert/
+        }
+        finally
+        {
+            File.SetUnixFileMode(expert, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    [Fact]
     public async Task A_missing_output_root_stops_the_start_and_is_not_created()
     {
         var locations = new StorageLocations(Path.Combine(_root, "missing"), Path.Combine(_root, "data"), null);

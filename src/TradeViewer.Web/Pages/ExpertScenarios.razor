@@ -421,6 +421,8 @@
             return;
         }
 
+        // NF1: the asset list is read alongside the scenario, not after it.
+        var assets = AssetsClient.GetAssetsAsync();
         var response = await Api.GetAsync(Id);
         if (response.Value == null)
         {
@@ -437,8 +439,8 @@
         }
 
         var key = _queue.KeyOf(Id);
+        UseAssets((await assets).Value, response.Value!.Scenario);
         StartSession(key == null ? new ExpertScenarioSession(response.Value!) : new ExpertScenarioSession(key.Value, response.Value!));
-        await ReadAssetAsync();
         LoadHistoryWhenNeeded();
     }
 
@@ -456,9 +458,14 @@
 
     private async Task ReadAssetAsync()
     {
-        var assets = await AssetsClient.GetAssetsAsync();
-        _assets = assets.Value ?? (IReadOnlyList<AssetResponse>)Array.Empty<AssetResponse>();
-        _asset = _assets.FirstOrDefault(asset => asset.Source == _session?.Scenario.Source && asset.Symbol == _session?.Scenario.Symbol);
+        UseAssets((await AssetsClient.GetAssetsAsync()).Value, _session?.Scenario);
+    }
+
+    /// <summary>The asset list, and the asset of the scenario in it (SC6); set before the chart renders the scenario.</summary>
+    private void UseAssets(IReadOnlyList<AssetResponse>? assets, ExpertScenarioRecord? scenario)
+    {
+        _assets = assets ?? (IReadOnlyList<AssetResponse>)Array.Empty<AssetResponse>();
+        _asset = _assets.FirstOrDefault(asset => asset.Source == scenario?.Source && asset.Symbol == scenario?.Symbol);
     }
 
     private async Task OnChartReadyAsync()

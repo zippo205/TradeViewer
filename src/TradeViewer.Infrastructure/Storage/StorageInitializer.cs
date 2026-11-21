@@ -45,7 +45,10 @@ public sealed class StorageInitializer : IHostedService
 
         if (_locations.ScenariosRoot != null)
         {
-            _locations.ScenariosWritable = CanWrite(_locations.ScenariosRoot);
+            // Decision 0010: nothing is written in the scenario folder for the check, not even a test file. The editor
+            // writes in expert/; while that folder does not exist, the first save creates it in the root.
+            var expert = Path.Combine(_locations.ScenariosRoot, "expert");
+            _locations.ScenariosWritable = FolderAccess.CanWriteWithoutWriting(Directory.Exists(expert) ? expert : _locations.ScenariosRoot);
             if (!_locations.ScenariosWritable)
             {
                 _logger.LogWarning(

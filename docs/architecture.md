@@ -545,6 +545,11 @@ DeleteAsync(id)                       delete expert/<id>.json (SC16)
   The log scale is on by default and not saved (SC3). The menu entry exists only when
   `/api/scenarios` says the folder is configured. The chart is apart from the chart page: it
   takes asset, timeframe and time span from the file.
+- Opening a scenario reads the scenario and the asset list in parallel; the candles follow once
+  the scenario names asset, level and span. Measured in Docker on WSL in a headless Chromium
+  (NF1): Next and Previous click to painted candles and shapes median 104 ms, the first change
+  after the page is loaded 162 to 167 ms (the browser runs that code of the page for the first
+  time; the server answers within 5 ms); switching the level 40 to 72 ms.
 - The scenarios of a test run lie in the folder `test-runs/<run id>/`, which the test run names
   (BT4, BT5). Nothing about a trade is drawn from the
   report itself. The figures are name and value pairs written by EWTS; TradeViewer shows them as
@@ -957,7 +962,10 @@ stops the start with a clear message, and so does an output root or a scenario f
 does not exist (a missing mount; the output root is never created), and a data path that is,
 or lies inside, the output root or the scenario folder. A path may start with `~` (home
 folder); a relative path is resolved against the content root of the Api. A `Scenarios:RootPath`
-that is not writable switches off only the editor's writing (SC9 to SC16, SC20); both pages still show the scenarios. EWTS instances are not configured here; the user
+that is not writable switches off only the editor's writing (SC9 to SC16, SC20); both pages still show the scenarios.
+Whether it is writable is asked of the system (`access`, for `expert/`, or for the root while
+`expert/` does not exist), without writing a test file there (decision 0010); the data path is
+checked by writing one. EWTS instances are not configured here; the user
 registers them (EW1).
 
 ---

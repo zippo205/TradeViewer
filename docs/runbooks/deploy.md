@@ -114,7 +114,16 @@ Logs                         docker logs -f --since 30m tradeviewer
 ```
 
 With the scenario folder (EWTS): export `SCENARIOS_PATH` and add
-`-f deploy/docker-compose.scenarios.yml` to every compose command above (also `down`).
+`-f deploy/docker-compose.scenarios.yml` to every compose command above (also `down`). Check:
+
+```bash
+docker logs tradeviewer 2>&1 | grep Folders           # ... scenarios /data/scenarios
+curl -s localhost:8080/api/scenarios                  # {"enabled":true,"writable":true}
+```
+
+`"writable":false` (and a warning in the log) means the container's user cannot write
+`expert/`: the pages show the scenarios, the editor cannot save. Fix the owner of the folder or
+`APP_UID`/`APP_GID`. The start writes nothing into the scenario folder.
 
 **Docker Desktop differs from the Pi:** a missing host folder is *created* (empty, owned by root)
 although the compose file says `create_host_path: false`. On WSL check the paths yourself.
