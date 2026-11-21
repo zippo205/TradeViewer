@@ -400,8 +400,8 @@ copied by hand to the development machine, where EWTS's code is adjusted against
   (choosing the other pattern of wave 1 removes the points of the first after confirmation), a
   reason for every point (optional), and the price, share and kind of every exit. A no-trade is
   the waves, the reason why there is no trade, and the time span (`to`: no trade until here).
-- **SC13** The user decides when the scenario is saved: the panel has a Save button beside
-  Delete. It is always visible; it is enabled only while there is a change that is not saved and
+- **SC13** The user decides when the scenario is saved (decision 0014): the panel has a Save
+  button beside Delete. It is always visible; it is enabled only while there is a change that is not saved and
   the scenario can be written (SC14) and its levels fit (SC15), and the panel shows that there
   are unsaved changes. Viewing
   writes nothing, and leaving the page or opening another scenario with unsaved changes asks
