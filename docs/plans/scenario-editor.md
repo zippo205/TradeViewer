@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Scenario Editor (P1 - Workstation)
-Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 6 done
+Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 7 done
 Branch:   feature/scenario-editor
-Next:     step 7 (Web: the editor - new scenario, point tools, panel fields, autosave, delete)
+Next:     step 8 (Web: free drawings in the file on every level, SC20, SC21)
 Baseline: docs as of commit 692f02c (main)
 ```
 
@@ -194,6 +194,8 @@ Scenarios/
 │                             kind, problems at their field (SC12, SC15)
 ├── ScenarioPointTools.razor  the point tools of the level shown and the verdict (SC10), next to
 │                             the drawing tool rail of the chart page (SC20)
+├── NewScenarioDialog.razor   asset, context timeframe, time span (SC9)
+├── ScenarioPoints.cs         fields and levels of the named points, tools, handles, remove, reasons
 ├── ExpertScenarioSession.cs  the scenario in work, undo and redo, dirty state
 └── ExpertScenarioSaveQueue   newest change only, retry, "not saved", as DrawingSaveQueue
 Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
@@ -392,6 +394,41 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
   `tools-check` still passes; `chart-check` (11-15) is outdated: it looks for the asset select
   that the watchlist panel replaced.
 - 5 new unit tests (615 unit, 270 integration, 19 architecture, 238 Vitest pass).
+
+# Result of Step 7 (2026-11-21)
+
+- Web: `ScenarioPoints` (the level of each field; the tools of a level: "1-2" on the context, "1: i-v"
+  and "1: a-c" of wave 1 by its pattern and "2: a-c" on the setup, the six trade tools on the trigger
+  for trade-win and trade-loss; a tool of a group places its missing points, or all again when none
+  is missing; handles editable on the level shown only, the stop's handle at the entry; remove,
+  reason, exit, the patterns of waves 1 and 2), `ExpertScenarioSession` (the newest answer of the
+  server, changed or not, undo and redo of the whole scenario, the id and times of the first save
+  kept on every state), `ExpertScenarioSaveQueue` (per scenario the newest change only, retry with
+  backoff, refusals shown; the id of the first save is used for every later change, also one made
+  while the first save was on its way; `ForgetAsync` waits for a request on its way before a
+  delete), `ScenarioPointTools.razor`, `NewScenarioDialog.razor` (4h only for an asset that has
+  4h), `ExpertScenarioPanel.razor` editable (verdict, draft, span, patterns, reason, notes, the
+  reason of every point, price, share and kind of every exit; each problem at its field or point,
+  the rest listed). `ScenariosApi.SaveAsync` sends with keepalive and tells a passing problem
+  (retry) from a refusal.
+- The page runs one change at a time (snap, field, remove, undo, redo), each from the scenario the
+  one before left; the answer is drawn and queued. Delete removes the selected point. A new
+  scenario lives on `/scenarios/expert` until the save of its wave 2 end gives the id, then the
+  address becomes `/scenarios/expert/<id>` without opening it again. Leaving a new scenario before
+  that asks (NavigationLock, also for closing the window); leaving the page with a save on its way
+  asks too. Opening a scenario whose change the server has not confirmed shows that change.
+- Found and fixed in the store (step 1): a point or section new to the file was written with its
+  empty fields (`"why": null`, `"iEnd": null`); now it is written without them (integration test).
+- Headless browser (`~/tools/browser/editor-check.mjs`, all through Blazor, a scratch copy of the
+  13 files): the reason of a point saved into a converted file with legacy and every other field
+  unchanged and createdAt/updatedAt in UTC with Z; Ctrl+Z and Ctrl+Y; Delete of a point and undo;
+  trade tools by verdict; a new BTCUSDT scenario (its history moved back by SC6), nothing written
+  after the first point, leaving asks and stays when declined, wave 2 end saves it as
+  `btcusdt-1d-2024-05-X1`, wave 2 a on 4h and the entry on 1h in their sections; delete after the
+  confirmation; only the edited file changed, test-runs/ untouched. `scenario-page-check` (step 6)
+  still passes (the verdict is now a field, not a badge).
+- 30 new unit tests, 1 new integration test (645 unit, 271 integration, 19 architecture, 238 Vitest
+  pass).
 
 # Proposals
 

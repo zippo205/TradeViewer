@@ -165,6 +165,24 @@ public class ExpertScenarioStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task A_point_or_section_new_to_the_file_is_written_without_its_empty_fields()
+    {
+        var scenario = (await _folder.Store.ReadAsync(Converted, CancellationToken.None)).Scenario!;
+        await _folder.Store.SaveAsync(scenario with { Waves = scenario.Waves! with { Wave2End = null } }, CancellationToken.None);
+        var exits = new[] { new ScenarioExitRecord(new DateTimeOffset(2025, 2, 1, 0, 0, 0, TimeSpan.Zero), 2.0, 100, "target") };
+
+        // Undo puts the point back; a new section and new exits come without why.
+        await _folder.Store.SaveAsync(
+            scenario with { Wave1 = new ScenarioWave1Record("4h", "three"), Trade = scenario.Trade! with { Exits = exits } },
+            CancellationToken.None);
+
+        var after = JsonNode.Parse(File.ReadAllText(_folder.PathOf(Converted)))!.AsObject();
+        Assert.Equal(scenario.Waves!.Wave2End!.Why != null, after["waves"]!["wave2End"]!.AsObject().ContainsKey("why"));
+        Assert.Equal(new[] { "timeframe", "pattern" }, after["wave1"]!.AsObject().Select(pair => pair.Key));
+        Assert.DoesNotContain(after.ToJsonString(), "null", StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task The_first_save_takes_the_next_free_number_of_the_month_of_wave_2_end()
     {
         // solusdt-1d-2025-06-X1 and -X2 exist among the converted files.

@@ -1,10 +1,15 @@
+using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.AspNetCore.Components.WebAssembly.Http;
 using TradeViewer.Contracts.Scenarios;
+using TradeViewer.Web.Drawings;
+using TradeViewer.Web.Scenarios;
 
 namespace TradeViewer.Web.Api;
 
 /// <summary>The client of /api/scenarios (SC1-SC16, SC20, SC21).</summary>
-public sealed class ScenariosApi
+public sealed class ScenariosApi : IExpertScenarioRemote
 {
     private const string Expert = "api/scenarios/expert";
 
@@ -42,12 +47,41 @@ public sealed class ScenariosApi
         return ApiCalls.SendAsync<ExpertScenarioResponse>(() => _http.PostAsJsonAsync(Expert + "/preview", scenario));
     }
 
-    /// <summary>Writes the scenario: without an id the first save, which takes it (SC13, SC14).</summary>
-    public Task<ApiResult<ExpertScenarioResponse>> SaveAsync(ExpertScenarioRecord scenario)
+    /// <summary>
+    /// Writes the scenario for the save queue: without an id the first save, which takes it (SC13, SC14). A passing
+    /// problem (no connection, 5xx) is tried again; a refusal (4xx) is not. Sent with keepalive, so a save still
+    /// reaches the server when the window is closed right after a change.
+    /// </summary>
+    public async Task<ScenarioSaveOutcome> SaveAsync(ExpertScenarioRecord scenario)
     {
-        return scenario.Id == null
-            ? ApiCalls.SendAsync<ExpertScenarioResponse>(() => _http.PostAsJsonAsync(Expert, scenario))
-            : ApiCalls.SendAsync<ExpertScenarioResponse>(() => _http.PutAsJsonAsync(Expert + "/" + Uri.EscapeDataString(scenario.Id), scenario));
+        using var request = scenario.Id == null
+            ? new HttpRequestMessage(HttpMethod.Post, Expert)
+            : new HttpRequestMessage(HttpMethod.Put, Expert + "/" + Uri.EscapeDataString(scenario.Id));
+        request.Content = JsonContent.Create(scenario);
+        request.SetBrowserRequestOption("keepalive", true);
+
+        try
+        {
+            using var response = await _http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                var saved = await response.Content.ReadFromJsonAsync<ExpertScenarioResponse>();
+                return new ScenarioSaveOutcome(SaveResult.Saved, saved?.Scenario ?? scenario);
+            }
+
+            var code = (int)response.StatusCode;
+            var message = await ApiCalls.ReadProblemAsync(response);
+            var passing = code >= 500 || response.StatusCode == HttpStatusCode.RequestTimeout || response.StatusCode == HttpStatusCode.TooManyRequests;
+            return new ScenarioSaveOutcome(passing ? SaveResult.Retry : SaveResult.Refused, Message: message);
+        }
+        catch (HttpRequestException)
+        {
+            return new ScenarioSaveOutcome(SaveResult.Retry, Message: "The server is not reachable.");
+        }
+        catch (JsonException)
+        {
+            return new ScenarioSaveOutcome(SaveResult.Saved, scenario);
+        }
     }
 
     /// <returns>Null when the scenario was deleted, otherwise the message to show (SC16).</returns>

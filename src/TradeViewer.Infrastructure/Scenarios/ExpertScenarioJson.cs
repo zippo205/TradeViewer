@@ -151,8 +151,30 @@ public static class ExpertScenarioJson
             }
             else
             {
-                target[name] = value.DeepClone();
+                target[name] = WithoutNulls(value);
             }
+        }
+    }
+
+    /// <summary>A section or point new to the file: written without its empty fields, as a file written by hand would be.</summary>
+    private static JsonNode WithoutNulls(JsonNode value)
+    {
+        switch (value)
+        {
+            case JsonObject source:
+                var created = new JsonObject();
+                Merge(created, source);
+                return created;
+            case JsonArray items:
+                var array = new JsonArray();
+                foreach (var item in items)
+                {
+                    array.Add(item == null ? null : WithoutNulls(item));
+                }
+
+                return array;
+            default:
+                return value.DeepClone();
         }
     }
 
@@ -170,7 +192,7 @@ public static class ExpertScenarioJson
             }
             else
             {
-                merged.Add(item?.DeepClone());
+                merged.Add(item == null ? null : WithoutNulls(item));
             }
         }
 

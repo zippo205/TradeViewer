@@ -6,25 +6,38 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-@* The scenario editor (SC1-SC16, SC20, SC21; decisions 0010 to 0012). Step 6 of the plan: the list, the chart of a
-   scenario on its levels, previous and next, and the asset and history it needs. Opening and stepping through the
-   scenarios writes nothing (SC13). *@
+@* The scenario editor (SC1-SC16, SC20, SC21; decisions 0010 to 0012): the list, the chart of a scenario on its
+   levels, previous and next, the asset and history it needs, and editing: a new scenario (SC9), the point tools of
+   the level shown (SC10), the panel (SC12), saving in the background once the user changed something (SC13), the id
+   at the first save (SC14), the problems at their fields (SC15), delete (SC16), undo and redo. Opening and stepping
+   through the scenarios writes nothing. *@
 
 <PageTitle>@(Id ?? "Expert scenarios") - TradeViewer</PageTitle>
+
+<NavigationLock ConfirmExternalNavigation="@Unprotected" OnBeforeInternalNavigation="OnBeforeInternalNavigationAsync" />
 
 <ScenarioChart @bind-ListOpen="_listOpen">
     <Toolbar>
         <strong class="chart-title">Expert scenarios</strong>
+        @if (Writable)
+        {
+            <button type="button" title="A new expert scenario: asset, context timeframe and time span (SC9)" @onclick="OpenNewAsync">New</button>
+        }
         <div class="segments" role="group" aria-label="Step through the list">
             <button type="button" title="The scenario before this one in the list" disabled="@(_list.Step(Id, -1) == null)" @onclick="() => Step(-1)">‹ Previous</button>
             <button type="button" title="The scenario after this one in the list" disabled="@(_list.Step(Id, +1) == null)" @onclick="() => Step(+1)">Next ›</button>
         </div>
-        @if (_response != null)
+        @if (_session != null)
         {
             <ScenarioLevelBar View="@_levels" OnChanged="LevelsChangedAsync" />
             <label title="Logarithmic price scale; the levels of a scenario are measured in log scale (SC3)">
                 <input type="checkbox" checked="@_logScale" @onchange="e => _logScale = (bool)e.Value!" /> log
             </label>
+            @if (Writable && _asset != null)
+            {
+                <ScenarioPointTools Tools="@Tools" Active="@_tool" Level="@_levels.Shown" CanUndo="@_session.CanUndo" CanRedo="@_session.CanRedo"
+                                    OnChoose="ChooseToolAsync" OnUndo="UndoAsync" OnRedo="RedoAsync" />
+            }
         }
         @if (_asset?.Loading == true)
         {
@@ -33,6 +46,11 @@
     </Toolbar>
 
     <Chart>
+        @if (_creating)
+        {
+            <NewScenarioDialog Choices="@_assets" Source="@_session?.Scenario.Source" Symbol="@_session?.Scenario.Symbol" Problem="@_createProblem"
+                               OnCreate="CreateAsync" OnCancel="() => { _creating = false; _createProblem = null; }" />
+        }
         @if (_status != null && !_status.Enabled)
         {
             <p class="chart-note">No scenario folder is configured (Scenarios:RootPath, see the runbook).</p>
@@ -41,15 +59,15 @@
         {
             <p class="status-bad chart-note">@_openError</p>
         }
-        else if (_response == null)
+        else if (_session == null)
         {
-            <p class="chart-note muted">@(Id == null ? "Choose a scenario from the list." : "Loading...")</p>
+            <p class="chart-note muted">@(Id == null ? "Choose a scenario from the list, or make a new one." : "Loading...")</p>
         }
         else if (_asset == null)
         {
             <div class="chart-note scenario-notice">
-                <p>@_response.Scenario.Source/@_response.Scenario.Symbol is not one of your assets, so its chart cannot be shown (SC6).</p>
-                <button type="button" disabled="@_busy" @onclick="AddAssetAsync">Add @_response.Scenario.Symbol</button>
+                <p>@_session.Scenario.Source/@_session.Scenario.Symbol is not one of your assets, so its chart cannot be shown (SC6).</p>
+                <button type="button" disabled="@_busy" @onclick="AddAssetAsync">Add @_session.Scenario.Symbol</button>
                 @if (_actionProblem != null)
                 {
                     <span class="status-bad">@_actionProblem</span>
@@ -58,15 +76,22 @@
         }
         else
         {
-            @if (_response.Asset.HistoryNeeded.Count > 0)
+            @if (_session.Response.Asset.HistoryNeeded.Count > 0)
             {
                 <div class="scenario-notice">
-                    <span>The stored history of @_asset.Symbol starts after this scenario: @HistoryText(_response.Asset.HistoryNeeded).</span>
+                    <span>The stored history of @_asset.Symbol starts after this scenario: @HistoryText(_session.Response.Asset.HistoryNeeded).</span>
                     <button type="button" disabled="@_busy" @onclick="LoadHistoryAsync">Load it</button>
                     @if (_actionProblem != null)
                     {
                         <span class="status-bad">@_actionProblem</span>
                     }
+                </div>
+            }
+            @if (_editProblem != null)
+            {
+                <div class="scenario-notice">
+                    <span class="status-bad">@_editProblem</span>
+                    <button type="button" class="link-button" title="Dismiss" @onclick="() => _editProblem = null">✕</button>
                 </div>
             }
             @if (Chartable)
@@ -79,7 +104,11 @@
                            Timeframes="@ChartableTimeframes"
                            LogScale="@_logScale"
                            KeepTimesOnTimeframeChange="true"
-                           OnReady="OnChartReadyAsync" />
+                           OnReady="OnChartReadyAsync"
+                           OnPointPlaced="OnPointPlacedAsync"
+                           OnPointSelected="OnPointSelected"
+                           OnScenarioToolChanged="OnScenarioToolChanged"
+                           OnKey="OnKeyAsync" />
             }
             else
             {
@@ -94,7 +123,9 @@
     </List>
 
     <Panel>
-        <ExpertScenarioPanel Response="@_response" />
+        <ExpertScenarioPanel Response="@_session?.Response" ReadOnly="@(!Writable)" SelectedPoint="@_selectedPoint"
+                             SaveText="@SaveText" SaveBad="@(_queue.Problem != null)"
+                             OnChange="ChangeAsync" OnWave1Pattern="ChangeWave1PatternAsync" OnSelectPoint="SelectPointAsync" OnDelete="DeleteAsync" />
     </Panel>
 </ScenarioChart>
 
@@ -103,31 +134,90 @@
 
     private readonly ExpertScenarioListView _list = new ExpertScenarioListView();
     private readonly ScenarioLevelView _levels = new ScenarioLevelView();
+
+    /// <summary>One change at a time: a snap, a field, undo or redo each start from the scenario the one before left.</summary>
+    private readonly SemaphoreSlim _edits = new SemaphoreSlim(1, 1);
+
+    private ExpertScenarioSaveQueue _queue = null!;
     private ScenariosStatusResponse? _status;
-    private ExpertScenarioResponse? _response;
+    private ExpertScenarioSession? _session;
     private AssetResponse? _asset;
+    private IReadOnlyList<AssetResponse> _assets = Array.Empty<AssetResponse>();
     private ChartHost? _chart;
     private Timer? _timer;
     private DateTimeOffset? _readAt;
     private string? _listProblem;
     private string? _openError;
     private string? _actionProblem;
+    private string? _editProblem;
+    private string? _createProblem;
     private string? _opened;
+    private string? _tool;
+    private string? _selectedPoint;
     private bool _listOpen = true;
     private bool _logScale = true;
     private bool _busy;
+    private bool _creating;
     private bool _showSpan;
+    private bool _leaveConfirmed;
     private bool _disposed;
 
     [Parameter]
     public string? Id { get; set; }
 
+    private bool Writable => _status?.Writable == true;
+
     private bool Chartable => _asset != null && _levels.Timeframe != null && _asset.Timeframes.Any(timeframe => timeframe.Timeframe == _levels.Timeframe && timeframe.Chartable);
 
     private IReadOnlyList<string> ChartableTimeframes => _asset?.Timeframes.Where(timeframe => timeframe.Chartable).Select(timeframe => timeframe.Timeframe).ToList() ?? new List<string>();
 
+    private IReadOnlyList<ScenarioPointTool> Tools => _session == null ? Array.Empty<ScenarioPointTool>() : ScenarioPoints.ToolsOf(_levels.Shown, _session.Scenario);
+
+    /// <summary>A new scenario the user changed that cannot be saved yet, because wave 2 end is missing (SC14).</summary>
+    private bool WaitsForWave2End => _session != null && _session.Changed && _session.WaitsForWave2End && _queue.IdOf(_session.Key) == null;
+
+    /// <summary>Leaving now would lose a change: one not confirmed yet, or a new scenario that cannot be saved yet.</summary>
+    private bool Unprotected => _queue.HasUnsaved || WaitsForWave2End;
+
+    private string? SaveText
+    {
+        get
+        {
+            if (_session == null)
+            {
+                return null;
+            }
+
+            if (!Writable)
+            {
+                return "read only: the scenario folder cannot be written";
+            }
+
+            if (_queue.Problem != null)
+            {
+                return _queue.Problem;
+            }
+
+            if (WaitsForWave2End)
+            {
+                return "not saved yet: it is saved once wave 2 end is placed (the id needs its month)";
+            }
+
+            if (_queue.IsUnsaved(_session.Key))
+            {
+                return "saving...";
+            }
+
+            return _session.Changed ? "saved" : null;
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
+        _queue = new ExpertScenarioSaveQueue(Api);
+        _queue.StateChanged += OnQueueChanged;
+        _queue.Saved += OnSaved;
+
         var status = await Api.GetStatusAsync();
         _status = status.Value;
         if (_status?.Enabled == true)
@@ -176,9 +266,12 @@
 
     private async Task OpenAsync()
     {
-        _response = null;
+        _session = null;
         _openError = null;
         _actionProblem = null;
+        _editProblem = null;
+        _tool = null;
+        _selectedPoint = null;
         if (Id == null)
         {
             return;
@@ -191,9 +284,23 @@
             return;
         }
 
-        _response = response.Value;
-        _levels.Open(_response.Levels);
+        // A change of this scenario the server has not confirmed yet wins over the file (WS1, priority 1).
+        var unsent = _queue.UnsentOf(Id);
+        if (unsent != null)
+        {
+            var preview = await Api.PreviewAsync(unsent);
+            response = preview.Value != null ? preview : response;
+        }
+
+        var key = _queue.KeyOf(Id);
+        StartSession(key == null ? new ExpertScenarioSession(response.Value!) : new ExpertScenarioSession(key.Value, response.Value!));
         await ReadAssetAsync();
+    }
+
+    private void StartSession(ExpertScenarioSession session)
+    {
+        _session = session;
+        _levels.Open(session.Response.Levels);
         _showSpan = true;
         if (_chart?.IsReady == true)
         {
@@ -204,28 +311,36 @@
     private async Task ReadAssetAsync()
     {
         var assets = await AssetsClient.GetAssetsAsync();
-        _asset = assets.Value?.FirstOrDefault(asset => asset.Source == _response?.Scenario.Source && asset.Symbol == _response?.Scenario.Symbol);
+        _assets = assets.Value ?? (IReadOnlyList<AssetResponse>)Array.Empty<AssetResponse>();
+        _asset = _assets.FirstOrDefault(asset => asset.Source == _session?.Scenario.Source && asset.Symbol == _session?.Scenario.Symbol);
     }
 
     private async Task OnChartReadyAsync()
     {
-        if (_response != null)
+        if (_session != null)
         {
             _showSpan = false;
             await ShowScenarioAsync(positionOnSpan: true);
         }
     }
 
-    /// <summary>The shapes of the scenario with the groups hidden that the level shown does not show (SC21), and on opening the span (SC2).</summary>
+    /// <summary>
+    /// The shapes of the scenario with the groups hidden that the level shown does not show (SC21), the handles of the
+    /// points of that level (SC10), and on opening the span (SC2).
+    /// </summary>
     private async Task ShowScenarioAsync(bool positionOnSpan)
     {
-        if (_chart == null || _response == null)
+        if (_chart == null || _session == null)
         {
             return;
         }
 
-        await _chart.SetOverlaysAsync(_response.Groups, _levels.HiddenKeys(_response.Groups));
-        var scenario = _response.Scenario;
+        var response = _session.Response;
+        await _chart.SetOverlaysAsync(response.Groups, _levels.HiddenKeys(response.Groups));
+        var handles = _levels.IsHidden(_levels.Shown) ? Array.Empty<ScenarioHandle>() : ScenarioPoints.HandlesOf(response.Scenario, _levels.Shown, Writable);
+        await _chart.SetScenarioPointsAsync(handles);
+        await _chart.SelectScenarioPointAsync(_selectedPoint);
+        var scenario = response.Scenario;
         if (positionOnSpan && scenario.From != null)
         {
             await _chart.ShowTimeRangeAsync(scenario.From.Value, scenario.To ?? DateTimeOffset.UtcNow);
@@ -234,8 +349,353 @@
 
     private async Task LevelsChangedAsync()
     {
+        // Another level offers other tools; the one in use goes back to the pointer.
+        await ChooseToolAsync(null);
+        _selectedPoint = null;
         StateHasChanged(); // another timeframe is a new series of the chart; the shapes stay, the groups follow the level
         await ShowScenarioAsync(positionOnSpan: false);
+    }
+
+    private async Task ChooseToolAsync(ScenarioPointTool? tool)
+    {
+        _tool = tool?.Tool.Code;
+        if (_chart != null)
+        {
+            await _chart.SetScenarioToolAsync(tool?.Tool);
+        }
+    }
+
+    private void OnScenarioToolChanged(string? code)
+    {
+        _tool = code;
+    }
+
+    private void OnPointSelected(string? key)
+    {
+        _selectedPoint = key;
+    }
+
+    private async Task SelectPointAsync(string key)
+    {
+        _selectedPoint = key;
+        if (_chart != null)
+        {
+            await _chart.SelectScenarioPointAsync(key);
+        }
+    }
+
+    /// <summary>A point placed with a tool or let go after a drag: the server snaps it on its timeframe (SC10).</summary>
+    private Task OnPointPlacedAsync(PlacedPoint point)
+    {
+        var time = DateTimeOffset.FromUnixTimeSeconds(point.Time);
+        return EditAsync(scenario => Api.SnapAsync(new SnapScenarioPointRequest(scenario, point.Field, time, point.Price, point.Index, point.Kind)));
+    }
+
+    /// <summary>A field of the panel (SC12).</summary>
+    private Task ChangeAsync(ExpertScenarioRecord changed)
+    {
+        return EditAsync(_ => Api.PreviewAsync(changed));
+    }
+
+    /// <summary>Proposal 9: choosing the other pattern of wave 1 removes the points of the first after a confirmation; undo brings them back.</summary>
+    private async Task ChangeWave1PatternAsync(string? pattern)
+    {
+        if (_session == null)
+        {
+            return;
+        }
+
+        var dropped = ScenarioPoints.Wave1PointsDroppedBy(_session.Scenario, pattern);
+        if (dropped > 0 && !await JS.InvokeAsync<bool>("confirm", "A " + pattern + " has other points: " + dropped + " point(s) of wave 1 are removed. Go on?"))
+        {
+            StateHasChanged(); // the select shows the pattern of the scenario again
+            return;
+        }
+
+        var setup = _session.Response.Levels.FirstOrDefault(level => level.Level == ScenarioPoints.Setup)?.Timeframe ?? "";
+        await EditAsync(scenario => Api.PreviewAsync(ScenarioPoints.WithWave1Pattern(scenario, pattern, setup)));
+    }
+
+    private Task RemoveSelectedPointAsync()
+    {
+        var key = _selectedPoint;
+        if (key == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        _selectedPoint = null;
+        return EditAsync(scenario => Api.PreviewAsync(ScenarioPoints.Remove(scenario, key)));
+    }
+
+    /// <summary>
+    /// Runs one change of the scenario: the server answers with the scenario, its shapes and its problems, the chart
+    /// shows them and the queue saves them. A change the server refuses (no candle there) leaves the scenario as it
+    /// was and puts the handles back.
+    /// </summary>
+    private async Task EditAsync(Func<ExpertScenarioRecord, Task<ApiResult<ExpertScenarioResponse>>> change)
+    {
+        if (_session == null || !Writable)
+        {
+            return;
+        }
+
+        await _edits.WaitAsync();
+        try
+        {
+            var session = _session;
+            if (session == null)
+            {
+                return;
+            }
+
+            var answer = await change(session.Scenario);
+            if (_session != session)
+            {
+                return; // another scenario was opened meanwhile
+            }
+
+            if (answer.Value == null)
+            {
+                _editProblem = answer.Error;
+            }
+            else
+            {
+                _editProblem = null;
+                session.Change(answer.Value);
+                Persist(session);
+            }
+
+            await ShowScenarioAsync(positionOnSpan: false);
+        }
+        finally
+        {
+            _edits.Release();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task UndoAsync()
+    {
+        await StepHistoryAsync(undo: true);
+    }
+
+    private async Task RedoAsync()
+    {
+        await StepHistoryAsync(undo: false);
+    }
+
+    private async Task StepHistoryAsync(bool undo)
+    {
+        if (_session == null || !Writable)
+        {
+            return;
+        }
+
+        await _edits.WaitAsync();
+        try
+        {
+            var session = _session;
+            var target = undo ? session?.UndoTarget() : session?.RedoTarget();
+            if (session == null || target == null)
+            {
+                return;
+            }
+
+            var answer = await Api.PreviewAsync(target);
+            if (_session != session)
+            {
+                return;
+            }
+
+            if (answer.Value == null)
+            {
+                _editProblem = answer.Error;
+                return;
+            }
+
+            if (undo)
+            {
+                session.Undone(answer.Value);
+            }
+            else
+            {
+                session.Redone(answer.Value);
+            }
+
+            _selectedPoint = null;
+            Persist(session);
+            await ShowScenarioAsync(positionOnSpan: false);
+        }
+        finally
+        {
+            _edits.Release();
+        }
+
+        StateHasChanged();
+    }
+
+    /// <summary>SC13, SC14: saved once the user changed something; a new scenario only from the moment wave 2 end is placed.</summary>
+    private void Persist(ExpertScenarioSession session)
+    {
+        if (session.Changed && (!session.WaitsForWave2End || _queue.IdOf(session.Key) != null))
+        {
+            _queue.Put(session.Key, session.Scenario);
+        }
+    }
+
+    private void OnQueueChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>A save was confirmed: the first one gave the id, which becomes the address of the page (SC14).</summary>
+    private void OnSaved(Guid key, ExpertScenarioRecord saved)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            if (_session?.Key == key)
+            {
+                _session.Saved(saved);
+                if (Id == null && saved.Id != null)
+                {
+                    _opened = saved.Id;
+                    Navigation.NavigateTo("scenarios/expert/" + Uri.EscapeDataString(saved.Id), replace: true);
+                }
+            }
+
+            await ReadListAsync();
+        });
+    }
+
+    private async Task OnKeyAsync(string key)
+    {
+        switch (key)
+        {
+            case "delete":
+                await RemoveSelectedPointAsync();
+                break;
+            case "undo":
+                await UndoAsync();
+                break;
+            case "redo":
+                await RedoAsync();
+                break;
+        }
+    }
+
+    private async Task OpenNewAsync()
+    {
+        var assets = await AssetsClient.GetAssetsAsync();
+        _assets = assets.Value ?? (IReadOnlyList<AssetResponse>)Array.Empty<AssetResponse>();
+        _createProblem = assets.Error;
+        _creating = true;
+    }
+
+    /// <summary>SC9: the new scenario is shown at once; it is written only once wave 2 end is placed (SC14).</summary>
+    private async Task CreateAsync(ExpertScenarioRecord scenario)
+    {
+        var answer = await Api.PreviewAsync(scenario);
+        if (answer.Value == null)
+        {
+            _createProblem = answer.Error;
+            return;
+        }
+
+        if (!await LeaveAllowedAsync())
+        {
+            return;
+        }
+
+        _creating = false;
+        _createProblem = null;
+        _opened = null;
+        if (Id != null)
+        {
+            _leaveConfirmed = true;
+            Navigation.NavigateTo("scenarios/expert");
+        }
+
+        _openError = null;
+        _editProblem = null;
+        _tool = null;
+        _selectedPoint = null;
+        StartSession(new ExpertScenarioSession(answer.Value));
+        _asset = _assets.FirstOrDefault(asset => asset.Source == scenario.Source && asset.Symbol == scenario.Symbol);
+    }
+
+    /// <summary>SC16: after a confirmation; a new scenario that was never saved is only dropped.</summary>
+    private async Task DeleteAsync()
+    {
+        var session = _session;
+        if (session == null)
+        {
+            return;
+        }
+
+        var id = session.Scenario.Id ?? _queue.IdOf(session.Key);
+        if (!await JS.InvokeAsync<bool>("confirm", id == null ? "Drop this new scenario?" : "Delete the expert scenario " + id + "? Its file is removed."))
+        {
+            return;
+        }
+
+        await _queue.ForgetAsync(session.Key);
+        if (id != null)
+        {
+            var problem = await Api.DeleteAsync(id);
+            if (problem != null)
+            {
+                _editProblem = problem;
+                return;
+            }
+        }
+
+        var next = id == null ? null : _list.Step(id, +1) ?? _list.Step(id, -1);
+        _session = null;
+        _opened = null;
+        await ReadListAsync();
+        if (next != null && next != id)
+        {
+            Open(next);
+        }
+        else if (Id != null)
+        {
+            Navigation.NavigateTo("scenarios/expert");
+        }
+    }
+
+    /// <summary>SC14: a new scenario that is not saved yet is lost when another one is opened; the user is asked first.</summary>
+    private async Task<bool> LeaveAllowedAsync()
+    {
+        if (WaitsForWave2End)
+        {
+            return await JS.InvokeAsync<bool>("confirm", "The new scenario is not saved: it is saved once wave 2 end is placed. Leave it?");
+        }
+
+        return true;
+    }
+
+    private async Task OnBeforeInternalNavigationAsync(LocationChangingContext context)
+    {
+        var target = Navigation.ToBaseRelativePath(Navigation.ToAbsoluteUri(context.TargetLocation).ToString()); // the target may be relative
+        var stays = target.StartsWith("scenarios/expert", StringComparison.Ordinal);
+        if (_leaveConfirmed)
+        {
+            _leaveConfirmed = false; // asked already by the action that navigates
+            return;
+        }
+
+        if (WaitsForWave2End && !await LeaveAllowedAsync())
+        {
+            context.PreventNavigation();
+            return;
+        }
+
+        if (!stays && _queue.HasUnsaved && !await JS.InvokeAsync<bool>("confirm", "A change is not saved yet. Leave the page?"))
+        {
+            context.PreventNavigation();
+        }
     }
 
     private void Open(string id)
@@ -255,7 +715,7 @@
     /// <summary>SC6: the asset is added only when the user agrees.</summary>
     private async Task AddAssetAsync()
     {
-        var scenario = _response!.Scenario;
+        var scenario = _session!.Scenario;
         if (!await JS.InvokeAsync<bool>("confirm", "Add " + scenario.Symbol + " (" + scenario.Source + ") to your assets? Its history is then downloaded and imported."))
         {
             return;
@@ -271,10 +731,10 @@
     /// <summary>SC6: the history starts the span needs, as the server named them.</summary>
     private Task LoadHistoryAsync()
     {
-        var scenario = _response!.Scenario;
+        var session = _session!;
         return RunAsync(async () =>
         {
-            var changed = await AssetsClient.ChangeHistoryAsync(scenario.Source, scenario.Symbol, _response.Asset.HistoryNeeded);
+            var changed = await AssetsClient.ChangeHistoryAsync(session.Scenario.Source, session.Scenario.Symbol, session.Response.Asset.HistoryNeeded);
             return changed.Error;
         });
     }
@@ -298,7 +758,7 @@
                 await Task.Delay(2000);
             }
 
-            await OpenAsync();
+            await ReopenAsync();
             if (_chart != null)
             {
                 await _chart.ReloadSeriesAsync();
@@ -306,6 +766,24 @@
         }
 
         _busy = false;
+    }
+
+    /// <summary>After the asset changed: the scenario as the user has it, with the asset state read again; its undo stays.</summary>
+    private async Task ReopenAsync()
+    {
+        var session = _session;
+        if (session == null)
+        {
+            return;
+        }
+
+        var answer = await Api.PreviewAsync(session.Scenario);
+        if (answer.Value != null && _session == session)
+        {
+            session.Refresh(answer.Value);
+            await ReadAssetAsync();
+            _showSpan = true;
+        }
     }
 
     private static string HistoryText(IReadOnlyDictionary<string, string?> needed)
@@ -317,5 +795,7 @@
     {
         _disposed = true;
         _timer?.Dispose();
+        _queue.StateChanged -= OnQueueChanged;
+        _queue.Saved -= OnSaved;
     }
 }

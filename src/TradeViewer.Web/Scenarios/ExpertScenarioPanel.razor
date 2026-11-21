@@ -1,37 +1,147 @@
-@* The panel below the chart of an expert scenario (SC12, SC15). Step 6 of the plan shows the head and the form
-   problems; editing the fields comes with the editor (step 7). *@
+@* The panel below the chart of an expert scenario (SC12, SC15, SC16): the head (verdict, draft, time span, reason,
+   notes), the patterns of waves 1 and 2, every named point with its reason, the exits with price, share and kind, and
+   each form problem at its field; what has no field of its own is listed at the end. A problem never prevents a save.
+   Texts are taken when the field is left, so a word typed is no change of its own. *@
 @if (Response != null)
 {
     var scenario = Response.Scenario;
+    var shown = new HashSet<string>(StringComparer.Ordinal);
     <div class="scenario-head">
         <div class="scenario-head-line">
             <strong>@(scenario.Id ?? "new scenario")</strong>
-            <span class="badge">@(scenario.Verdict ?? "no verdict")</span>
-            @if (scenario.Draft)
-            {
-                <span class="badge warning">draft</span>
-            }
-            <span class="muted">@scenario.Symbol @scenario.ContextTimeframe, @Day(scenario.From) to @Day(scenario.To)</span>
+            <span class="muted">@scenario.Symbol @scenario.ContextTimeframe</span>
             @if (scenario.UpdatedAt != null)
             {
                 <span class="muted">changed @scenario.UpdatedAt.Value.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) UTC</span>
             }
+            @if (SaveText != null)
+            {
+                <span class="@(SaveBad ? "status-bad" : "muted") scenario-save">@SaveText</span>
+            }
+            <span class="spacer"></span>
+            @if (!ReadOnly)
+            {
+                <button type="button" class="danger" title="Delete this scenario after a confirmation (SC16)" @onclick="() => OnDelete.InvokeAsync()">Delete</button>
+            }
         </div>
-        @if (!string.IsNullOrWhiteSpace(scenario.Reason))
-        {
-            <p class="scenario-reason"><span class="muted">Reason</span> @scenario.Reason</p>
+
+        <div class="scenario-fields">
+            <label>
+                Verdict
+                <select value="@(scenario.Verdict ?? "")" disabled="@ReadOnly" @onchange="e => ChangeAsync(scenario with { Verdict = Text(e.Value) })">
+                    <option value="">(choose)</option>
+                    @foreach (var verdict in ScenarioPoints.Verdicts)
+                    {
+                        <option value="@verdict">@verdict</option>
+                    }
+                </select>
+                @Problems("verdict", shown)
+            </label>
+            <label title="A draft is checked by EWTS but is no acceptance test">
+                <input type="checkbox" checked="@scenario.Draft" disabled="@ReadOnly" @onchange="e => ChangeAsync(scenario with { Draft = (bool)e.Value! })" /> draft
+            </label>
+            <label>
+                From
+                <input type="date" value="@Day(scenario.From)" disabled="@ReadOnly" @onchange="e => ChangeAsync(scenario with { From = DayOf(e.Value) })" />
+                @Problems("from", shown)
+            </label>
+            <label>
+                To
+                <input type="date" value="@Day(scenario.To)" disabled="@ReadOnly" @onchange="e => ChangeAsync(scenario with { To = DayOf(e.Value) })" />
+                @Problems("to", shown)
+            </label>
+            <label>
+                Wave 1
+                <select value="@(scenario.Wave1?.Pattern ?? "")" disabled="@ReadOnly" @onchange="e => OnWave1Pattern.InvokeAsync(Text(e.Value))">
+                    <option value="">(pattern)</option>
+                    @foreach (var pattern in ScenarioPoints.Wave1Patterns)
+                    {
+                        <option value="@pattern">@pattern</option>
+                    }
+                </select>
+                @Problems("wave1.pattern", shown)
+            </label>
+            <label>
+                Wave 2
+                <select value="@(scenario.Wave2?.Pattern ?? "")" disabled="@ReadOnly" @onchange="e => ChangeAsync(ScenarioPoints.WithWave2Pattern(scenario, Text(e.Value), SetupTimeframe))">
+                    <option value="">(pattern)</option>
+                    @foreach (var pattern in ScenarioPoints.Wave2Patterns)
+                    {
+                        <option value="@pattern">@pattern</option>
+                    }
+                </select>
+                @Problems("wave2.pattern", shown)
+            </label>
+        </div>
+
+        <div class="scenario-texts">
+            <label>
+                <span>Reason @(scenario.Verdict == "no-trade" ? "(why there is no trade)" : "")</span>
+                <textarea rows="2" value="@scenario.Reason" disabled="@ReadOnly" @onchange="e => ChangeAsync(scenario with { Reason = Text(e.Value) })"></textarea>
+                @Problems("reason", shown)
+            </label>
+            <label>
+                <span>Notes</span>
+                <textarea rows="2" value="@scenario.Notes" disabled="@ReadOnly" @onchange="e => ChangeAsync(scenario with { Notes = Text(e.Value) })"></textarea>
+            </label>
+        </div>
+
+        @{
+            var entries = ScenarioPoints.EntriesOf(scenario);
         }
-        @if (!string.IsNullOrWhiteSpace(scenario.Notes))
+        @if (entries.Count > 0)
         {
-            <details class="scenario-notes">
-                <summary>Notes</summary>
-                <p>@scenario.Notes</p>
-            </details>
+            <table class="list scenario-points">
+                <thead>
+                    <tr><th>Point</th><th>Level</th><th>Time (UTC)</th><th>Price</th><th>Reason</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in entries)
+                    {
+                        var field = ScenarioPoints.ProblemFieldOf(entry.Key);
+                        var exit = entry.Field == ScenarioPoints.Exits ? scenario.Trade!.Exits![entry.Index!.Value] : null;
+                        <tr class="@(entry.Key == SelectedPoint ? "selected" : "")" @onclick="() => OnSelectPoint.InvokeAsync(entry.Key)">
+                            <td>@entry.Label</td>
+                            <td class="muted">@entry.Level</td>
+                            <td>@(entry.Time?.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "")</td>
+                            <td>
+                                @if (exit != null)
+                                {
+                                    <input type="number" step="any" class="scenario-number" aria-label="Price of @entry.Label" value="@Number(exit.Price)" disabled="@ReadOnly"
+                                           @onchange="e => ChangeExitAsync(scenario, entry.Index!.Value, exit with { Price = NumberOf(e.Value, exit.Price) })" />
+                                    <input type="number" step="any" min="0" max="100" class="scenario-share" aria-label="Share of @entry.Label in percent" value="@Number(exit.Share)" disabled="@ReadOnly"
+                                           @onchange="e => ChangeExitAsync(scenario, entry.Index!.Value, exit with { Share = NumberOf(e.Value, exit.Share) })" /><span class="muted">%</span>
+                                    <select aria-label="Kind of @entry.Label" value="@exit.Kind" disabled="@ReadOnly"
+                                            @onchange="e => ChangeExitAsync(scenario, entry.Index!.Value, exit with { Kind = Text(e.Value) ?? exit.Kind })">
+                                        @foreach (var kind in ScenarioPoints.ExitKinds)
+                                        {
+                                            <option value="@kind">@kind</option>
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    @Number(entry.Price)
+                                }
+                            </td>
+                            <td>
+                                <input type="text" class="scenario-why" aria-label="Reason of @entry.Label" value="@entry.Why" disabled="@ReadOnly"
+                                       @onchange="e => ChangeAsync(ScenarioPoints.WithWhy(scenario, entry.Key, Text(e.Value)))" />
+                            </td>
+                            <td>@Problems(field, shown, prefix: true)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         }
-        @if (Response.Problems.Count > 0)
+
+        @{
+            var rest = Response.Problems.Where(problem => !shown.Contains(problem.Field + "\n" + problem.Message)).ToList();
+        }
+        @if (rest.Count > 0)
         {
             <ul class="scenario-problems">
-                @foreach (var problem in Response.Problems)
+                @foreach (var problem in rest)
                 {
                     <li><code>@problem.Field</code> @problem.Message</li>
                 }
@@ -44,5 +154,77 @@
     [Parameter]
     public ExpertScenarioResponse? Response { get; set; }
 
-    private static string Day(DateTimeOffset? time) => time?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "?";
+    /// <summary>The scenario folder cannot be written: the fields only show (architecture chapter 12).</summary>
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    /// <summary>The key of the point selected on the chart or in the table.</summary>
+    [Parameter]
+    public string? SelectedPoint { get; set; }
+
+    /// <summary>Saved, not saved, waiting for wave 2 end (SC13, SC14).</summary>
+    [Parameter]
+    public string? SaveText { get; set; }
+
+    [Parameter]
+    public bool SaveBad { get; set; }
+
+    /// <summary>The scenario as the user changed it in a field.</summary>
+    [Parameter]
+    public EventCallback<ExpertScenarioRecord> OnChange { get; set; }
+
+    /// <summary>Another pattern of wave 1; the page confirms when points of the other pattern would go (proposal 9).</summary>
+    [Parameter]
+    public EventCallback<string?> OnWave1Pattern { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnSelectPoint { get; set; }
+
+    [Parameter]
+    public EventCallback OnDelete { get; set; }
+
+    private string SetupTimeframe => Response?.Levels.FirstOrDefault(level => level.Level == ScenarioPoints.Setup)?.Timeframe ?? "";
+
+    /// <summary>The problems of a field (or, with prefix, of the field and what lies inside it); those shown here are not listed again at the end.</summary>
+    private RenderFragment Problems(string field, HashSet<string> shown, bool prefix = false) => builder =>
+    {
+        var problems = Response!.Problems
+            .Where(problem => problem.Field == field || (prefix && problem.Field.StartsWith(field + ".", StringComparison.Ordinal)))
+            .ToList();
+        var sequence = 0;
+        foreach (var problem in problems)
+        {
+            shown.Add(problem.Field + "\n" + problem.Message);
+            builder.OpenElement(sequence++, "span");
+            builder.AddAttribute(sequence++, "class", "status-bad scenario-field-problem");
+            builder.AddContent(sequence++, problem.Message);
+            builder.CloseElement();
+        }
+    };
+
+    private Task ChangeAsync(ExpertScenarioRecord scenario) => OnChange.InvokeAsync(scenario);
+
+    private Task ChangeExitAsync(ExpertScenarioRecord scenario, int index, ScenarioExitRecord exit) => OnChange.InvokeAsync(ScenarioPoints.WithExit(scenario, index, exit));
+
+    private static string? Text(object? value)
+    {
+        var text = value?.ToString();
+        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+    }
+
+    private static string Day(DateTimeOffset? time) => time?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "";
+
+    private static DateTimeOffset? DayOf(object? value)
+    {
+        return DateTime.TryParseExact(value?.ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var day)
+            ? new DateTimeOffset(day, TimeSpan.Zero)
+            : null;
+    }
+
+    private static string Number(double value) => value.ToString("0.########", CultureInfo.InvariantCulture);
+
+    private static double NumberOf(object? value, double old)
+    {
+        return double.TryParse(value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : old;
+    }
 }

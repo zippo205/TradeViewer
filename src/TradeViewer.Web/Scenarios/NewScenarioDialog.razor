@@ -1,0 +1,126 @@
+@* A new expert scenario (SC9): the asset, the context timeframe (1d, or 4h for an asset without exchange hours, which
+   has no 4h, decision 0008) and the time span. Every expert scenario is long; its three levels follow from the context
+   (SC11). Nothing is written until the user places wave 2 end (SC14). *@
+<div class="indicator-dialog" role="dialog" aria-label="New expert scenario" @onkeydown="OnKey">
+    <h3>New expert scenario</h3>
+
+    <div class="indicator-dialog-grid">
+        <label for="new-scenario-asset">Asset</label>
+        <select id="new-scenario-asset" value="@_asset" @onchange="e => ChooseAsset(e.Value?.ToString())">
+            @foreach (var asset in Choices)
+            {
+                <option value="@KeyOf(asset)">@asset.Symbol (@asset.Source)</option>
+            }
+        </select>
+
+        <label>Context</label>
+        <span class="segments" role="group" aria-label="Context timeframe">
+            <button type="button" class="@(_context == "1d" ? "selected" : "")" @onclick='() => _context = "1d"'>1d</button>
+            <button type="button" class="@(_context == "4h" ? "selected" : "")" disabled="@(!Has4h)"
+                    title="@(Has4h ? "Context 4h: setup 1h, trigger 15m" : "This asset has exchange hours and no 4h (decision 0008)")"
+                    @onclick='() => _context = "4h"'>4h</button>
+        </span>
+
+        <label for="new-scenario-from">From</label>
+        <input id="new-scenario-from" type="date" @bind="_from" />
+
+        <label for="new-scenario-to">To</label>
+        <input id="new-scenario-to" type="date" @bind="_to" />
+
+        <span></span>
+        <span class="muted">@LevelsText</span>
+    </div>
+
+    @if (Problem != null || _problem != null)
+    {
+        <p class="status-bad">@(_problem ?? Problem)</p>
+    }
+
+    <div class="toolbar">
+        <span class="spacer"></span>
+        <button type="button" @onclick="() => OnCancel.InvokeAsync()">Cancel</button>
+        <button type="button" class="primary" disabled="@(Choices.Count == 0)" @onclick="CreateAsync">Create</button>
+    </div>
+</div>
+
+@code {
+    private string? _asset;
+    private string _context = "1d";
+    private DateTime? _from = DateTime.UtcNow.Date.AddYears(-1);
+    private DateTime? _to = DateTime.UtcNow.Date;
+    private string? _problem;
+
+    /// <summary>The assets of the workspace; a scenario is made only on one of them, so its chart can be shown.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<AssetResponse> Choices { get; set; } = Array.Empty<AssetResponse>();
+
+    /// <summary>The asset to start with, e.g. the one of the scenario shown.</summary>
+    [Parameter]
+    public string? Source { get; set; }
+
+    [Parameter]
+    public string? Symbol { get; set; }
+
+    /// <summary>Why the server refused the new scenario; the dialog stays open.</summary>
+    [Parameter]
+    public string? Problem { get; set; }
+
+    [Parameter]
+    public EventCallback<ExpertScenarioRecord> OnCreate { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private AssetResponse? Chosen => Choices.FirstOrDefault(asset => KeyOf(asset) == _asset);
+
+    private bool Has4h => Chosen?.Timeframes.Any(timeframe => timeframe.Timeframe == "4h") == true;
+
+    private string LevelsText => _context == "4h" ? "Levels: context 4h, setup 1h, trigger 15m" : "Levels: context 1d, setup 4h, trigger 1h";
+
+    protected override void OnInitialized()
+    {
+        var start = Choices.FirstOrDefault(asset => asset.Source == Source && asset.Symbol == Symbol) ?? Choices.FirstOrDefault();
+        ChooseAsset(start == null ? null : KeyOf(start));
+    }
+
+    private static string KeyOf(AssetResponse asset) => asset.Source + "/" + asset.Symbol;
+
+    private void ChooseAsset(string? key)
+    {
+        _asset = key;
+        if (!Has4h)
+        {
+            _context = "1d";
+        }
+    }
+
+    private async Task CreateAsync()
+    {
+        var asset = Chosen;
+        _problem = null;
+        if (asset == null)
+        {
+            _problem = "Choose an asset.";
+            return;
+        }
+
+        if (_from == null || _to == null || _to <= _from)
+        {
+            _problem = "The time span needs a start and an end after it.";
+            return;
+        }
+
+        var from = new DateTimeOffset(DateTime.SpecifyKind(_from.Value.Date, DateTimeKind.Utc));
+        var to = new DateTimeOffset(DateTime.SpecifyKind(_to.Value.Date, DateTimeKind.Utc));
+
+        // A new scenario is a draft (proposal 7) and long (SC9); its verdict is chosen in the panel.
+        var scenario = new ExpertScenarioRecord(
+            null, asset.Source, asset.Symbol, _context, "long", null, true, null, null, from, to, null, null, null, null, null, null, null);
+        await OnCreate.InvokeAsync(scenario);
+    }
+
+    private Task OnKey(KeyboardEventArgs e)
+    {
+        return e.Key == "Escape" ? OnCancel.InvokeAsync() : Task.CompletedTask;
+    }
+}

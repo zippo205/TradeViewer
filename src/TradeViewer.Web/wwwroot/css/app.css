@@ -1246,3 +1246,98 @@ button.fold {
     padding-left: 18px;
     color: var(--bad);
 }
+
+/* The editor of expert scenarios (SC10, SC12, SC15): point tools, panel fields, problems at their fields. */
+.scenario-tools button {
+    white-space: nowrap;
+}
+
+.scenario-tools-none {
+    padding: 0 6px;
+    font-size: 12px;
+}
+
+.scenario-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px 14px;
+    margin: 6px 0;
+}
+
+.scenario-fields > label {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.scenario-texts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 6px 0;
+}
+
+.scenario-texts label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.scenario-texts textarea {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    font: inherit;
+}
+
+.scenario-points {
+    width: 100%;
+    font-size: 12px;
+}
+
+.scenario-points tbody tr {
+    cursor: pointer;
+}
+
+.scenario-points tbody tr.selected {
+    background: var(--surface);
+}
+
+.scenario-points td {
+    white-space: nowrap;
+}
+
+.scenario-why {
+    width: 100%;
+    min-width: 160px;
+    box-sizing: border-box;
+}
+
+.scenario-number {
+    width: 90px;
+}
+
+.scenario-share {
+    width: 56px;
+}
+
+.scenario-field-problem {
+    font-size: 12px;
+    white-space: normal;
+}
+
+.scenario-save {
+    font-size: 12px;
+}
+
+@media (max-width: 800px) {
+    .scenario-texts {
+        grid-template-columns: 1fr;
+    }
+}
+
+.scenario-head-line .spacer {
+    flex: 1;
+}

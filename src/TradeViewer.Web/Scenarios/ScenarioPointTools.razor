@@ -1,0 +1,49 @@
+@* The point tools of the level shown (SC10, decision 0012): "1-2" on the context; the internals of waves 1 and 2 on
+   the setup; the trade on the trigger, for trade-win and trade-loss only. Undo and redo of the scenario beside them. *@
+<div class="segments scenario-tools" role="group" aria-label="Point tools">
+    @foreach (var tool in Tools)
+    {
+        <button type="button" class="@(tool.Tool.Code == Active ? "selected" : "")" title="@tool.Title"
+                @onclick="() => OnChoose.InvokeAsync(tool.Tool.Code == Active ? null : tool)">
+            @tool.Label
+        </button>
+    }
+    @if (Tools.Count == 0)
+    {
+        <span class="muted scenario-tools-none">@NoneText</span>
+    }
+</div>
+<div class="segments" role="group" aria-label="Undo and redo">
+    <button type="button" title="Undo (Ctrl+Z)" disabled="@(!CanUndo)" @onclick="() => OnUndo.InvokeAsync()">↶</button>
+    <button type="button" title="Redo (Ctrl+Y)" disabled="@(!CanRedo)" @onclick="() => OnRedo.InvokeAsync()">↷</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ScenarioPointTool> Tools { get; set; } = Array.Empty<ScenarioPointTool>();
+
+    /// <summary>The code of the tool in use, null for the pointer.</summary>
+    [Parameter]
+    public string? Active { get; set; }
+
+    [Parameter]
+    public string Level { get; set; } = ScenarioPoints.Context;
+
+    [Parameter]
+    public bool CanUndo { get; set; }
+
+    [Parameter]
+    public bool CanRedo { get; set; }
+
+    /// <summary>A tool chosen, or null when the tool in use is chosen again (back to the pointer).</summary>
+    [Parameter]
+    public EventCallback<ScenarioPointTool?> OnChoose { get; set; }
+
+    [Parameter]
+    public EventCallback OnUndo { get; set; }
+
+    [Parameter]
+    public EventCallback OnRedo { get; set; }
+
+    private string NoneText => Level == ScenarioPoints.Trigger ? "The trade is placed for trade-win and trade-loss" : "No point tools on this level";
+}
