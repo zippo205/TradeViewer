@@ -4,9 +4,9 @@
 
 ```text
 Epic:     Scenario Editor (P1 - Workstation)
-Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 7 done
+Status:   In work; plan approved by the owner 2026-11-20; steps 1 to 8 done
 Branch:   feature/scenario-editor
-Next:     step 8 (Web: free drawings in the file on every level, SC20, SC21)
+Next:     step 9 (finish: NF1, Docker, README, runbook, roadmap, outdated browser scripts, the owner's look)
 Baseline: docs as of commit 692f02c (main)
 ```
 
@@ -506,6 +506,28 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
   of wave 1 derived at 10-25 20:00 0.486, a moved start blocks Save, an exit marker selects and
   deletes that exit); `editor-check`, `scenario-page-check`, `range-check`, `tools-check` still OK.
   7 new unit tests (661), 4 new integration tests (275), 4 new Vitest (251).
+
+# Result of Step 8 (2026-11-21)
+
+- Web: `Drawings/DrawingToolChoice` holds the state of the tool rail (tool in use, Elliott pattern
+  and the group's last entry, wave chooser, Fibonacci preset per kind, the extras a new drawing
+  gets); the chart page uses it instead of its own fields, so both rails behave the same.
+  `Scenarios/ScenarioDrawings` converts the file's drawings (with their level) for the chart
+  module and the bar of the selected drawing.
+- The scenario page has the tool rail of the chart page with the wave and Fibonacci choosers and
+  the bar of the selected drawing. A drawing made belongs to the level shown; drawings of higher
+  levels are shown on the lower ones locked (seen, not moved, their own lock kept in the file);
+  a hidden level hides its drawings too (SC21). Every drawing change goes through the preview
+  like any other change, so undo and redo cover points and drawings, and it is written only with
+  Save (decision 0014). Delete removes the selected drawing first, then a point, then a form; one
+  thing is selected at a time. Undo and redo are in the rail only (the toolbar's pair is gone).
+- Headless browser (`~/tools/browser/drawings-check.mjs`): a line on each level, each saved with
+  its level, the others of the file unchanged and legacy kept; the context's line locked on the
+  setup; Delete and undo of a drawing; the context hidden takes its drawing away; after a reload
+  the context shows only its own drawing and the trigger all three. `tools-check`,
+  `elliott-check`, `editor-check`, `nested-check`, `scenario-page-check` still OK; `fib-check`
+  OK on a fresh workspace (the dev workspace's retracement preset was changed by hand).
+- 8 new unit tests (670 unit, 275 integration, 19 architecture, 251 Vitest pass).
 
 # Proposals
 

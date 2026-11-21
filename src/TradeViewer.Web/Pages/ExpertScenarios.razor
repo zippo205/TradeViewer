@@ -3,6 +3,8 @@
 @implements IDisposable
 @inject ScenariosApi Api
 @inject AssetsApi AssetsClient
+@inject DrawingsApi DrawingsClient
+@inject WorkspaceApi Workspace
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -31,8 +33,7 @@
             </label>
             @if (Writable && _asset != null && !Downloading && _missing == null)
             {
-                <ScenarioPointTools Tools="@Tools" Active="@_tool" Level="@_levels.Shown" CanUndo="@_session.CanUndo" CanRedo="@_session.CanRedo"
-                                    OnChoose="ChooseToolAsync" OnUndo="UndoAsync" OnRedo="RedoAsync" />
+                <ScenarioPointTools Tools="@Tools" Active="@_tool" Level="@_levels.Shown" OnChoose="ChooseToolAsync" />
             }
         }
         @if (_asset?.Loading == true)
@@ -102,6 +103,17 @@
             }
             @if (Chartable)
             {
+                <div class="chart-with-tools">
+                @* SC20: the tool rail of the chart page on every level; what is drawn belongs to the level shown. *@
+                @if (Writable && !Downloading && _missing == null)
+                {
+                    <DrawingToolbar Tool="@_tools.Tool" Magnet="@_magnet" Hidden="@_drawingsHidden"
+                                    CanUndo="@(_session.CanUndo)" CanRedo="@(_session.CanRedo)"
+                                    Pattern="@_tools.Pattern" LastPattern="@_tools.LastPattern" OnPattern="ChoosePatternAsync"
+                                    OnTool="ChooseDrawingToolAsync" OnMagnet="SetMagnetAsync" OnHidden="SetDrawingsHiddenAsync"
+                                    OnUndo="UndoAsync" OnRedo="RedoAsync" />
+                }
+                <div class="chart-canvas-area">
                 <ChartHost @ref="_chart"
                            Source="@_asset.Source"
                            Symbol="@_asset.Symbol"
@@ -116,7 +128,26 @@
                            OnPointSelected="OnPointSelected"
                            OnOverlayClicked="OnOverlayClicked"
                            OnScenarioToolChanged="OnScenarioToolChanged"
+                           OnDrawingCreated="OnDrawingCreatedAsync"
+                           OnDrawingChanged="OnDrawingChangedAsync"
+                           OnSelectionChanged="OnDrawingSelectedAsync"
+                           OnToolChanged="OnDrawingToolChanged"
                            OnKey="OnKeyAsync" />
+                @if (SelectedDrawing is { } drawing && Writable)
+                {
+                    <DrawingBar Drawing="@ScenarioDrawings.ToBar(drawing, _session.Scenario.Source, _session.Scenario.Symbol)" Wave="@((_tools.WaveDegree, _tools.WaveLabel))"
+                                OnEdit="edited => EditDrawingAsync(edited, drawing.Level)" OnDelete="() => RemoveDrawingAsync(drawing.Id)" />
+                }
+                @if (_tools.ChoosesWave)
+                {
+                    <WaveChooser Degree="@_tools.WaveDegree" Label="@_tools.WaveLabel" Pattern="@WavePatterns.Find(_tools.Pattern)" OnChanged="OnWaveChosenAsync" />
+                }
+                @if (DrawingToolChoice.KindOf(_tools.Tool) is string kind)
+                {
+                    <FibonacciChooser Presets="@_tools.PresetsOf(kind)" Selected="@(_tools.PresetOf(kind)?.Id ?? Guid.Empty)" OnChanged="id => OnPresetChosenAsync(kind, id)" />
+                }
+                </div>
+                </div>
             }
             else if (!Downloading)
             {
@@ -183,6 +214,12 @@
     private string? _historyLoaded;
     private NewScenarioPreset? _preset;
     private string? _missing;
+
+    // SC20: the free drawings of the scenario, with the tool rail of the chart page.
+    private readonly DrawingToolChoice _tools = new DrawingToolChoice();
+    private bool _magnet = true;
+    private bool _drawingsHidden;
+    private Guid? _selectedDrawing;
     private bool _disposed;
 
     [Parameter]
@@ -288,6 +325,12 @@
 
         var status = await Api.GetStatusAsync();
         _status = status.Value;
+
+        // The magnet is one setting for all charts (DR2); a new Fibonacci drawing copies the levels of its preset (DR4).
+        var settings = await Workspace.GetSettingsAsync();
+        _magnet = settings.Value?.Magnet ?? true;
+        var presets = await DrawingsClient.GetPresetsAsync();
+        _tools.Presets = presets.Value ?? new List<FibonacciPresetRecord>();
         if (_status?.Enabled == true)
         {
             await ReadListAsync();
@@ -420,6 +463,11 @@
 
     private async Task OnChartReadyAsync()
     {
+        if (_chart != null)
+        {
+            await _chart.SetDrawingOptionsAsync(_magnet, _drawingsHidden);
+        }
+
         if (_session != null)
         {
             _showSpan = false;
@@ -444,6 +492,18 @@
         await _chart.SetScenarioPointsAsync(handles);
         await _chart.SelectScenarioPointAsync(_selectedPoint);
 
+        // SC20, SC21: the drawings of the levels shown; those of a higher level are seen, not moved.
+        var drawings = (response.Scenario.Drawings ?? Array.Empty<ScenarioDrawingRecord>())
+            .Where(drawing => _levels.IsVisible(drawing.Level))
+            .Select(drawing => ScenarioDrawings.ToChart(drawing, Writable && drawing.Level == _levels.Shown))
+            .ToList();
+        if (SelectedDrawing == null)
+        {
+            _selectedDrawing = null;
+        }
+
+        await _chart.SetDrawingsAsync(drawings, _selectedDrawing?.ToString());
+
         // Decision 0013: the forms of the level shown are selected by a click and removed from the bar.
         var selectable = Writable ? response.Groups.Where(group => group.Level == _levels.Shown && _levels.IsVisible(group.Level)).Select(group => group.Key).ToList() : new List<string>();
         if (_selectedGroup != null && !selectable.Contains(_selectedGroup))
@@ -464,8 +524,10 @@
     {
         // Another level offers other tools; the one in use goes back to the pointer.
         await ChooseToolAsync(null);
+        await ChooseDrawingToolAsync(null);
         _selectedPoint = null;
         _selectedGroup = null;
+        _selectedDrawing = null;
         StateHasChanged(); // another timeframe is a new series of the chart; the shapes stay, the groups follow the level
         await ShowScenarioAsync(positionOnSpan: false);
         await RefreshShapesAsync();
@@ -518,6 +580,11 @@
     private async Task OnPointSelected(string? key)
     {
         _selectedPoint = key;
+        if (key != null)
+        {
+            _selectedDrawing = null; // the module has put the drawing selection away itself
+        }
+
         if (key != null && _selectedGroup != null && _chart != null)
         {
             _selectedGroup = null; // one thing is selected at a time
@@ -528,6 +595,12 @@
     /// <summary>Decision 0013: a click on a form selects it; on a marker of the trade, that point.</summary>
     private async Task OnOverlayClicked((string? Group, string? Key) clicked)
     {
+        if (clicked.Group != null && _selectedDrawing != null && _chart != null)
+        {
+            _selectedDrawing = null; // one thing is selected at a time
+            await ShowScenarioAsync(positionOnSpan: false);
+        }
+
         if (clicked.Key != null)
         {
             _selectedGroup = clicked.Group;
@@ -544,6 +617,123 @@
         if (_chart != null)
         {
             await _chart.SelectScenarioPointAsync(_selectedPoint);
+        }
+    }
+
+    /// <summary>The selected free drawing, when it still exists.</summary>
+    private ScenarioDrawingRecord? SelectedDrawing => _session == null ? null : ScenarioDrawings.Find(_session.Scenario, _selectedDrawing);
+
+    /// <summary>SC20: a drawing placed on the chart belongs to the level shown.</summary>
+    private async Task OnDrawingCreatedAsync(ChartDrawing drawing)
+    {
+        var record = ScenarioDrawings.ToRecord(drawing, _levels.Shown);
+        if (record == null)
+        {
+            return;
+        }
+
+        // A wave label placed: the chooser moves on to the next label, and the tool, still in use, places that one.
+        if (_tools.Created(record.Tool, record.Wave) && _chart != null)
+        {
+            await _chart.SetToolAsync("waveLabel", _tools.ExtrasFor("waveLabel"));
+        }
+
+        await EditAsync(scenario => Api.PreviewAsync(ScenarioDrawings.With(scenario, record), _levels.Timeframe));
+    }
+
+    /// <summary>A drawing moved or reshaped; it keeps its level. One of another level is locked and is not changed here.</summary>
+    private Task OnDrawingChangedAsync(ChartDrawing drawing)
+    {
+        var existing = _session == null || !Guid.TryParse(drawing.Id, out var id) ? null : ScenarioDrawings.Find(_session.Scenario, id);
+        var record = existing == null || existing.Level != _levels.Shown ? null : ScenarioDrawings.ToRecord(drawing, existing.Level);
+        return record == null ? Task.CompletedTask : EditAsync(scenario => Api.PreviewAsync(ScenarioDrawings.With(scenario, record), _levels.Timeframe));
+    }
+
+    private async Task OnDrawingSelectedAsync(string? id)
+    {
+        _selectedDrawing = Guid.TryParse(id, out var selected) ? selected : null;
+        if (_selectedDrawing != null && _chart != null)
+        {
+            _selectedPoint = null; // one thing is selected at a time
+            _selectedGroup = null;
+            await _chart.SelectOverlayAsync(null);
+        }
+    }
+
+    private Task EditDrawingAsync(DrawingRecord edited, string level)
+    {
+        var record = ScenarioDrawings.FromBar(edited, level);
+        return EditAsync(scenario => Api.PreviewAsync(ScenarioDrawings.With(scenario, record), _levels.Timeframe));
+    }
+
+    private Task RemoveDrawingAsync(Guid id)
+    {
+        _selectedDrawing = null;
+        return EditAsync(scenario => Api.PreviewAsync(ScenarioDrawings.Without(scenario, id), _levels.Timeframe));
+    }
+
+    private async Task ChooseDrawingToolAsync(string? tool)
+    {
+        tool = _tools.ChooseTool(tool);
+        if (_chart != null)
+        {
+            await _chart.SetToolAsync(tool, _tools.ExtrasFor(tool)); // the chart answers with ToolChanged
+        }
+    }
+
+    private async Task ChoosePatternAsync(string code)
+    {
+        var tool = _tools.ChoosePattern(code);
+        if (_chart != null)
+        {
+            await _chart.SetToolAsync(tool, _tools.ExtrasFor(tool));
+        }
+    }
+
+    private void OnDrawingToolChanged(string? tool)
+    {
+        _tools.ToolChanged(tool);
+        if (tool != null)
+        {
+            _tool = null; // the module put the point tool away
+        }
+    }
+
+    private async Task OnWaveChosenAsync((string Degree, string Label) wave)
+    {
+        if (_tools.ChooseWave(wave.Degree, wave.Label) && _chart != null)
+        {
+            await _chart.SetToolAsync(_tools.Tool, _tools.ExtrasFor(_tools.Tool));
+        }
+    }
+
+    private async Task OnPresetChosenAsync(string kind, Guid id)
+    {
+        if (_tools.ChoosePreset(kind, id) && _chart != null)
+        {
+            await _chart.SetToolAsync(_tools.Tool, _tools.ExtrasFor(_tools.Tool));
+        }
+    }
+
+    /// <summary>The magnet is one setting for all charts (DR2).</summary>
+    private async Task SetMagnetAsync(bool magnet)
+    {
+        _magnet = magnet;
+        if (_chart != null)
+        {
+            await _chart.SetDrawingOptionsAsync(_magnet, _drawingsHidden);
+        }
+
+        _ = Workspace.SaveMagnetAsync(magnet);
+    }
+
+    /// <summary>All free drawings hidden or shown on this page; the levels hide theirs with their switches (SC21).</summary>
+    private async Task SetDrawingsHiddenAsync(bool hidden)
+    {
+        _drawingsHidden = hidden;
+        if (_chart != null)
+        {
+            await _chart.SetDrawingOptionsAsync(_magnet, _drawingsHidden);
         }
     }
 
@@ -569,6 +759,11 @@
     /// <summary>Delete of the bar or the key: the selected point, else the selected form.</summary>
     private Task DeleteSelectionAsync()
     {
+        if (SelectedDrawing is { } drawing && drawing.Level == _levels.Shown)
+        {
+            return RemoveDrawingAsync(drawing.Id);
+        }
+
         if (_selectedPoint != null)
         {
             return RemoveSelectedPointAsync();

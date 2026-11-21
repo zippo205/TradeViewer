@@ -72,9 +72,9 @@
     else if (_asset != null && _shown != null)
     {
         <div class="chart-with-tools">
-            <DrawingToolbar Tool="@_tool" Magnet="@_magnet" Hidden="@_hidden"
+            <DrawingToolbar Tool="@_tools.Tool" Magnet="@_magnet" Hidden="@_hidden"
                             CanUndo="@Session.CanUndo" CanRedo="@Session.CanRedo" Problem="@(_drawingError ?? Saves.Problem)"
-                            Pattern="@_pattern" LastPattern="@_lastPattern" OnPattern="ChoosePatternAsync"
+                            Pattern="@_tools.Pattern" LastPattern="@_tools.LastPattern" OnPattern="ChoosePatternAsync"
                             RangeShown="@_scenariosWritable" RangeEnabled="@RangeEnabled" RangeActive="@_rangeTool" OnRange="ChooseRangeToolAsync"
                             OnTool="ChooseToolAsync" OnMagnet="SetMagnetAsync" OnHidden="SetHiddenAsync"
                             OnUndo="() => Session.Undo()" OnRedo="() => Session.Redo()" />
@@ -103,15 +103,15 @@
                 }
                 @if (Session.Selected != null && !_hidden)
                 {
-                    <DrawingBar Drawing="@Session.Selected" Wave="@((_waveDegree, _waveLabel))" OnEdit="OnDrawingEdited" OnDelete="() => Session.Delete(Session.Selected.Id)" />
+                    <DrawingBar Drawing="@Session.Selected" Wave="@((_tools.WaveDegree, _tools.WaveLabel))" OnEdit="OnDrawingEdited" OnDelete="() => Session.Delete(Session.Selected.Id)" />
                 }
-                @if ((_tool == "waveLabel" || _pattern != null) && !_hidden)
+                @if (_tools.ChoosesWave && !_hidden)
                 {
-                    <WaveChooser Degree="@_waveDegree" Label="@_waveLabel" Pattern="@WavePatterns.Find(_pattern)" OnChanged="OnWaveChosen" />
+                    <WaveChooser Degree="@_tools.WaveDegree" Label="@_tools.WaveLabel" Pattern="@WavePatterns.Find(_tools.Pattern)" OnChanged="OnWaveChosen" />
                 }
-                @if (KindOf(_tool) is string kind && !_hidden)
+                @if (DrawingToolChoice.KindOf(_tools.Tool) is string kind && !_hidden)
                 {
-                    <FibonacciChooser Presets="@PresetsOf(kind)" Selected="@(PresetOf(kind)?.Id ?? Guid.Empty)" OnChanged="id => OnPresetChosen(kind, id)" />
+                    <FibonacciChooser Presets="@_tools.PresetsOf(kind)" Selected="@(_tools.PresetOf(kind)?.Id ?? Guid.Empty)" OnChanged="id => OnPresetChosen(kind, id)" />
                 }
             </div>
         </div>
@@ -139,18 +139,13 @@
     private bool _disposed;
 
     // Drawings (DR1-DR6): the tool in use, magnet and "all hidden", the asset whose drawings are shown.
-    private string? _tool;
+    private readonly DrawingToolChoice _tools = new DrawingToolChoice();
     private bool _magnet = true;
     private bool _scenariosWritable;
     private bool _rangeTool;
     private bool _hidden;
     private string? _drawingsAsset;
     private string? _drawingError;
-    private string _waveDegree = WaveLabels.FirstDegree;
-    private string _waveLabel = "1";
-    private string? _pattern;
-    private string? _lastPattern;
-    private List<FibonacciPresetRecord> _presets = new List<FibonacciPresetRecord>();
 
     // Indicators (IN1, IN2): those of the asset shown, as its chart settings hold them, and the asset they belong to.
     private List<IndicatorRecord> _indicators = new List<IndicatorRecord>();
@@ -161,8 +156,6 @@
     private string? _indicatorError;
     private readonly SemaphoreSlim _settingsSaves = new SemaphoreSlim(1, 1);
 
-    /// <summary>The preset chosen per kind (retracement, extension) in this window; the first of the kind before a choice.</summary>
-    private readonly Dictionary<string, Guid> _chosenPresets = new Dictionary<string, Guid>();
 
     [Parameter]
     public string Source { get; set; } = string.Empty;
@@ -197,7 +190,7 @@
 
         // The Fibonacci presets (DR4): a new Fibonacci drawing copies the levels of the one chosen.
         var presets = await DrawingsApi.GetPresetsAsync();
-        _presets = presets.Value ?? new List<FibonacciPresetRecord>();
+        _tools.Presets = presets.Value ?? new List<FibonacciPresetRecord>();
 
         // A new indicator starts with TradingView's defaults (IN1); they live in the Domain and are read here once.
         var defaults = await IndicatorsApi.GetDefaultsAsync();
@@ -676,99 +669,38 @@
         Session.Created(record);
 
         // A wave label placed: the chooser moves on to the next label, and the tool, still in use, places that one.
-        if (record.Tool == "waveLabel" && record.Wave != null)
+        if (_tools.Created(record.Tool, record.Wave) && _chart != null)
         {
-            _waveDegree = record.Wave.Degree;
-            _waveLabel = WaveLabels.Next(record.Wave.Label);
-            if (_tool == "waveLabel" && _chart != null)
-            {
-                await _chart.SetToolAsync("waveLabel", WaveExtras());
-            }
+            await _chart.SetToolAsync("waveLabel", _tools.ExtrasFor("waveLabel"));
         }
     }
 
     /// <summary>The chooser changed: the wave label tool, when in use, places the label chosen.</summary>
     private async Task OnWaveChosen((string Degree, string Label) wave)
     {
-        _waveDegree = wave.Degree;
-        _waveLabel = wave.Label;
-        if ((_tool == "waveLabel" || _pattern != null) && _chart != null)
+        if (_tools.ChooseWave(wave.Degree, wave.Label) && _chart != null)
         {
-            await _chart.SetToolAsync(_tool, ToolExtras(_tool));
+            await _chart.SetToolAsync(_tools.Tool, _tools.ExtrasFor(_tools.Tool));
         }
     }
 
     /// <summary>A wave pattern chosen in the group of the rail: a polyline whose points get the labels of the pattern.</summary>
     private async Task ChoosePatternAsync(string code)
     {
-        _pattern = code;
-        _lastPattern = code;
+        var tool = _tools.ChoosePattern(code);
         if (_chart != null)
         {
-            await _chart.SetToolAsync("polyline", ToolExtras("polyline")); // the chart answers with ToolChanged
+            await _chart.SetToolAsync(tool, _tools.ExtrasFor(tool)); // the chart answers with ToolChanged
         }
-    }
-
-    /// <summary>What a new drawing of the tool gets besides its anchors: a wave mark, or Fibonacci levels.</summary>
-    private object? ToolExtras(string? tool)
-    {
-        if (tool == "waveLabel")
-        {
-            return WaveExtras();
-        }
-
-        var pattern = tool == "polyline" ? WavePatterns.Find(_pattern) : null;
-        if (pattern != null)
-        {
-            return new { pattern = pattern.Labels, degree = _waveDegree };
-        }
-
-        var kind = KindOf(tool);
-        var preset = kind == null ? null : PresetOf(kind);
-        return preset == null ? null : new { levels = preset.Levels };
-    }
-
-    /// <summary>The kind of preset a Fibonacci tool uses; null for the other tools.</summary>
-    private static string? KindOf(string? tool)
-    {
-        switch (tool)
-        {
-            case "fibonacciRetracement":
-                return "retracement";
-            case "fibonacciExtension":
-                return "extension";
-            default:
-                return null;
-        }
-    }
-
-    private IReadOnlyList<FibonacciPresetRecord> PresetsOf(string kind)
-    {
-        return _presets.Where(preset => preset.Kind == kind).ToList();
-    }
-
-    private FibonacciPresetRecord? PresetOf(string kind)
-    {
-        var presets = PresetsOf(kind);
-        return _chosenPresets.TryGetValue(kind, out var id) && presets.Any(preset => preset.Id == id)
-            ? presets.First(preset => preset.Id == id)
-            : presets.FirstOrDefault();
     }
 
     /// <summary>Another preset chosen: the tool in use places its levels from now on.</summary>
     private async Task OnPresetChosen(string kind, Guid id)
     {
-        _chosenPresets[kind] = id;
-        if (KindOf(_tool) == kind && _chart != null)
+        if (_tools.ChoosePreset(kind, id) && _chart != null)
         {
-            await _chart.SetToolAsync(_tool, ToolExtras(_tool));
+            await _chart.SetToolAsync(_tools.Tool, _tools.ExtrasFor(_tools.Tool));
         }
-    }
-
-    /// <summary>What a new wave label gets: the degree and label of the chooser; the chart adds the side.</summary>
-    private object WaveExtras()
-    {
-        return new { wave = new { degree = _waveDegree, label = _waveLabel } };
     }
 
     private void OnDrawingChanged(ChartDrawing drawing)
@@ -787,11 +719,7 @@
 
     private void OnToolChanged(string? tool)
     {
-        _tool = tool;
-        if (tool != "polyline")
-        {
-            _pattern = null; // the pattern ended, or another tool was chosen
-        }
+        _tools.ToolChanged(tool); // a pattern ends with its polyline
     }
 
     private void OnDrawingEdited(DrawingRecord drawing)
@@ -827,7 +755,7 @@
     {
         if (on)
         {
-            _pattern = null; // the range tool is no Elliott pattern; putting it away leaves the tool just chosen alone
+            _tools.ChooseTool(null); // the range tool is no Elliott pattern; putting it away leaves the tool just chosen alone
         }
 
         if (_chart != null)
@@ -859,15 +787,10 @@
 
     private async Task ChooseToolAsync(string? tool)
     {
-        _pattern = null; // a tool of the rail, also the free polyline, is not a pattern
-        if (tool == "waveLabel" || tool == "polyline")
-        {
-            _lastPattern = tool; // the Elliott group shows it next time
-        }
-
+        tool = _tools.ChooseTool(tool); // a tool of the rail, also the free polyline, is not a pattern
         if (_chart != null)
         {
-            await _chart.SetToolAsync(tool, ToolExtras(tool)); // the chart answers with ToolChanged
+            await _chart.SetToolAsync(tool, _tools.ExtrasFor(tool)); // the chart answers with ToolChanged
         }
     }
 
