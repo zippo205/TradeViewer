@@ -393,7 +393,7 @@ trade      timeframe; entry, stop { price, why }, add, stopMoves[],
            exits[] { time, price, share, kind (target | stop), why }   for trade-win, trade-loss
 legacy     only in converted scenarios: the old fields with no place here; ignored by EWTS
 drawings   TradeViewer's free drawings of the scenario, each with its level (context, setup,
-           trigger); ignored by EWTS                                    proposed, see below
+           trigger); ignored by EWTS like legacy                        optional
 ```
 
 - Id `<symbol>-<context tf>-<yyyy-MM>-X<n>` (`btcusdt-1d-2024-03-X1`): lower case except `X`,
@@ -401,6 +401,10 @@ drawings   TradeViewer's free drawings of the scenario, each with its level (con
 - `from` and `to` are the span EWTS runs over and TradeViewer shows; for `no-trade`, `to` means
   "no trade until here". A `draft` is checked by EWTS but is no acceptance test.
 - Each section names its timeframe, because a reading may mix them (1d waves, 1h internals).
+  TradeViewer writes them from the three levels of the chain of `contextTimeframe` (`1d` -> `4h`
+  -> `1h`, `4h` -> `1h` -> `15m`): `waves` the context, `wave1` and `wave2` the setup, `trade` the
+  trigger timeframe (a 4h scenario has `trade.timeframe` `15m`). A file with other section
+  timeframes is still read; EWTS reports them as notes (its SW1).
 - Snap rules: a wave point is the open time of its candle on the section's timeframe and that
   candle's wick extreme (the low for a low, the high for a high). `entry` and `add` are the open
   time and the close of the candle that closes beyond the level. An exit is the open time of the
@@ -416,10 +420,16 @@ drawings   TradeViewer's free drawings of the scenario, each with its level (con
   `wave2End`. `add` and `stopMoves` are optional; the `share` of the exits, in percent, adds up
   to 100.
 - TradeViewer rebuilds the drawing of the points from the points; it stores no drawing of the
-  points in the file. It keeps `legacy` and any field it does not know unchanged when it saves.
+  points in the file. The named points are the only reading EWTS tests; they win over any count
+  drawn in `drawings`. It keeps `legacy` and any field it does not know unchanged when it saves.
 - Rule checks (is a point a real extreme, does the entry follow the strategy) are EWTS's;
   TradeViewer checks only the form.
-- Agreed with EWTS on 2026-11-20, not yet in its architecture: the id is fixed at the first save
+- `createdAt` and `updatedAt` are TradeViewer's and optional; EWTS does not use them. TradeViewer
+  sets `createdAt` at its first save (when missing) and `updatedAt` at every save.
+- Every time in the file is UTC with `Z`.
+- Agreed with EWTS on 2026-11-21: the `drawings` section, the level timeframes above (TradeViewer
+  decision 0012), and `createdAt`/`updatedAt` as TradeViewer's optional fields.
+- Agreed with EWTS on 2026-11-20: the id is fixed at the first save
   and stays when `wave2End` later moves into another month; a file may be incomplete (saved at
   every change), and EWTS reports it as incomplete instead of failing; `why` is optional text.
 

@@ -1,7 +1,7 @@
 # 0012 - Timeframe Levels and Drawings in Expert Scenarios
 
-Status: accepted by the owner (2026-11-20); the `drawings` section still needs EWTS's agreement
-(for_the_neighbours.md). Amends 0010, points 3 and 4.
+Status: accepted by the owner (2026-11-20), confirmed by EWTS (2026-11-21). Amends 0010, points 3
+and 4.
 
 ## Context
 
@@ -62,8 +62,8 @@ reading of the scenario, so they must be kept (priority 1), but they are no name
 
 - Specification 4.12: SC8, SC10, SC11, SC12 and SC15 changed; SC20 (free drawings) and SC21
   (levels shown and hidden) added.
-- docs/knowledge/ewts-interface.md, "Expert Scenario Files": the section `drawings`, to be agreed
-  with EWTS.
+- docs/knowledge/ewts-interface.md, "Expert Scenario Files": the section `drawings` and the level
+  timeframes, agreed with EWTS.
 - Architecture chapters 8 and 10: the store keeps the `drawings` section; the scenario page uses
   the drawing interaction of the chart page and saves into the file.
 - The plan of the Scenario Editor gets a step for the drawings.

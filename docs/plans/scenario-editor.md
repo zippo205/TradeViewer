@@ -404,7 +404,7 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
 3. (Dropped: a point tool is offered only on its own level's timeframe, decision 0012.)
 4. **Unknown fields** are kept at every depth; the items of `exits` and `stopMoves` keep theirs by
    position (a removed exit loses its own unknown fields).
-5. **createdAt and updatedAt** (asked of EWTS in for_the_neighbours.md, not answered yet): optional
+5. **createdAt and updatedAt** (TradeViewer's and optional, confirmed by EWTS 2026-11-21): missing
    in a file TradeViewer has not saved; the first save sets `createdAt` (when missing) and every
    save sets `updatedAt`. A converted file therefore gets `createdAt` at its first change.
 6. **What is drawn from the points** (roles of OV6):
@@ -442,5 +442,5 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
   mainly the reason why there is no trade (SC10, SC12).
 - Exit price: taken where the exit is placed, corrected in the panel (SC10, SC12).
 
-Open: EWTS's agreement to the `drawings` section and to `createdAt`/`updatedAt` optional
-(for_the_neighbours.md). Step 1 can start without it; the section is written from step 8.
+EWTS confirmed on 2026-11-21 the `drawings` section and the level timeframes (decision 0012) and
+`createdAt`/`updatedAt` as TradeViewer's optional fields. Nothing of the editor waits for EWTS.

@@ -17,8 +17,7 @@ follow it. Decision 0007 (`*.expert.json`) is replaced; nothing of it remains.
 
 EWTS agreed to all points (2026-11-20): rebuilding from the named points, unknown fields kept,
 id fixed at the first save, incomplete files reported as incomplete, deleting in the editor,
-`why` optional. Please write the id rule and the incomplete files into the architecture,
-chapter 7, "Scenario Files".
+`why` optional. The id rule and the incomplete files are in EWTS's architecture, chapter 7.
 
 **Two pages (decision 0011, as agreed with the owner):** the Scenario Editor for `expert/` and
 the read-only Test-Run Viewer for `test-runs/`, on one shared scenario chart. There is no "new
@@ -31,25 +30,14 @@ repository as test fixtures; tests never read the shared folder and never contac
 against "Expert Scenario Files": id = file name and the month of `wave2End` everywhere, shares
 add up to 100 (90/10, 50/40/10, 100), `aEnd`/`bEnd` present for every zigzag and flat.
 
-**Question:** none of the 13 files has `createdAt` or `updatedAt`, which the head lists. TradeViewer
-proposes: both are optional in a file it has not saved yet; at its first save it sets `createdAt`
-to `updatedAt` = the time of that save. Please confirm or say otherwise.
-
-**Proposal (TradeViewer decision 0012, accepted by the owner 2026-11-20; please confirm):**
-
-1. The expert file gets a section `drawings` that belongs to TradeViewer: the owner's free
-   drawings of the scenario (lines, Fibonacci, Elliott counts, notes), each with its level
-   (`context`, `setup`, `trigger`). EWTS ignores it, as it ignores `legacy`; the named points stay
-   the only reading EWTS tests.
-2. An expert scenario has three timeframe levels from the chain of `contextTimeframe` (`1d` ->
-   `4h` -> `1h`, `4h` -> `1h` -> `15m`). TradeViewer writes `waves.timeframe` as the context,
-   `wave2.timeframe` as the setup and `trade.timeframe` as the trigger timeframe. All 13
-   converted files already follow this. A file with other section timeframes still opens.
-3. The 4h chain has 15m as trigger, so a 4h scenario with a trade has `trade.timeframe` `15m`.
+**Confirmed by EWTS (2026-11-21), taken over into docs/knowledge/ewts-interface.md:** decision
+0012 (the `drawings` section, ignored like `legacy`, the named points win over any drawn count;
+the level timeframes `waves` = context, `wave1` and `wave2` = setup, `trade` = trigger, 4h ->
+1h -> 15m; other section timeframes reported by EWTS as notes, SW1) and `createdAt`/`updatedAt`
+as TradeViewer's optional fields, UTC with `Z` when present.
 
 **Received (2026-11-20):** the optional section `wave1` (internals of wave 1, five or three).
-Taken over into docs/knowledge/ewts-interface.md and specification SC8, SC10-SC12, SC15. The
-proposal above (`drawings`, level timeframes, `createdAt`/`updatedAt`) is still unanswered.
+Taken over into docs/knowledge/ewts-interface.md and specification SC8, SC10-SC12, SC15.
 
 **Still waiting for:** one example test-run file in the new format (`T<n>` id, verdict `draft`)
 until the Scenarios epic writes real ones (needed only by the Test-Run Viewer).
