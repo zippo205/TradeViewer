@@ -11,6 +11,8 @@ public enum ScenarioPointName
     Wave1End,
     Wave2End,
 
+    /// <summary>The start of wave 1 on the setup's timeframe (wave1.start, decision 0013); the same turning point as Wave1Start.</summary>
+    Wave1Origin,
     Wave1I,
     Wave1Ii,
     Wave1Iii,
@@ -20,6 +22,8 @@ public enum ScenarioPointName
     Wave1B,
     Wave1C,
 
+    /// <summary>The start of wave 2 on the setup's timeframe (wave2.start, decision 0013); the same turning point as Wave1End.</summary>
+    Wave2Origin,
     Wave2A,
     Wave2B,
     Wave2C,

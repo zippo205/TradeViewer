@@ -43,11 +43,32 @@ public class ExpertScenarioShapesTests
 
         var group = Group(Scenario() with { Verdict = "trade-win", Trade = trade }, "trade");
 
-        var stops = group.Shapes.Where(shape => shape.Type == "level").ToList();
+        var stops = group.Shapes.Where(shape => shape.Type == "level" && shape.Style != "dotted").ToList();
         Assert.Equal(new[] { (0.95, Start.AddDays(6), Start.AddDays(8)), (1.05, Start.AddDays(8), Start.AddDays(12)) }, stops.Select(stop => (stop.Price!.Value, stop.From!.Value, stop.To!.Value)));
-        Assert.Equal(new[] { "target", "stop" }, group.Shapes.Where(shape => shape.Text!.StartsWith("Exit", StringComparison.Ordinal)).Select(shape => shape.Role));
+        Assert.Equal(new[] { "target", "stop" }, group.Shapes.Where(shape => shape.Text?.StartsWith("Exit", StringComparison.Ordinal) == true).Select(shape => shape.Role));
         Assert.Equal("Entry: 1.1 at 2024-10-07 00:00 UTC - EM4", group.Shapes.Single(shape => shape.Text == "Entry").Detail);
         Assert.Equal("trigger", group.Level);
+    }
+
+    [Fact]
+    public void Entry_add_and_exits_have_dotted_lines_that_select_their_point()
+    {
+        var trade = new ScenarioTradeRecord(
+            "1h", Point(6, 1.1), new ScenarioPriceRecord(0.95), Point(7, 1.12), null,
+            new[] { new ScenarioExitRecord(Start.AddDays(10), 1.5, 90, "target"), new ScenarioExitRecord(Start.AddDays(12), 1.05, 10, "stop") });
+
+        var lines = Group(Scenario() with { Verdict = "trade-win", Trade = trade }, "trade").Shapes
+            .Where(shape => shape.Type == "level" && shape.Style == "dotted")
+            .Select(shape => (shape.Key!, shape.Price!.Value, shape.From!.Value, shape.To!.Value))
+            .ToList();
+
+        Assert.Equal(new[]
+        {
+            ("trade.entry", 1.1, Start.AddDays(6), Start.AddDays(12)),   // to the end of the trade
+            ("trade.add", 1.12, Start.AddDays(7), Start.AddDays(12)),
+            ("trade.exits#0", 1.5, Start.AddDays(6), Start.AddDays(10)), // from the entry to where it was taken
+            ("trade.exits#1", 1.05, Start.AddDays(6), Start.AddDays(12))
+        }, lines);
     }
 
     [Fact]

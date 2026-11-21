@@ -121,7 +121,9 @@ public static class ScenarioFormRules
 
         if (points != null)
         {
-            CheckOrder(scenario, points, ScenarioPointName.Wave1Start, ScenarioPointName.Wave1End, problems);
+            // A start of its own (decision 0013) is where the internals begin; whether it fits the context is checked against candles.
+            var from = scenario.Points.ContainsKey(ScenarioPointName.Wave1Origin) ? ScenarioPointName.Wave1Origin : ScenarioPointName.Wave1Start;
+            CheckOrder(scenario, points, from, ScenarioPointName.Wave1End, problems);
         }
     }
 
@@ -146,7 +148,8 @@ public static class ScenarioFormRules
             Require(scenario, new[] { ScenarioPointName.Wave2A, ScenarioPointName.Wave2B }, "a " + pattern, problems);
         }
 
-        CheckOrder(scenario, ScenarioPoints.Wave2Points, ScenarioPointName.Wave1End, ScenarioPointName.Wave2End, problems);
+        var from = scenario.Points.ContainsKey(ScenarioPointName.Wave2Origin) ? ScenarioPointName.Wave2Origin : ScenarioPointName.Wave1End;
+        CheckOrder(scenario, ScenarioPoints.Wave2Points, from, ScenarioPointName.Wave2End, problems);
     }
 
     private static void CheckTrade(ExpertScenarioReading scenario, List<ScenarioFormProblem> problems)
@@ -418,6 +421,10 @@ public static class ScenarioFormRules
                 return "the end of wave 1";
             case ScenarioPointName.Wave2End:
                 return "the end of wave 2";
+            case ScenarioPointName.Wave1Origin:
+                return "the start of wave 1 on the setup";
+            case ScenarioPointName.Wave2Origin:
+                return "the start of wave 2 on the setup";
             case ScenarioPointName.Wave1I:
                 return "i";
             case ScenarioPointName.Wave1Ii:

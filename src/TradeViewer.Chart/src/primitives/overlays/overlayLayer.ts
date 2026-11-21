@@ -44,6 +44,8 @@ export class OverlayLayer implements ISeriesPrimitive<Time> {
   private groups: readonly OverlayGroup[] = [];
   private hidden: ReadonlySet<string> = new Set();
   private drawn: Drawn[] = [];
+  private selectable: ReadonlySet<string> = new Set();
+  private selection: { readonly group: string; readonly key?: string } | undefined;
 
   private readonly view: IPrimitivePaneView = {
     zOrder: () => "normal",
@@ -76,6 +78,39 @@ export class OverlayLayer implements ISeriesPrimitive<Time> {
     this.groups = groups;
     this.hidden = new Set(hiddenKeys);
     this.requestUpdate?.();
+  }
+
+  /** The groups the user can select by clicking a shape (the forms of the level shown in the editor, decision 0013). */
+  setSelectable(keys: readonly string[]): void {
+    this.selectable = new Set(keys);
+    if (this.selection !== undefined && !this.selectable.has(this.selection.group)) {
+      this.selection = undefined;
+    }
+
+    this.requestUpdate?.();
+  }
+
+  /** The selected group, or one shape of it by its key; drawn bolder. Undefined: nothing. */
+  select(group: string | undefined, key?: string): void {
+    this.selection = group === undefined ? undefined : { group, key };
+    this.requestUpdate?.();
+  }
+
+  selected(): { readonly group: string; readonly key?: string } | undefined {
+    return this.selection;
+  }
+
+  /** The topmost shape of a selectable group under the point: its group and, if it has one, its key. */
+  shapeAt(point: { x: number; y: number }): { readonly group: string; readonly key?: string } | undefined {
+    for (let i = this.drawn.length - 1; i >= 0; i--) {
+      const drawn = this.drawn[i]!;
+      const group = this.groups[drawn.group];
+      if (group !== undefined && this.selectable.has(group.key) && hits(drawn.placed, point)) {
+        return { group: group.key, key: group.shapes[drawn.shape]?.key };
+      }
+    }
+
+    return undefined;
   }
 
   /** The number of shapes drawn at the last paint, for checks. */
@@ -156,7 +191,14 @@ export class OverlayLayer implements ISeriesPrimitive<Time> {
           }
 
           context.save();
-          this.drawShape(context, shape, placed, projector);
+          const selection = this.selection;
+          const selected = selection !== undefined && selection.group === group.key && (selection.key === undefined || selection.key === shape.key);
+          if (selected) {
+            context.shadowColor = roleColour(shape.role);
+            context.shadowBlur = 8;
+          }
+
+          this.drawShape(context, shape, placed, projector, selected);
           context.restore();
           this.drawn.push({ group: groupIndex, shape: shapeIndex, placed });
         });
@@ -164,11 +206,11 @@ export class OverlayLayer implements ISeriesPrimitive<Time> {
     });
   }
 
-  private drawShape(context: CanvasRenderingContext2D, shape: OverlayShape, placed: Placed, projector: Projector): void {
+  private drawShape(context: CanvasRenderingContext2D, shape: OverlayShape, placed: Placed, projector: Projector, selected: boolean): void {
     const colour = roleColour(shape.role);
     context.strokeStyle = colour;
     context.fillStyle = colour;
-    context.lineWidth = shape.weight === "strong" ? 2.5 : 1.5;
+    context.lineWidth = (shape.weight === "strong" ? 2.5 : 1.5) + (selected ? 1.5 : 0);
     context.setLineDash(shape.style === "dashed" ? [6, 4] : shape.style === "dotted" ? [1.5, 3] : []);
 
     switch (placed.kind) {

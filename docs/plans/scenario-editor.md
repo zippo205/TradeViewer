@@ -484,6 +484,29 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
   need Save, a new scenario cannot be saved before wave 2 end, leaving with unsaved changes asks)
   and `scenario-page-check`, `range-check` ALL OK. 1 new unit test (654).
 
+# Nested Waves (decision 0013, 2026-11-21)
+
+- The owner found that the 1-2 of the context does not sit on the lows and highs of the setup,
+  that a nested i-v hung at a 1d point and had no first leg without a 1-2, and that forms could
+  not be removed by clicking. EWTS agreed to `wave1.start` and `wave2.start` and gave the rule
+  (the candle inside the context candle with the same low or high, the earliest on ties).
+- Domain: `Wave1Origin`, `Wave2Origin` (fields `wave1.start`, `wave2.start`), `ScenarioPoints.Turnings`,
+  `ScenarioTurning` (the rule; a fallback to the extreme of the span for the view). Application:
+  `ScenarioTurnings` (derive on snap, misfits as blocking problems, the view for the timeframe
+  shown); the save refuses a misfit (422 `scenario.levelsDoNotFit`). Contracts: `Start` in both
+  sections, `ScenarioProblemRecord.Blocking`, `OverlayShapeRecord.Key` (the trade's markers and
+  levels). Api: `?timeframe=` on get, snap and preview.
+- Module: `tools/overlaySelection.ts`, selectable groups and the selection drawn bolder in the
+  overlay layer. Web: the nested tools place their own start unless the context point exists;
+  a level change asks for the shapes of the new timeframe; the bar above the chart names what is
+  selected and deletes it (also the Delete key); Save stays disabled while a misfit exists, and
+  the panel marks it "Fix before saving".
+- Checked: `nested-check.mjs` ALL OK on XRPUSDT (0, 1, 2 on the 4h candles of the low and high,
+  wave 2 from the 4h high, a form deleted by a click and saved without it, legacy kept, the start
+  of wave 1 derived at 10-25 20:00 0.486, a moved start blocks Save, an exit marker selects and
+  deletes that exit); `editor-check`, `scenario-page-check`, `range-check`, `tools-check` still OK.
+  7 new unit tests (661), 4 new integration tests (275), 4 new Vitest (251).
+
 # Proposals
 
 1. **The Api snaps, not the browser** (accepted 2026-11-20; architecture chapters 8 and 10
@@ -507,7 +530,9 @@ Pages/ExpertScenarios.razor   /scenarios/expert and /scenarios/expert/{id}
      `lowerDegree`; lower case like wave 1, one degree below the waves);
    - trade: markers entry and add (`entry`, `add`); the stop as a level from the entry to the
      first stop move, each stop move as the next step of that level (`stop`); a marker per exit
-     with its share (`target` or `stop` by its kind).
+     with its share (`target` or `stop` by its kind). Added at the owner's look (2026-11-21):
+     dotted lines for entry and add (to the end of the trade) and for each exit (from the entry to
+     where it was taken), each with the key of its point, so a click on it selects the point.
    Every shape carries the point's reason as its detail text.
 7. **A new scenario is a draft** (`draft: true`) until the owner removes the mark.
 8. **The list shows unreadable files** with their error and no actions besides delete.

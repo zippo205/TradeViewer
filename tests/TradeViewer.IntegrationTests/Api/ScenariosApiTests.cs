@@ -114,7 +114,7 @@ public class ScenariosApiTests : IAsyncLifetime
         Assert.Equal(new[] { "line", "label", "label", "label" }, waves.Shapes.Select(shape => shape.Type));
         Assert.Equal(new[] { "0", "1", "2" }, waves.Shapes.Skip(1).Select(shape => shape.Text));
         var trade = response.Groups[2];
-        Assert.Equal(3, trade.Shapes.Count(shape => shape.Type == "level" && shape.Role == "stop")); // the stop and its two moves
+        Assert.Equal(3, trade.Shapes.Count(shape => shape.Type == "level" && shape.Role == "stop" && shape.Style != "dotted")); // the stop and its two moves
         Assert.Equal(new[] { "Exit 50 %", "Exit 40 %", "Exit 10 %" }, trade.Shapes.Where(shape => shape.Type == "marker" && shape.Text!.StartsWith("Exit", StringComparison.Ordinal)).Select(shape => shape.Text));
         Assert.Contains("EM4", trade.Shapes.Single(shape => shape.Text == "Entry").Detail); // the reason of the point
         Assert.False(response.Asset.InWorkspace); // XRPUSDT is not in this workspace (SC6)
@@ -254,6 +254,69 @@ public class ScenariosApiTests : IAsyncLifetime
         var response = await (await _client.PostAsJsonAsync("/api/scenarios/expert/preview", NewScenario())).Content.ReadFromJsonAsync<ExpertScenarioResponse>(Json);
 
         Assert.Equal(new Dictionary<string, string?> { ["15m"] = "2024-12-31" }, response!.Asset.HistoryNeeded);
+    }
+
+    [Fact]
+    public async Task Placing_a_nested_point_derives_the_start_of_the_wave_from_its_context_point()
+    {
+        // Wave 1 start on the 4h candle of 00:00 (low 90); the 1h candle of 00:00 has the same low (decision 0013).
+        var snapped = await Snap(NewScenario(), "waves.wave1Start", Day + 3600, 1.0);
+        snapped = await Snap(snapped.Scenario, "wave1.iEnd", Day + (2 * 3600) + 10, 1.0);
+
+        Assert.Equal((At(0), 90.0), (snapped.Scenario.Wave1!.Start!.Time, snapped.Scenario.Wave1.Start.Price));
+        Assert.DoesNotContain(snapped.Problems, problem => problem.Blocking);
+        var line = snapped.Groups.Single(group => group.Key == "wave1").Shapes.Single(shape => shape.Type == "line");
+        Assert.Equal(At(0), line.Points![0].Time); // the internals start at their own start
+    }
+
+    [Fact]
+    public async Task A_start_that_does_not_fit_its_context_point_blocks_the_save()
+    {
+        var waves = new ScenarioWavesRecord("4h", new ScenarioPointRecord(At(0), 90), null, new ScenarioPointRecord(At(12 * 3600), 93));
+        var scenario = NewScenario() with { Waves = waves, Wave1 = new ScenarioWave1Record("1h", "impulse", Start: new ScenarioPointRecord(At(3600), 91)) };
+
+        var preview = await _client.PostAsJsonAsync("/api/scenarios/expert/preview", scenario);
+        var answer = (await preview.Content.ReadFromJsonAsync<ExpertScenarioResponse>(Json))!;
+        var misfit = Assert.Single(answer.Problems, problem => problem.Blocking);
+        Assert.Equal("wave1.start", misfit.Field);
+        Assert.Contains("2024-12-31 00:00", misfit.Message);
+
+        var save = await _client.PostAsJsonAsync("/api/scenarios/expert", scenario);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, save.StatusCode);
+        Assert.Contains("wave1.start", await save.Content.ReadAsStringAsync());
+        Assert.Equal(13, Directory.GetFiles(_folder.ExpertFolder).Length);
+
+        var fitting = await _client.PostAsJsonAsync("/api/scenarios/expert", scenario with { Wave1 = scenario.Wave1! with { Start = new ScenarioPointRecord(At(0), 90) } });
+        Assert.Equal(HttpStatusCode.OK, fitting.StatusCode);
+    }
+
+    [Fact]
+    public async Task Without_a_candle_that_meets_the_rule_the_start_is_not_derived_and_a_start_cannot_be_saved()
+    {
+        // The 4h candle of 04:00 has the low 91; the 1h candles inside it have 94 to 97: no candle meets the rule.
+        var snapped = await Snap(NewScenario(), "waves.wave1Start", Day + (5 * 3600), 1.0);
+        snapped = await Snap(snapped.Scenario, "wave1.iEnd", Day + (6 * 3600), 1.0);
+        Assert.Null(snapped.Scenario.Wave1!.Start);
+
+        var withStart = snapped.Scenario with { Wave1 = snapped.Scenario.Wave1 with { Start = new ScenarioPointRecord(At(4 * 3600), 91) } };
+        var preview = (await (await _client.PostAsJsonAsync("/api/scenarios/expert/preview", withStart)).Content.ReadFromJsonAsync<ExpertScenarioResponse>(Json))!;
+        Assert.Contains(preview.Problems, problem => problem.Blocking && problem.Field == "wave1.start" && problem.Message.Contains("gap"));
+    }
+
+    [Fact]
+    public async Task On_a_smaller_timeframe_the_points_of_the_context_sit_on_the_candle_that_made_them()
+    {
+        // Wave 1 end on the 4h candle of 04:00 (high 111); the highest 1h candle inside it is 07:00.
+        var waves = new ScenarioWavesRecord("4h", new ScenarioPointRecord(At(0), 90), new ScenarioPointRecord(At(4 * 3600), 111), null);
+        var scenario = NewScenario() with { Waves = waves };
+
+        var onContext = (await (await _client.PostAsJsonAsync("/api/scenarios/expert/preview", scenario)).Content.ReadFromJsonAsync<ExpertScenarioResponse>(Json))!;
+        var onSetup = (await (await _client.PostAsJsonAsync("/api/scenarios/expert/preview?timeframe=1h", scenario)).Content.ReadFromJsonAsync<ExpertScenarioResponse>(Json))!;
+
+        DateTimeOffset LabelOne(ExpertScenarioResponse response) => response.Groups.Single(group => group.Key == "waves").Shapes.Single(shape => shape.Text == "1").Time!.Value;
+        Assert.Equal(At(4 * 3600), LabelOne(onContext));
+        Assert.Equal(At(7 * 3600), LabelOne(onSetup));
+        Assert.Equal(At(4 * 3600), onSetup.Scenario.Waves!.Wave1End!.Time); // only the view moves
     }
 
     private async Task<ExpertScenarioResponse> Snap(ExpertScenarioRecord scenario, string point, long time, double price, int? index = null, string? kind = null)

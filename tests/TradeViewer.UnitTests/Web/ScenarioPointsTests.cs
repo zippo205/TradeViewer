@@ -27,6 +27,34 @@ public class ScenarioPointsTests
     }
 
     [Fact]
+    public void Without_the_1_2_the_nested_tools_place_their_own_start_with_it_the_start_is_derived()
+    {
+        var empty = Scenario("no-trade");
+        var withWaves = empty with { Waves = new ScenarioWavesRecord("1d", Point(-30), Point(-10), null) };
+
+        Assert.Equal("wave1.start", Fields(ScenarioPoints.ToolsOf("setup", empty), "wave1Five")[0]);
+        Assert.Equal("wave2.start", Fields(ScenarioPoints.ToolsOf("setup", empty), "wave2")[0]);
+        Assert.Equal("wave1.iEnd", Fields(ScenarioPoints.ToolsOf("setup", withWaves), "wave1Five")[0]);
+        Assert.Equal("wave2.aEnd", Fields(ScenarioPoints.ToolsOf("setup", withWaves), "wave2")[0]);
+    }
+
+    [Fact]
+    public void A_form_clicked_on_the_chart_is_removed_as_a_whole_and_its_start_like_a_point()
+    {
+        var scenario = Scenario("trade-win") with
+        {
+            Waves = new ScenarioWavesRecord("1d", Point(-30), Point(-10), Point(0)),
+            Wave1 = new ScenarioWave1Record("4h", "impulse", Point(-28), Start: Point(-30))
+        };
+
+        Assert.Null(ScenarioPoints.RemoveGroup(scenario, "wave1").Wave1);
+        Assert.NotNull(ScenarioPoints.RemoveGroup(scenario, "wave1").Waves);
+        Assert.Null(ScenarioPoints.RemoveGroup(scenario, "waves").Waves);
+        Assert.Null(ScenarioPoints.Remove(scenario, "wave1.start").Wave1!.Start);
+        Assert.Contains(ScenarioPoints.EntriesOf(scenario), entry => entry.Key == "wave1.start" && entry.Level == "setup");
+    }
+
+    [Fact]
     public void The_setup_offers_only_the_wave_1_tool_of_its_pattern()
     {
         var none = Scenario("no-trade");

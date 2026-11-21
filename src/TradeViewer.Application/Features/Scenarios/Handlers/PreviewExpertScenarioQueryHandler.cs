@@ -23,6 +23,6 @@ public sealed class PreviewExpertScenarioQueryHandler : IQueryHandler<PreviewExp
             return invalid;
         }
 
-        return Result.Success(await _responses.BuildAsync(query.Scenario, cancellationToken));
+        return Result.Success(await _responses.BuildAsync(query.Scenario, query.Timeframe, cancellationToken));
     }
 }

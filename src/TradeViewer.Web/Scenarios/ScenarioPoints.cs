@@ -31,6 +31,8 @@ public static class ScenarioPoints
     private static readonly string[] Wave1Five = { "wave1.iEnd", "wave1.iiEnd", "wave1.iiiEnd", "wave1.ivEnd", "wave1.vEnd" };
     private static readonly string[] Wave1Three = { "wave1.aEnd", "wave1.bEnd", "wave1.cEnd" };
     private static readonly string[] Wave2 = { "wave2.aEnd", "wave2.bEnd", "wave2.cEnd" };
+    private const string Wave1Start = "wave1.start";
+    private const string Wave2Start = "wave2.start";
 
     /// <summary>The level a field belongs to: the waves to the context, the internals to the setup, the trade to the trigger.</summary>
     public static string LevelOf(string field)
@@ -60,17 +62,20 @@ public static class ScenarioPoints
 
             case Setup:
                 var pattern = scenario.Wave1?.Pattern;
+                // Decision 0013: each nested form has its own start; with the context point there it is derived, not clicked.
+                var wave1Start = scenario.Wave1?.Start == null && scenario.Waves?.Wave1Start == null;
+                var wave2Start = scenario.Wave2?.Start == null && scenario.Waves?.Wave1End == null;
                 if (pattern == null || IsFive(pattern))
                 {
-                    tools.Add(Group("wave1Five", "1: i-v", "Place the internals i to v of wave 1 (v is optional: without it wave 1 end is v)", Wave1Five, scenario));
+                    tools.Add(Group("wave1Five", "1: i-v", "Place wave 1 as a five on the setup: its start (unless wave 1 start is on the context), then i to v", WithStart(wave1Start, Wave1Start, Wave1Five), scenario));
                 }
 
                 if (pattern == null || pattern == "three")
                 {
-                    tools.Add(Group("wave1Three", "1: a-c", "Place the internals a to c of wave 1 as a three (c is optional)", Wave1Three, scenario));
+                    tools.Add(Group("wave1Three", "1: a-c", "Place wave 1 as a three on the setup: its start (unless wave 1 start is on the context), then a to c", WithStart(wave1Start, Wave1Start, Wave1Three), scenario));
                 }
 
-                tools.Add(Group("wave2", "2: a-c", "Place the internals a to c of wave 2 (c is optional: without it wave 2 end is c)", Wave2, scenario));
+                tools.Add(Group("wave2", "2: a-c", "Place wave 2 on the setup: its start (unless wave 1 end is on the context), then a to c", WithStart(wave2Start, Wave2Start, Wave2), scenario));
                 break;
 
             case Trigger when HasTrade(scenario.Verdict):
@@ -102,6 +107,7 @@ public static class ScenarioPoints
         Add("waves.wave1End", "Wave 1 end", scenario.Waves?.Wave1End);
         Add("waves.wave2End", "Wave 2 end", scenario.Waves?.Wave2End);
         var wave1 = scenario.Wave1;
+        Add(Wave1Start, "Wave 1: start", wave1?.Start);
         Add("wave1.iEnd", "Wave 1: i", wave1?.IEnd);
         Add("wave1.iiEnd", "Wave 1: ii", wave1?.IiEnd);
         Add("wave1.iiiEnd", "Wave 1: iii", wave1?.IiiEnd);
@@ -110,6 +116,7 @@ public static class ScenarioPoints
         Add("wave1.aEnd", "Wave 1: a", wave1?.AEnd);
         Add("wave1.bEnd", "Wave 1: b", wave1?.BEnd);
         Add("wave1.cEnd", "Wave 1: c", wave1?.CEnd);
+        Add(Wave2Start, "Wave 2: start", scenario.Wave2?.Start);
         Add("wave2.aEnd", "Wave 2: a", scenario.Wave2?.AEnd);
         Add("wave2.bEnd", "Wave 2: b", scenario.Wave2?.BEnd);
         Add("wave2.cEnd", "Wave 2: c", scenario.Wave2?.CEnd);
@@ -172,6 +179,7 @@ public static class ScenarioPoints
             "waves.wave1Start" when waves != null => scenario with { Waves = waves with { Wave1Start = null } },
             "waves.wave1End" when waves != null => scenario with { Waves = waves with { Wave1End = null } },
             "waves.wave2End" when waves != null => scenario with { Waves = waves with { Wave2End = null } },
+            Wave1Start when wave1 != null => scenario with { Wave1 = wave1 with { Start = null } },
             "wave1.iEnd" when wave1 != null => scenario with { Wave1 = wave1 with { IEnd = null } },
             "wave1.iiEnd" when wave1 != null => scenario with { Wave1 = wave1 with { IiEnd = null } },
             "wave1.iiiEnd" when wave1 != null => scenario with { Wave1 = wave1 with { IiiEnd = null } },
@@ -180,6 +188,7 @@ public static class ScenarioPoints
             "wave1.aEnd" when wave1 != null => scenario with { Wave1 = wave1 with { AEnd = null } },
             "wave1.bEnd" when wave1 != null => scenario with { Wave1 = wave1 with { BEnd = null } },
             "wave1.cEnd" when wave1 != null => scenario with { Wave1 = wave1 with { CEnd = null } },
+            Wave2Start when wave2 != null => scenario with { Wave2 = wave2 with { Start = null } },
             "wave2.aEnd" when wave2 != null => scenario with { Wave2 = wave2 with { AEnd = null } },
             "wave2.bEnd" when wave2 != null => scenario with { Wave2 = wave2 with { BEnd = null } },
             "wave2.cEnd" when wave2 != null => scenario with { Wave2 = wave2 with { CEnd = null } },
@@ -190,6 +199,19 @@ public static class ScenarioPoints
                 => scenario with { Trade = trade with { StopMoves = Without(trade.StopMoves, index) } },
             Exits when trade?.Exits != null && index >= 0 && index < trade.Exits.Count
                 => scenario with { Trade = trade with { Exits = Without(trade.Exits, index) } },
+            _ => scenario
+        };
+    }
+
+    /// <summary>The scenario without a whole form, clicked on the chart (decision 0013): the 1-2, wave 1, wave 2 or the trade.</summary>
+    public static ExpertScenarioRecord RemoveGroup(ExpertScenarioRecord scenario, string group)
+    {
+        return group switch
+        {
+            "waves" => scenario with { Waves = null },
+            "wave1" => scenario with { Wave1 = null },
+            "wave2" => scenario with { Wave2 = null },
+            "trade" => scenario with { Trade = null },
             _ => scenario
         };
     }
@@ -211,6 +233,7 @@ public static class ScenarioPoints
             "waves.wave1Start" when waves != null => scenario with { Waves = waves with { Wave1Start = Why(waves.Wave1Start) } },
             "waves.wave1End" when waves != null => scenario with { Waves = waves with { Wave1End = Why(waves.Wave1End) } },
             "waves.wave2End" when waves != null => scenario with { Waves = waves with { Wave2End = Why(waves.Wave2End) } },
+            Wave1Start when wave1 != null => scenario with { Wave1 = wave1 with { Start = Why(wave1.Start) } },
             "wave1.iEnd" when wave1 != null => scenario with { Wave1 = wave1 with { IEnd = Why(wave1.IEnd) } },
             "wave1.iiEnd" when wave1 != null => scenario with { Wave1 = wave1 with { IiEnd = Why(wave1.IiEnd) } },
             "wave1.iiiEnd" when wave1 != null => scenario with { Wave1 = wave1 with { IiiEnd = Why(wave1.IiiEnd) } },
@@ -219,6 +242,7 @@ public static class ScenarioPoints
             "wave1.aEnd" when wave1 != null => scenario with { Wave1 = wave1 with { AEnd = Why(wave1.AEnd) } },
             "wave1.bEnd" when wave1 != null => scenario with { Wave1 = wave1 with { BEnd = Why(wave1.BEnd) } },
             "wave1.cEnd" when wave1 != null => scenario with { Wave1 = wave1 with { CEnd = Why(wave1.CEnd) } },
+            Wave2Start when wave2 != null => scenario with { Wave2 = wave2 with { Start = Why(wave2.Start) } },
             "wave2.aEnd" when wave2 != null => scenario with { Wave2 = wave2 with { AEnd = Why(wave2.AEnd) } },
             "wave2.bEnd" when wave2 != null => scenario with { Wave2 = wave2 with { BEnd = Why(wave2.BEnd) } },
             "wave2.cEnd" when wave2 != null => scenario with { Wave2 = wave2 with { CEnd = Why(wave2.CEnd) } },
@@ -286,6 +310,11 @@ public static class ScenarioPoints
         var present = EntriesOf(scenario).Select(entry => entry.Field).ToHashSet(StringComparer.Ordinal);
         var missing = fields.Where(field => !present.Contains(field)).ToList();
         return new ScenarioPointTool(label, title, new ScenarioTool(code, missing.Count > 0 ? missing : fields));
+    }
+
+    private static string[] WithStart(bool needed, string start, string[] fields)
+    {
+        return needed ? new[] { start }.Concat(fields).ToArray() : fields;
     }
 
     private static ScenarioPointTool Single(string code, string label, string title, string field, string? kind = null)

@@ -70,7 +70,7 @@ public sealed class ExpertScenarioSession
     /// <summary>The same scenario answered again (e.g. after its asset loaded): new shapes and asset state, no change of the user.</summary>
     public void Refresh(ExpertScenarioResponse response)
     {
-        Response = Keep(response);
+        Response = response with { Scenario = Scenario }; // the same state: an unsaved change stays unsaved, a save of it stays its save
     }
 
     /// <summary>The state undo goes back to, or null; it is only taken when <see cref="Undone"/> follows.</summary>

@@ -518,6 +518,12 @@ DeleteAsync(id)                       delete expert/<id>.json (SC16)
   problems, the timeframes of its levels and the state of its asset (SC6: whether it is in the
   workspace and which history starts the span needs; the page sends them, after the user agreed,
   as a history change of the asset).
+- Decision 0013 (`ScenarioTurnings`, Application; the rule in Domain, `ScenarioTurning`): for the
+  timeframe shown, every wave point of a higher level is moved, for the view only, to the candle
+  of that timeframe that made it; placing a point of a nested wave derives its start from the
+  context point; every answer carries the misfits of the levels as blocking form problems, and
+  the save refuses them. Each lookup reads the candles of the smaller timeframe inside one candle
+  of the larger.
   Both are drawn by the same primitives of the chart module (`setOverlays`).
 - An expert scenario is addressed by its id, a test-run scenario by run id and id; both are
   checked against the file name rules, so no request leaves its folder.
@@ -606,6 +612,9 @@ Times are ISO 8601 UTC except in the column arrays of candles and indicators.
                                               problems without writing (SC10, also before the first save)
 /api/scenarios/expert/preview                 post: shapes and problems of a scenario as the editor holds it, without
                                               writing (a point removed or a field typed before the first save)
+                                              get {id}, snap and preview take ?timeframe= (the chart's): the shapes put
+                                              the points of higher levels on its candles (decision 0013); a save whose
+                                              levels do not fit is refused with 422 scenario.levelsDoNotFit
 /api/scenarios/test-runs                      the run folders (SC17)
 /api/scenarios/test-runs/{runId}              the scenarios of a run
 /api/scenarios/test-runs/{runId}/{id}         one test-run scenario with its shapes (SC18)
@@ -866,6 +875,11 @@ context menu; the bar of the selected drawing does what one would.
   `/scenarios/expert?new&source=&symbol=&context=&from=&to=` (days, UTC); the editor reads the
   query once, opens the dialog of a new scenario with these values and removes the query from
   the address.
+- Forms of a scenario are selected by a click (decision 0013, `tools/overlaySelection.ts`): Web
+  names the selectable groups (`setOverlaySelectable`, the level shown); a click on a shape of
+  one reports `overlayClicked(group, key)` (the key of a trade marker names its point) and is
+  not passed to the chart; the selection is drawn bolder (`selectOverlay`). It is a target of
+  `PointerInput` after the named points and before the drawings.
 
 ---
 

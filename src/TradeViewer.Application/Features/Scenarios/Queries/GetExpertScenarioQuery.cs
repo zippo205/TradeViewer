@@ -4,4 +4,4 @@ using TradeViewer.Contracts.Scenarios;
 namespace TradeViewer.Application.Features.Scenarios.Queries;
 
 /// <summary>One expert scenario with its shapes, problems, levels and asset state (SC8, SC13: viewing writes nothing).</summary>
-public sealed record GetExpertScenarioQuery(string Id) : IQuery<ExpertScenarioResponse>;
+public sealed record GetExpertScenarioQuery(string Id, string? Timeframe = null) : IQuery<ExpertScenarioResponse>;

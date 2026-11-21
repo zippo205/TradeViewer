@@ -45,7 +45,7 @@ public static class ExpertScenarioShapes
                 : new[] { ("i", wave1.IEnd, "above"), ("ii", wave1.IiEnd, "below"), ("iii", wave1.IiiEnd, "above"), ("iv", wave1.IvEnd, "below"), ("v", wave1.VEnd, "above") };
             var lastEnd = three ? wave1.CEnd : wave1.VEnd;
             groups.Add(Group("wave1", "Wave 1 (" + (wave1.Pattern ?? "no pattern") + ")", "lowerDegree", wave1.Timeframe, context, ScenarioLevel.Setup,
-                Internals(waves?.Wave1Start, points, lastEnd == null ? waves?.Wave1End : null)));
+                Internals(wave1.Start ?? waves?.Wave1Start, points, lastEnd == null ? waves?.Wave1End : null)));
         }
 
         var wave2 = scenario.Wave2;
@@ -53,7 +53,7 @@ public static class ExpertScenarioShapes
         {
             var points = new[] { ("a", wave2.AEnd, "below"), ("b", wave2.BEnd, "above"), ("c", wave2.CEnd, "below") };
             groups.Add(Group("wave2", "Wave 2 (" + (wave2.Pattern ?? "no pattern") + ")", "lowerDegree", wave2.Timeframe, context, ScenarioLevel.Setup,
-                Internals(waves?.Wave1End, points, wave2.CEnd == null ? waves?.Wave2End : null)));
+                Internals(wave2.Start ?? waves?.Wave1End, points, wave2.CEnd == null ? waves?.Wave2End : null)));
         }
 
         var trade = scenario.Trade;
@@ -127,45 +127,59 @@ public static class ExpertScenarioShapes
     private static IReadOnlyList<OverlayShapeRecord> Trade(ScenarioTradeRecord trade, DateTimeOffset? to)
     {
         var shapes = new List<OverlayShapeRecord>();
+        var exits = trade.Exits ?? Array.Empty<ScenarioExitRecord>();
+        var end = exits.Count > 0 ? exits.Max(exit => exit.Time) : to;
+
+        // Dotted lines make the prices of the trade easy to see (the owner, 2026-11-21): entry and add to the end of the
+        // trade, each exit from the entry to where it was taken. A line has the key of its point, so a click on it
+        // selects that point like its marker.
         if (trade.Entry != null)
         {
-            shapes.Add(Marker("entry", "Entry", trade.Entry));
+            shapes.Add(Line("entry", trade.Entry.Price, trade.Entry.Time, end, Detail("Entry", trade.Entry), "trade.entry"));
+            shapes.Add(Marker("entry", "Entry", trade.Entry, "trade.entry"));
         }
 
         if (trade.Add != null)
         {
-            shapes.Add(Marker("add", "Add", trade.Add));
+            shapes.Add(Line("add", trade.Add.Price, trade.Add.Time, end, Detail("Add", trade.Add), "trade.add"));
+            shapes.Add(Marker("add", "Add", trade.Add, "trade.add"));
         }
-
-        var exits = trade.Exits ?? Array.Empty<ScenarioExitRecord>();
-        var end = exits.Count > 0 ? exits.Max(exit => exit.Time) : to;
         if (trade.Stop != null && trade.Entry != null)
         {
-            var moves = (trade.StopMoves ?? Array.Empty<ScenarioPointRecord>()).OrderBy(move => move.Time).ToList();
-            var steps = new List<(DateTimeOffset From, double Price, string Text, string? Why)> { (trade.Entry.Time, trade.Stop.Price, "Stop", trade.Stop.Why) };
-            steps.AddRange(moves.Select(move => (move.Time, move.Price, "Stop moved", move.Why)));
+            var moves = (trade.StopMoves ?? Array.Empty<ScenarioPointRecord>()).Select((move, index) => (Move: move, Index: index)).OrderBy(move => move.Move.Time).ToList();
+            var steps = new List<(DateTimeOffset From, double Price, string Text, string? Why, string Key)> { (trade.Entry.Time, trade.Stop.Price, "Stop", trade.Stop.Why, "trade.stop") };
+            steps.AddRange(moves.Select(move => (move.Move.Time, move.Move.Price, "Stop moved", move.Move.Why, "trade.stopMoves#" + move.Index)));
             for (var i = 0; i < steps.Count; i++)
             {
                 var stepEnd = i + 1 < steps.Count ? steps[i + 1].From : end;
                 var detail = steps[i].Text + ": " + Price(steps[i].Price) + " from " + Time(steps[i].From) + Why(steps[i].Why);
-                shapes.Add(new OverlayShapeRecord("level", "stop", Price: steps[i].Price, From: steps[i].From, To: stepEnd, Text: steps[i].Text, Detail: detail));
+                shapes.Add(new OverlayShapeRecord("level", "stop", Price: steps[i].Price, From: steps[i].From, To: stepEnd, Text: steps[i].Text, Detail: detail, Key: steps[i].Key));
             }
         }
 
-        foreach (var exit in exits)
+        for (var index = 0; index < exits.Count; index++)
         {
+            var exit = exits[index];
             var text = "Exit " + exit.Share.ToString("0.##", CultureInfo.InvariantCulture) + " %";
             var role = exit.Kind == ScenarioCodes.StopKind ? "stop" : "target";
             var detail = text + " (" + exit.Kind + "): " + Price(exit.Price) + " at " + Time(exit.Time) + Why(exit.Why);
-            shapes.Add(new OverlayShapeRecord("marker", role, Time: exit.Time, Price: exit.Price, Text: text, Detail: detail));
+            var from = trade.Entry != null && trade.Entry.Time < exit.Time ? trade.Entry.Time : exit.Time;
+            shapes.Add(Line(role, exit.Price, from, exit.Time, detail, "trade.exits#" + index));
+            shapes.Add(new OverlayShapeRecord("marker", role, Time: exit.Time, Price: exit.Price, Text: text, Detail: detail, Key: "trade.exits#" + index));
         }
 
         return shapes;
     }
 
-    private static OverlayShapeRecord Marker(string role, string text, ScenarioPointRecord point)
+    /// <summary>A dotted level at a price of the trade, without a text (its marker carries it).</summary>
+    private static OverlayShapeRecord Line(string role, double price, DateTimeOffset from, DateTimeOffset? to, string detail, string key)
     {
-        return new OverlayShapeRecord("marker", role, Time: point.Time, Price: point.Price, Text: text, Detail: Detail(text, point));
+        return new OverlayShapeRecord("level", role, Price: price, From: from, To: to, Detail: detail, Style: "dotted", Key: key);
+    }
+
+    private static OverlayShapeRecord Marker(string role, string text, ScenarioPointRecord point, string key)
+    {
+        return new OverlayShapeRecord("marker", role, Time: point.Time, Price: point.Price, Text: text, Detail: Detail(text, point), Key: key);
     }
 
     private static string Detail(string label, ScenarioPointRecord point)

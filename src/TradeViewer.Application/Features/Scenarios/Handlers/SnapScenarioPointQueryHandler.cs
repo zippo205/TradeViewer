@@ -19,11 +19,13 @@ public sealed class SnapScenarioPointQueryHandler : IQueryHandler<SnapScenarioPo
 {
     private readonly ICandleSeriesReader _candles;
     private readonly ExpertScenarioResponses _responses;
+    private readonly ScenarioTurnings _turnings;
 
-    public SnapScenarioPointQueryHandler(ICandleSeriesReader candles, ExpertScenarioResponses responses)
+    public SnapScenarioPointQueryHandler(ICandleSeriesReader candles, ExpertScenarioResponses responses, ScenarioTurnings turnings)
     {
         _candles = candles;
         _responses = responses;
+        _turnings = turnings;
     }
 
     public async Task<Result<ExpertScenarioResponse>> HandleAsync(SnapScenarioPointQuery query, CancellationToken cancellationToken)
@@ -71,6 +73,7 @@ public sealed class SnapScenarioPointQueryHandler : IQueryHandler<SnapScenarioPo
 
         var snapped = ScenarioSnap.Snap(name.Value, candle.Value, request.Price);
         var placed = ScenarioPointEditor.Place(scenario, name.Value, request.Index, request.Kind, snapped, timeframe);
-        return Result.Success(await _responses.BuildAsync(placed, cancellationToken));
+        placed = await _turnings.DeriveStartAsync(placed, name.Value, cancellationToken); // decision 0013: the start follows from the context point
+        return Result.Success(await _responses.BuildAsync(placed, query.Timeframe, cancellationToken));
     }
 }

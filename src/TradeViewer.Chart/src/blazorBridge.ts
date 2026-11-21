@@ -39,6 +39,13 @@ export function bindRangeEvents(pane: ChartPane, target: DotNetTarget): void {
   });
 }
 
+/** Reports a click on a form of an expert scenario to ChartHost (decision 0013): OverlayClicked(group, key). */
+export function bindOverlayEvents(pane: ChartPane, target: DotNetTarget): void {
+  pane.onOverlayEvents({
+    overlayClicked: (group, key) => void target.invokeMethodAsync("OverlayClicked", group ?? null, key ?? null),
+  });
+}
+
 /** Reports the actions of the indicator legends to ChartHost: IndicatorAction(id, "hide" | "settings" | "remove"). */
 export function bindIndicatorActions(pane: ChartPane, target: DotNetTarget): void {
   pane.onIndicatorActions((id, action) => void target.invokeMethodAsync("IndicatorAction", id, action));

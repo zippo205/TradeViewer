@@ -30,22 +30,25 @@ public sealed class ScenariosApi : IExpertScenarioRemote
         return ApiCalls.SendAsync<List<ExpertScenarioSummary>>(() => _http.GetAsync(Expert));
     }
 
-    public Task<ApiResult<ExpertScenarioResponse>> GetAsync(string id)
+    /// <param name="timeframe">The timeframe of the chart: the points of higher levels come on its candles (decision 0013).</param>
+    public Task<ApiResult<ExpertScenarioResponse>> GetAsync(string id, string? timeframe = null)
     {
-        return ApiCalls.SendAsync<ExpertScenarioResponse>(() => _http.GetAsync(Expert + "/" + Uri.EscapeDataString(id)));
+        return ApiCalls.SendAsync<ExpertScenarioResponse>(() => _http.GetAsync(Expert + "/" + Uri.EscapeDataString(id) + Shown(timeframe)));
     }
 
     /// <summary>The server snaps a point the user placed or let go; nothing is written (SC10).</summary>
-    public Task<ApiResult<ExpertScenarioResponse>> SnapAsync(SnapScenarioPointRequest request)
+    public Task<ApiResult<ExpertScenarioResponse>> SnapAsync(SnapScenarioPointRequest request, string? timeframe = null)
     {
-        return ApiCalls.SendAsync<ExpertScenarioResponse>(() => _http.PostAsJsonAsync(Expert + "/snap", request));
+        return ApiCalls.SendAsync<ExpertScenarioResponse>(() => _http.PostAsJsonAsync(Expert + "/snap" + Shown(timeframe), request));
     }
 
     /// <summary>Shapes and problems of a scenario as the editor holds it; nothing is written.</summary>
-    public Task<ApiResult<ExpertScenarioResponse>> PreviewAsync(ExpertScenarioRecord scenario)
+    public Task<ApiResult<ExpertScenarioResponse>> PreviewAsync(ExpertScenarioRecord scenario, string? timeframe = null)
     {
-        return ApiCalls.SendAsync<ExpertScenarioResponse>(() => _http.PostAsJsonAsync(Expert + "/preview", scenario));
+        return ApiCalls.SendAsync<ExpertScenarioResponse>(() => _http.PostAsJsonAsync(Expert + "/preview" + Shown(timeframe), scenario));
     }
+
+    private static string Shown(string? timeframe) => timeframe == null ? "" : "?timeframe=" + Uri.EscapeDataString(timeframe);
 
     /// <summary>
     /// Writes the scenario for the save queue: without an id the first save, which takes it (SC13, SC14). A passing

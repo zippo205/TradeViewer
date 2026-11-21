@@ -86,6 +86,13 @@
                     <span class="status-bad">Candles of the span are missing, so this scenario cannot be edited: @_missing</span>
                 </div>
             }
+            @if (SelectionText != null && Writable)
+            {
+                <div class="scenario-selection" role="toolbar" aria-label="Selected">
+                    <span>@SelectionText</span>
+                    <button type="button" class="danger" title="Remove it (Delete); undo brings it back" @onclick="DeleteSelectionAsync">Delete</button>
+                </div>
+            }
             @if (_editProblem != null)
             {
                 <div class="scenario-notice">
@@ -107,6 +114,7 @@
                            OnReady="OnChartReadyAsync"
                            OnPointPlaced="OnPointPlacedAsync"
                            OnPointSelected="OnPointSelected"
+                           OnOverlayClicked="OnOverlayClicked"
                            OnScenarioToolChanged="OnScenarioToolChanged"
                            OnKey="OnKeyAsync" />
             }
@@ -164,6 +172,8 @@
     private string? _opened;
     private string? _tool;
     private string? _selectedPoint;
+    private string? _selectedGroup;
+    private string? _selectedShape;
     private bool _listOpen = true;
     private bool _logScale = true;
     private bool _busy;
@@ -212,7 +222,10 @@
     private bool Unprotected => _session?.Dirty == true || _queue.HasUnsaved;
 
     /// <summary>SC13: Save is enabled while there is an unsaved change that can be written.</summary>
-    private bool CanSave => _session != null && Writable && _session.Dirty && !WaitsForWave2End && !_queue.IsUnsaved(_session.Key) && !Downloading;
+    private bool CanSave => _session != null && Writable && _session.Dirty && !WaitsForWave2End && !Misfit && !_queue.IsUnsaved(_session.Key) && !Downloading;
+
+    /// <summary>Decision 0013: the levels do not fit; Save stays disabled until the user corrects it.</summary>
+    private bool Misfit => _session?.Response.Problems.Any(problem => problem.Blocking) == true;
 
     private string SaveTitle
     {
@@ -223,7 +236,12 @@
                 return "Nothing to save";
             }
 
-            return WaitsForWave2End ? "Place wave 2 end first: the id of the scenario needs its month (SC14)" : "Save the scenario into its file";
+            if (WaitsForWave2End)
+            {
+                return "Place wave 2 end first: the id of the scenario needs its month (SC14)";
+            }
+
+            return Misfit ? "The levels do not fit: correct the points marked in the panel first" : "Save the scenario into its file";
         }
     }
 
@@ -253,7 +271,9 @@
 
             if (_session.Dirty)
             {
-                return WaitsForWave2End ? "unsaved changes: Save needs wave 2 end (the id needs its month)" : "unsaved changes";
+                return WaitsForWave2End ? "unsaved changes: Save needs wave 2 end (the id needs its month)"
+                    : Misfit ? "unsaved changes: the levels do not fit, correct them to save"
+                    : "unsaved changes";
             }
 
             return _session.Changed ? "saved" : null;
@@ -423,6 +443,16 @@
         var handles = _levels.IsHidden(_levels.Shown) ? Array.Empty<ScenarioHandle>() : ScenarioPoints.HandlesOf(response.Scenario, _levels.Shown, Writable);
         await _chart.SetScenarioPointsAsync(handles);
         await _chart.SelectScenarioPointAsync(_selectedPoint);
+
+        // Decision 0013: the forms of the level shown are selected by a click and removed from the bar.
+        var selectable = Writable ? response.Groups.Where(group => group.Level == _levels.Shown && _levels.IsVisible(group.Level)).Select(group => group.Key).ToList() : new List<string>();
+        if (_selectedGroup != null && !selectable.Contains(_selectedGroup))
+        {
+            _selectedGroup = null;
+        }
+
+        await _chart.SetOverlaySelectableAsync(selectable);
+        await _chart.SelectOverlayAsync(_selectedGroup, _selectedGroup == null ? null : _selectedShape);
         var scenario = response.Scenario;
         if (positionOnSpan && scenario.From != null)
         {
@@ -435,8 +465,40 @@
         // Another level offers other tools; the one in use goes back to the pointer.
         await ChooseToolAsync(null);
         _selectedPoint = null;
+        _selectedGroup = null;
         StateHasChanged(); // another timeframe is a new series of the chart; the shapes stay, the groups follow the level
         await ShowScenarioAsync(positionOnSpan: false);
+        await RefreshShapesAsync();
+    }
+
+    /// <summary>
+    /// SC8, decision 0013: the shapes for the timeframe now shown, on which the points of the higher levels sit on the
+    /// candles that made them. The scenario itself does not change.
+    /// </summary>
+    private async Task RefreshShapesAsync()
+    {
+        if (_session == null)
+        {
+            return;
+        }
+
+        await _edits.WaitAsync();
+        try
+        {
+            var session = _session;
+            var answer = session == null ? null : await Api.PreviewAsync(session.Scenario, _levels.Timeframe);
+            if (session != null && answer?.Value != null && _session == session)
+            {
+                session.Refresh(answer.Value);
+                await ShowScenarioAsync(positionOnSpan: false);
+            }
+        }
+        finally
+        {
+            _edits.Release();
+        }
+
+        StateHasChanged();
     }
 
     private async Task ChooseToolAsync(ScenarioPointTool? tool)
@@ -453,9 +515,74 @@
         _tool = code;
     }
 
-    private void OnPointSelected(string? key)
+    private async Task OnPointSelected(string? key)
     {
         _selectedPoint = key;
+        if (key != null && _selectedGroup != null && _chart != null)
+        {
+            _selectedGroup = null; // one thing is selected at a time
+            await _chart.SelectOverlayAsync(null);
+        }
+    }
+
+    /// <summary>Decision 0013: a click on a form selects it; on a marker of the trade, that point.</summary>
+    private async Task OnOverlayClicked((string? Group, string? Key) clicked)
+    {
+        if (clicked.Key != null)
+        {
+            _selectedGroup = clicked.Group;
+            _selectedShape = clicked.Key;
+            _selectedPoint = clicked.Key;
+        }
+        else
+        {
+            _selectedGroup = clicked.Group;
+            _selectedShape = null;
+            _selectedPoint = null;
+        }
+
+        if (_chart != null)
+        {
+            await _chart.SelectScenarioPointAsync(_selectedPoint);
+        }
+    }
+
+    /// <summary>What the bar above the chart names as selected, null when nothing is.</summary>
+    private string? SelectionText
+    {
+        get
+        {
+            if (_session == null)
+            {
+                return null;
+            }
+
+            if (_selectedPoint != null)
+            {
+                return ScenarioPoints.EntriesOf(_session.Scenario).FirstOrDefault(entry => entry.Key == _selectedPoint)?.Label;
+            }
+
+            return _selectedGroup == null ? null : _session.Response.Groups.FirstOrDefault(group => group.Key == _selectedGroup)?.Title;
+        }
+    }
+
+    /// <summary>Delete of the bar or the key: the selected point, else the selected form.</summary>
+    private Task DeleteSelectionAsync()
+    {
+        if (_selectedPoint != null)
+        {
+            return RemoveSelectedPointAsync();
+        }
+
+        var group = _selectedGroup;
+        if (group == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        _selectedGroup = null;
+        _selectedShape = null;
+        return EditAsync(scenario => Api.PreviewAsync(ScenarioPoints.RemoveGroup(scenario, group), _levels.Timeframe));
     }
 
     private async Task SelectPointAsync(string key)
@@ -471,13 +598,13 @@
     private Task OnPointPlacedAsync(PlacedPoint point)
     {
         var time = DateTimeOffset.FromUnixTimeSeconds(point.Time);
-        return EditAsync(scenario => Api.SnapAsync(new SnapScenarioPointRequest(scenario, point.Field, time, point.Price, point.Index, point.Kind)));
+        return EditAsync(scenario => Api.SnapAsync(new SnapScenarioPointRequest(scenario, point.Field, time, point.Price, point.Index, point.Kind), _levels.Timeframe));
     }
 
     /// <summary>A field of the panel (SC12).</summary>
     private Task ChangeAsync(ExpertScenarioRecord changed)
     {
-        return EditAsync(_ => Api.PreviewAsync(changed));
+        return EditAsync(_ => Api.PreviewAsync(changed, _levels.Timeframe));
     }
 
     /// <summary>Proposal 9: choosing the other pattern of wave 1 removes the points of the first after a confirmation; undo brings them back.</summary>
@@ -496,7 +623,7 @@
         }
 
         var setup = _session.Response.Levels.FirstOrDefault(level => level.Level == ScenarioPoints.Setup)?.Timeframe ?? "";
-        await EditAsync(scenario => Api.PreviewAsync(ScenarioPoints.WithWave1Pattern(scenario, pattern, setup)));
+        await EditAsync(scenario => Api.PreviewAsync(ScenarioPoints.WithWave1Pattern(scenario, pattern, setup), _levels.Timeframe));
     }
 
     private Task RemoveSelectedPointAsync()
@@ -508,7 +635,9 @@
         }
 
         _selectedPoint = null;
-        return EditAsync(scenario => Api.PreviewAsync(ScenarioPoints.Remove(scenario, key)));
+        _selectedGroup = null;
+        _selectedShape = null;
+        return EditAsync(scenario => Api.PreviewAsync(ScenarioPoints.Remove(scenario, key), _levels.Timeframe));
     }
 
     /// <summary>
@@ -586,7 +715,7 @@
                 return;
             }
 
-            var answer = await Api.PreviewAsync(target);
+            var answer = await Api.PreviewAsync(target, _levels.Timeframe);
             if (_session != session)
             {
                 return;
@@ -657,7 +786,7 @@
         switch (key)
         {
             case "delete":
-                await RemoveSelectedPointAsync();
+                await DeleteSelectionAsync();
                 break;
             case "undo":
                 await UndoAsync();
@@ -895,7 +1024,7 @@
         await _edits.WaitAsync(); // a change of the user meanwhile is not overwritten
         try
         {
-            var answer = await Api.PreviewAsync(session.Scenario);
+            var answer = await Api.PreviewAsync(session.Scenario, _levels.Timeframe);
             if (answer.Value != null && _session == session)
             {
                 session.Refresh(answer.Value);

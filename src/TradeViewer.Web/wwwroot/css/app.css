@@ -1376,3 +1376,25 @@ button.fold {
 .scenario-save-button:disabled {
     cursor: not-allowed;
 }
+
+/* Decision 0013: what is selected on the chart of a scenario, with Delete. */
+.scenario-selection {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 6px 4px 12px;
+    transform: translateX(-50%);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.scenario-field-problem.blocking,
+.scenario-problems li.blocking {
+    font-weight: 600;
+}

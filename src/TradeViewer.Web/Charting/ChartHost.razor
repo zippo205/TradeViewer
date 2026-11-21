@@ -108,6 +108,10 @@
     [Parameter]
     public EventCallback<(DateTimeOffset From, DateTimeOffset To)> OnRangeSelected { get; set; }
 
+    /// <summary>A form of a scenario was clicked (its group key, and the key of the shape if it stands for a point), or (null, null): none.</summary>
+    [Parameter]
+    public EventCallback<(string? Group, string? Key)> OnOverlayClicked { get; set; }
+
     /// <summary>The range tool was chosen or put away (after a range, Escape, or another tool).</summary>
     [Parameter]
     public EventCallback<bool> OnRangeToolChanged { get; set; }
@@ -222,6 +226,24 @@
         }
     }
 
+    /// <summary>The groups whose shapes can be selected by a click (decision 0013).</summary>
+    public async Task SetOverlaySelectableAsync(IReadOnlyList<string> keys)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("setOverlaySelectable", keys);
+        }
+    }
+
+    /// <summary>Selects a group, or one shape of it by its key, or nothing (null).</summary>
+    public async Task SelectOverlayAsync(string? group, string? key = null)
+    {
+        if (_pane != null)
+        {
+            await _pane.InvokeVoidAsync("selectOverlay", group, key);
+        }
+    }
+
     /// <summary>The range tool on or off (SC22); choosing it puts the drawing tool away.</summary>
     public async Task SetRangeToolAsync(bool on)
     {
@@ -298,6 +320,12 @@
     }
 
     [JSInvokable]
+    public Task OverlayClicked(string? group, string? key)
+    {
+        return OnOverlayClicked.InvokeAsync((group, key));
+    }
+
+    [JSInvokable]
     public Task RangeToolChanged(bool on)
     {
         return OnRangeToolChanged.InvokeAsync(on);
@@ -321,6 +349,7 @@
             await _module.InvokeVoidAsync("bindIndicatorActions", _pane, _self);
             await _module.InvokeVoidAsync("bindScenarioEvents", _pane, _self);
             await _module.InvokeVoidAsync("bindRangeEvents", _pane, _self);
+            await _module.InvokeVoidAsync("bindOverlayEvents", _pane, _self);
             _keys = await _module.InvokeAsync<IJSObjectReference>("bindPageKeys", _self);
             await ApplyAsync();
             await OnReady.InvokeAsync();

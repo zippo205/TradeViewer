@@ -38,30 +38,34 @@ public static class ScenarioEndpoints
             return result.ToHttpResult();
         });
 
+        // timeframe (optional): the timeframe of the chart; the points of higher levels are drawn on its candles (decision 0013).
         expert.MapPost("/snap", async (
             SnapScenarioPointRequest request,
+            string? timeframe,
             IQueryHandler<SnapScenarioPointQuery, ExpertScenarioResponse> handler,
             CancellationToken cancellationToken) =>
         {
-            var result = await handler.HandleAsync(new SnapScenarioPointQuery(request), cancellationToken);
+            var result = await handler.HandleAsync(new SnapScenarioPointQuery(request, timeframe), cancellationToken);
             return result.ToHttpResult();
         });
 
         expert.MapPost("/preview", async (
             ExpertScenarioRecord scenario,
+            string? timeframe,
             IQueryHandler<PreviewExpertScenarioQuery, ExpertScenarioResponse> handler,
             CancellationToken cancellationToken) =>
         {
-            var result = await handler.HandleAsync(new PreviewExpertScenarioQuery(scenario), cancellationToken);
+            var result = await handler.HandleAsync(new PreviewExpertScenarioQuery(scenario, timeframe), cancellationToken);
             return result.ToHttpResult();
         });
 
         expert.MapGet("/{id}", async (
             string id,
+            string? timeframe,
             IQueryHandler<GetExpertScenarioQuery, ExpertScenarioResponse> handler,
             CancellationToken cancellationToken) =>
         {
-            var result = await handler.HandleAsync(new GetExpertScenarioQuery(id), cancellationToken);
+            var result = await handler.HandleAsync(new GetExpertScenarioQuery(id, timeframe), cancellationToken);
             return result.ToHttpResult();
         });
 

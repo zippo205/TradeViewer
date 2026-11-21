@@ -2,7 +2,8 @@ namespace TradeViewer.Contracts.Scenarios;
 
 /// <summary>
 /// The internals of wave 1 on the setup level. Pattern impulse or leading-diagonal has the points i to v, pattern
-/// three the points a to c; a file never holds both. Without v or c the last point is the end of wave 1.
+/// three the points a to c; a file never holds both. Without v or c the last point is the end of wave 1. Start is the
+/// start of wave 1 on this timeframe (decision 0013); without it the internals begin at the start of wave 1.
 /// </summary>
 public sealed record ScenarioWave1Record(
     string? Timeframe,
@@ -14,4 +15,5 @@ public sealed record ScenarioWave1Record(
     ScenarioPointRecord? VEnd = null,
     ScenarioPointRecord? AEnd = null,
     ScenarioPointRecord? BEnd = null,
-    ScenarioPointRecord? CEnd = null);
+    ScenarioPointRecord? CEnd = null,
+    ScenarioPointRecord? Start = null);

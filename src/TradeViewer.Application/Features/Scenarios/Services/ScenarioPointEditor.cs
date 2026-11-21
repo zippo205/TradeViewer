@@ -79,9 +79,11 @@ public static class ScenarioPointEditor
             case ScenarioPointName.Wave2A:
             case ScenarioPointName.Wave2B:
             case ScenarioPointName.Wave2C:
+            case ScenarioPointName.Wave2Origin:
                 {
                     var wave2 = scenario.Wave2 ?? new ScenarioWave2Record(code, null);
-                    wave2 = name == ScenarioPointName.Wave2A ? wave2 with { AEnd = Moved(wave2.AEnd) }
+                    wave2 = name == ScenarioPointName.Wave2Origin ? wave2 with { Start = Moved(wave2.Start) }
+                        : name == ScenarioPointName.Wave2A ? wave2 with { AEnd = Moved(wave2.AEnd) }
                         : name == ScenarioPointName.Wave2B ? wave2 with { BEnd = Moved(wave2.BEnd) }
                         : wave2 with { CEnd = Moved(wave2.CEnd) };
                     return scenario with { Wave2 = wave2 with { Timeframe = wave2.Timeframe ?? code } };
@@ -147,10 +149,11 @@ public static class ScenarioPointEditor
 
     private static ExpertScenarioRecord PlaceInWave1(ExpertScenarioRecord scenario, ScenarioPointName name, Func<ScenarioPointRecord?, ScenarioPointRecord> moved, string code)
     {
-        var pattern = ScenarioPoints.Wave1Three.Contains(name) ? ScenarioCodes.Three : ScenarioCodes.Impulse;
+        var pattern = ScenarioPoints.Wave1Three.Contains(name) ? ScenarioCodes.Three : ScenarioPoints.Wave1Five.Contains(name) ? ScenarioCodes.Impulse : null;
         var wave1 = scenario.Wave1 ?? new ScenarioWave1Record(code, pattern);
         wave1 = name switch
         {
+            ScenarioPointName.Wave1Origin => wave1 with { Start = moved(wave1.Start) },
             ScenarioPointName.Wave1I => wave1 with { IEnd = moved(wave1.IEnd) },
             ScenarioPointName.Wave1Ii => wave1 with { IiEnd = moved(wave1.IiEnd) },
             ScenarioPointName.Wave1Iii => wave1 with { IiiEnd = moved(wave1.IiiEnd) },
@@ -184,7 +187,7 @@ public static class ScenarioPointEditor
             case ScenarioLevel.Trigger:
                 return scenario.Trade?.Timeframe;
             default:
-                return ScenarioPoints.Wave2Points.Contains(name) ? scenario.Wave2?.Timeframe : scenario.Wave1?.Timeframe;
+                return ScenarioPoints.Wave2Points.Contains(name) || name == ScenarioPointName.Wave2Origin ? scenario.Wave2?.Timeframe : scenario.Wave1?.Timeframe;
         }
     }
 }

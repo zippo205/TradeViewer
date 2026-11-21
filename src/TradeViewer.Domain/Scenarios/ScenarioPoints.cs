@@ -16,6 +16,19 @@ public static class ScenarioPoints
     /// <summary>The points of wave 1 for a three, in their order.</summary>
     public static IReadOnlyList<ScenarioPointName> Wave1Three { get; } = new[] { ScenarioPointName.Wave1A, ScenarioPointName.Wave1B, ScenarioPointName.Wave1C };
 
+    /// <summary>
+    /// The points of a nested wave that are the same turning point as a point of the context, on the setup's timeframe
+    /// (decision 0013): the start of wave 1, the end of a five or a three of wave 1, the start and the end of wave 2.
+    /// </summary>
+    public static IReadOnlyList<(ScenarioPointName Nested, ScenarioPointName Context)> Turnings { get; } = new[]
+    {
+        (ScenarioPointName.Wave1Origin, ScenarioPointName.Wave1Start),
+        (ScenarioPointName.Wave1V, ScenarioPointName.Wave1End),
+        (ScenarioPointName.Wave1C, ScenarioPointName.Wave1End),
+        (ScenarioPointName.Wave2Origin, ScenarioPointName.Wave1End),
+        (ScenarioPointName.Wave2C, ScenarioPointName.Wave2End)
+    };
+
     /// <summary>The points of wave 2, in their order.</summary>
     public static IReadOnlyList<ScenarioPointName> Wave2Points { get; } = new[] { ScenarioPointName.Wave2A, ScenarioPointName.Wave2B, ScenarioPointName.Wave2C };
 
@@ -43,6 +56,7 @@ public static class ScenarioPoints
         switch (name)
         {
             case ScenarioPointName.Wave1Start:
+            case ScenarioPointName.Wave1Origin:
             case ScenarioPointName.Wave2End:
             case ScenarioPointName.Wave1Ii:
             case ScenarioPointName.Wave1Iv:
@@ -51,6 +65,7 @@ public static class ScenarioPoints
             case ScenarioPointName.Wave2C:
                 return ScenarioSnapKind.Low;
             case ScenarioPointName.Wave1End:
+            case ScenarioPointName.Wave2Origin:
             case ScenarioPointName.Wave1I:
             case ScenarioPointName.Wave1Iii:
             case ScenarioPointName.Wave1V:
@@ -82,6 +97,10 @@ public static class ScenarioPoints
                 return "waves.wave1End";
             case ScenarioPointName.Wave2End:
                 return "waves.wave2End";
+            case ScenarioPointName.Wave1Origin:
+                return "wave1.start";
+            case ScenarioPointName.Wave2Origin:
+                return "wave2.start";
             case ScenarioPointName.Wave1I:
                 return "wave1.iEnd";
             case ScenarioPointName.Wave1Ii:

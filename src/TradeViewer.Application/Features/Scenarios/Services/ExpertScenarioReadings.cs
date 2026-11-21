@@ -23,6 +23,7 @@ public static class ExpertScenarioReadings
         Add(ScenarioPointName.Wave2End, scenario.Waves?.Wave2End);
 
         var wave1 = scenario.Wave1;
+        Add(ScenarioPointName.Wave1Origin, wave1?.Start);
         Add(ScenarioPointName.Wave1I, wave1?.IEnd);
         Add(ScenarioPointName.Wave1Ii, wave1?.IiEnd);
         Add(ScenarioPointName.Wave1Iii, wave1?.IiiEnd);
@@ -32,6 +33,7 @@ public static class ExpertScenarioReadings
         Add(ScenarioPointName.Wave1B, wave1?.BEnd);
         Add(ScenarioPointName.Wave1C, wave1?.CEnd);
 
+        Add(ScenarioPointName.Wave2Origin, scenario.Wave2?.Start);
         Add(ScenarioPointName.Wave2A, scenario.Wave2?.AEnd);
         Add(ScenarioPointName.Wave2B, scenario.Wave2?.BEnd);
         Add(ScenarioPointName.Wave2C, scenario.Wave2?.CEnd);

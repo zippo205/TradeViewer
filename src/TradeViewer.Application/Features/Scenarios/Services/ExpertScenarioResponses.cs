@@ -13,23 +13,28 @@ namespace TradeViewer.Application.Features.Scenarios.Services;
 public sealed class ExpertScenarioResponses
 {
     private readonly IAssetRepository _assets;
+    private readonly ScenarioTurnings _turnings;
 
-    public ExpertScenarioResponses(IAssetRepository assets)
+    public ExpertScenarioResponses(IAssetRepository assets, ScenarioTurnings turnings)
     {
         _assets = assets;
+        _turnings = turnings;
     }
 
-    public async Task<ExpertScenarioResponse> BuildAsync(ExpertScenarioRecord scenario, CancellationToken cancellationToken)
+    /// <param name="shown">The timeframe of the chart: the points of higher levels are drawn on its candles (SC8, decision 0013); null: each on its own.</param>
+    public async Task<ExpertScenarioResponse> BuildAsync(ExpertScenarioRecord scenario, string? shown, CancellationToken cancellationToken)
     {
         var problems = ScenarioFormRules.Check(ExpertScenarioReadings.Of(scenario))
             .Select(problem => new ScenarioProblemRecord(problem.Field, problem.Message))
             .ToList();
+        problems.AddRange(await _turnings.MisfitsAsync(scenario, cancellationToken));
+        var view = await _turnings.ForViewAsync(scenario, Timeframes.TryParse(shown, out var timeframe) ? timeframe : null, cancellationToken);
         var context = ContextOf(scenario);
         var levels = context == null
             ? new List<ScenarioLevelRecord>()
             : ScenarioLevels.All.Select(level => new ScenarioLevelRecord(ScenarioLevels.Code(level), Timeframes.Code(ScenarioLevels.TimeframeOf(context.Value, level)))).ToList();
 
-        return new ExpertScenarioResponse(scenario, ExpertScenarioShapes.Of(scenario), problems, levels, await AssetStateAsync(scenario, context, cancellationToken));
+        return new ExpertScenarioResponse(scenario, ExpertScenarioShapes.Of(view), problems, levels, await AssetStateAsync(scenario, context, cancellationToken));
     }
 
     /// <summary>The context timeframe of the scenario when it is one (1d or 4h).</summary>

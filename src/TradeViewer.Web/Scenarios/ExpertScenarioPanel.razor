@@ -144,7 +144,7 @@
             <ul class="scenario-problems">
                 @foreach (var problem in rest)
                 {
-                    <li><code>@problem.Field</code> @problem.Message</li>
+                    <li class="@(problem.Blocking ? "blocking" : "")"><code>@problem.Field</code> @(problem.Blocking ? "Fix before saving: " : "")@problem.Message</li>
                 }
             </ul>
         }
@@ -208,8 +208,8 @@
         {
             shown.Add(problem.Field + "\n" + problem.Message);
             builder.OpenElement(sequence++, "span");
-            builder.AddAttribute(sequence++, "class", "status-bad scenario-field-problem");
-            builder.AddContent(sequence++, problem.Message);
+            builder.AddAttribute(sequence++, "class", "status-bad scenario-field-problem" + (problem.Blocking ? " blocking" : ""));
+            builder.AddContent(sequence++, problem.Blocking ? "Fix before saving: " + problem.Message : problem.Message);
             builder.CloseElement();
         }
     };

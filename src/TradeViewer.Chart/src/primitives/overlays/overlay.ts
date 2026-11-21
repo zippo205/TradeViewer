@@ -26,6 +26,8 @@ export interface OverlayShape {
   readonly detail?: string;
   readonly style?: "solid" | "dotted" | "dashed";
   readonly weight?: "normal" | "strong";
+  /** What the shape stands for where an editor can select it (a named point, e.g. trade.exits#1). */
+  readonly key?: string;
 }
 
 export interface OverlayGroup {
@@ -82,6 +84,7 @@ export function parseShape(record: Record<string, unknown>): OverlayShape | unde
     style: record["style"] === "dotted" || record["style"] === "dashed" ? (record["style"] as "dotted" | "dashed") : undefined,
     weight: record["weight"] === "strong" ? ("strong" as const) : undefined,
     points: Array.isArray(record["points"]) ? parsePoints(record["points"]) : undefined,
+    key: text(record["key"]),
   };
 
   switch (type) {

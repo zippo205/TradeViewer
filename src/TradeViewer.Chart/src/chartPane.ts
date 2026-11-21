@@ -23,6 +23,7 @@ import { OverlayLayer } from "./primitives/overlays/overlayLayer";
 import { ScenarioHandles } from "./primitives/scenarioHandles";
 import { RangeBand } from "./primitives/rangeBand";
 import { RangeSelection, type RangeEvents } from "./tools/rangeSelection";
+import { OverlaySelection, type OverlaySelectionEvents } from "./tools/overlaySelection";
 import { ScenarioPointInteraction, type ScenarioHandle, type ScenarioPointEvents, type ScenarioTool } from "./tools/scenarioPoints";
 import type { IndicatorInstance } from "./indicators/indicator";
 import { IndicatorSet } from "./indicators/indicatorSet";
@@ -91,6 +92,7 @@ export interface PaneStats {
   readonly selectedPoint: string | undefined;
   readonly pointsPlaced: number;
   readonly rangeTool: boolean;
+  readonly selectedOverlay: { readonly group: string; readonly key?: string } | undefined;
   readonly rangeBand: { from: number; to: number } | undefined;
 }
 
@@ -128,6 +130,8 @@ export class ChartPane {
   private readonly rangeBand: RangeBand;
   private readonly rangeSelection: RangeSelection;
   private rangeListener: Partial<RangeEvents> = {};
+  private readonly overlaySelection: OverlaySelection;
+  private overlayListener: Partial<OverlaySelectionEvents> = {};
   private seriesLoaded: Promise<void> = Promise.resolve();
   private readonly pointerInput: PointerInput;
   private drawingListener: Partial<DrawingEvents> = {};
@@ -294,7 +298,11 @@ export class ChartPane {
     });
     this.rangeBand.bind(this.rangeSelection);
     this.candles.attachPrimitive(this.rangeBand);
-    this.pointerInput = new PointerInput(canvasHost, this.chart, [this.rangeSelection, this.scenarioPoints, this.drawingInteraction]);
+    // A form of an expert scenario is selected by clicking it (decision 0013); a handle on top of it wins.
+    this.overlaySelection = new OverlaySelection(this.overlayLayer, {
+      overlayClicked: (group, key) => this.overlayListener.overlayClicked?.(group, key),
+    });
+    this.pointerInput = new PointerInput(canvasHost, this.chart, [this.rangeSelection, this.scenarioPoints, this.overlaySelection, this.drawingInteraction]);
     this.latestButton = document.createElement("button");
     this.latestButton.type = "button";
     this.latestButton.className = "tv-chart-latest";
@@ -579,6 +587,20 @@ export class ChartPane {
     this.rangeListener = listener;
   }
 
+  /** The groups whose shapes can be selected by a click (the forms of the level shown); an empty list: none. */
+  setOverlaySelectable(keys: readonly string[] | null | undefined): void {
+    this.overlayLayer.setSelectable(keys ?? []);
+  }
+
+  /** Selects a group, or one shape of it by its key, or nothing. */
+  selectOverlay(group: string | null | undefined, key?: string | null): void {
+    this.overlayLayer.select(group ?? undefined, key ?? undefined);
+  }
+
+  onOverlayEvents(listener: Partial<OverlaySelectionEvents>): void {
+    this.overlayListener = listener;
+  }
+
   /** Selects a point by its key ("<field>" or "<field>#<index>"), or none. */
   selectScenarioPoint(key: string | null | undefined): void {
     this.scenarioPoints.select(key ?? undefined);
@@ -676,6 +698,7 @@ export class ChartPane {
       selectedPoint: this.scenarioPoints.selected(),
       pointsPlaced: this.pointsPlaced,
       rangeTool: this.rangeSelection.isActive(),
+      selectedOverlay: this.overlayLayer.selected(),
       rangeBand: this.rangeSelection.band(),
     };
   }

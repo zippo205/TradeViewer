@@ -88,6 +88,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<DeleteIndicatorTemplateCommand, Unit>, DeleteIndicatorTemplateCommandHandler>();
 
         // Scenarios (SC1-SC16, SC20, SC21)
+        services.AddScoped<ScenarioTurnings>();
         services.AddScoped<ExpertScenarioResponses>();
         services.AddScoped<IQueryHandler<GetScenariosStatusQuery, ScenariosStatusResponse>, GetScenariosStatusQueryHandler>();
         services.AddScoped<IQueryHandler<ListExpertScenariosQuery, IReadOnlyList<ExpertScenarioSummary>>, ListExpertScenariosQueryHandler>();

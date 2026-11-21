@@ -24,4 +24,4 @@ export function panes(): ChartPane[] {
   return [...openPanes];
 }
 
-export { bindDrawingEvents, bindIndicatorActions, bindPageKeys, bindRangeEvents, bindScenarioEvents, warnWhenLeaving } from "./blazorBridge";
+export { bindDrawingEvents, bindIndicatorActions, bindOverlayEvents, bindPageKeys, bindRangeEvents, bindScenarioEvents, warnWhenLeaving } from "./blazorBridge";

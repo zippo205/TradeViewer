@@ -36,6 +36,6 @@ public sealed class GetExpertScenarioQueryHandler : IQueryHandler<GetExpertScena
             return ScenarioErrors.NotFound(query.Id);
         }
 
-        return Result.Success(await _responses.BuildAsync(read.Scenario!, cancellationToken));
+        return Result.Success(await _responses.BuildAsync(read.Scenario!, query.Timeframe, cancellationToken));
     }
 }
